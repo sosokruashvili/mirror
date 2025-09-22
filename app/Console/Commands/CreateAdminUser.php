@@ -18,7 +18,7 @@ class CreateAdminUser extends Command
      *
      * @var string
      */
-    protected $description = 'Command description';
+    protected $description = 'Command description'; 
 
     /**
      * Execute the console command.
@@ -26,5 +26,5 @@ class CreateAdminUser extends Command
     public function handle()
     {
         //
-    }
+    } //sdasd
 }

@@ -13,4 +13,18 @@ class Client extends Model
 
     protected $table = 'clients';
     protected $guarded = ['id'];
+    
+    protected $fillable = [
+        'name',
+        'email',
+        'client_type',
+        'personal_id',
+        'legal_id',
+        'address',
+        'phone_number'
+    ];
+    
+    protected $casts = [
+        'client_type' => 'boolean'
+    ];
 }

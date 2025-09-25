@@ -39,12 +39,38 @@ class UserCrudController extends CrudController
      */
     protected function setupListOperation()
     {
-        CRUD::setFromDb(); // set columns from db columns.
+        CRUD::addColumn([
+            'name' => 'name',
+            'label' => 'Name',
+            'type' => 'text',
+        ]);
 
-        /**
-         * Columns can be defined using the fluent syntax:
-         * - CRUD::column('price')->type('number');
-         */
+        CRUD::addColumn([
+            'name' => 'email',
+            'label' => 'Email',
+            'type' => 'email',
+        ]);
+
+        CRUD::addColumn([
+            'name' => 'phone',
+            'label' => 'Phone',
+            'type' => 'phone',
+        ]);
+
+        CRUD::addColumn([
+            'name' => 'roles',
+            'label' => 'Roles',
+            'type' => 'select_multiple',
+            'entity' => 'roles',
+            'attribute' => 'name',
+            'model' => \App\Models\Role::class,
+        ]);
+
+        CRUD::addColumn([
+            'name' => 'created_at',
+            'label' => 'Created',
+            'type' => 'datetime',
+        ]);
     }
 
     /**
@@ -56,12 +82,63 @@ class UserCrudController extends CrudController
     protected function setupCreateOperation()
     {
         CRUD::setValidation(UserRequest::class);
-        CRUD::setFromDb(); // set fields from db columns.
+        
+        CRUD::addField([
+            'name' => 'name',
+            'label' => 'Name',
+            'type' => 'text',
+            'wrapper' => [
+                'class' => 'form-group col-md-12'
+            ]
+        ]);
 
-        /**
-         * Fields can be defined using the fluent syntax:
-         * - CRUD::field('price')->type('number');
-         */
+        CRUD::addField([
+            'name' => 'email',
+            'label' => 'Email',
+            'type' => 'email',
+            'wrapper' => [
+                'class' => 'form-group col-md-12'
+            ]
+        ]);
+
+        CRUD::addField([
+            'name' => 'phone',
+            'label' => 'Phone',
+            'type' => 'phone',
+            'wrapper' => [
+                'class' => 'form-group col-md-12'
+            ],
+            'config' => [
+                'onlyCountries' => ['ge'],
+                'initialCountry' => 'ge',
+                'separateDialCode' => true,
+                'nationalMode' => true,
+                'autoHideDialCode' => false,
+                'placeholderNumberType' => 'MOBILE',
+            ]
+        ]);
+
+        CRUD::addField([
+            'name' => 'password',
+            'label' => 'Password',
+            'type' => 'password',
+            'wrapper' => [
+                'class' => 'form-group col-md-12'
+            ]
+        ]);
+
+        CRUD::addField([
+            'name' => 'roles',
+            'label' => 'Roles',
+            'type' => 'select_multiple',
+            'entity' => 'roles',
+            'attribute' => 'name',
+            'model' => \App\Models\Role::class,
+            'pivot' => true,
+            'wrapper' => [
+                'class' => 'form-group col-md-12'
+            ]
+        ]);
     }
 
     /**

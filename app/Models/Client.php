@@ -27,4 +27,12 @@ class Client extends Model
     protected $casts = [
         'client_type' => 'boolean'
     ];
+
+    /**
+     * The orders that belong to the client.
+     */
+    public function orders()
+    {
+        return $this->hasMany(Order::class);
+    }
 }

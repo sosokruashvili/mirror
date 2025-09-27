@@ -63,7 +63,7 @@ return [
     'home_link' => '',
 
     // Menu logo. You can replace this with an <img> tag if you have a logo.
-    'project_logo' => '<b>Mirror</b>Gallery',
+    'project_logo' => '<b>Mirror</b>Gallery ERP',
 
     // Show / hide breadcrumbs on admin panel pages.
     'breadcrumbs' => true,

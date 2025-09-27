@@ -21,7 +21,12 @@ class Order extends Model
     // protected $primaryKey = 'id';
     // public $timestamps = false;
     protected $guarded = ['id'];
-    // protected $fillable = [];
+    protected $fillable = [
+        'name',
+        'status',
+        'order_type',
+        'client_id',
+    ];
     // protected $hidden = [];
 
     /*
@@ -35,6 +40,30 @@ class Order extends Model
     | RELATIONS
     |--------------------------------------------------------------------------
     */
+
+    /**
+     * The products that belong to the order.
+     */
+    public function products()
+    {
+        return $this->belongsToMany(Product::class);
+    }
+
+    /**
+     * The pieces that belong to the order.
+     */
+    public function pieces()
+    {
+        return $this->hasMany(Piece::class);
+    }
+
+    /**
+     * The client that owns the order.
+     */
+    public function client()
+    {
+        return $this->belongsTo(Client::class);
+    }
 
     /*
     |--------------------------------------------------------------------------

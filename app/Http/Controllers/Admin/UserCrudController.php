@@ -149,6 +149,103 @@ class UserCrudController extends CrudController
      */
     protected function setupUpdateOperation()
     {
-        $this->setupCreateOperation();
+        CRUD::setValidation(UserRequest::class);
+        
+        CRUD::addField([
+            'name' => 'name',
+            'label' => 'Name',
+            'type' => 'text',
+            'wrapper' => [
+                'class' => 'form-group col-md-12'
+            ]
+        ]);
+
+        CRUD::addField([
+            'name' => 'email',
+            'label' => 'Email',
+            'type' => 'email',
+            'wrapper' => [
+                'class' => 'form-group col-md-12'
+            ]
+        ]);
+
+        CRUD::addField([
+            'name' => 'phone',
+            'label' => 'Phone',
+            'type' => 'phone',
+            'wrapper' => [
+                'class' => 'form-group col-md-12'
+            ],
+            'config' => [
+                'onlyCountries' => ['ge'],
+                'initialCountry' => 'ge',
+                'separateDialCode' => true,
+                'nationalMode' => true,
+                'autoHideDialCode' => false,
+                'placeholderNumberType' => 'MOBILE',
+            ]
+        ]);
+
+        CRUD::addField([
+            'name' => 'password',
+            'label' => 'Password',
+            'type' => 'password',
+            'hint' => 'Leave empty to keep current password',
+            'wrapper' => [
+                'class' => 'form-group col-md-12'
+            ]
+        ]);
+
+        CRUD::addField([
+            'name' => 'roles',
+            'label' => 'Roles',
+            'type' => 'select_multiple',
+            'entity' => 'roles',
+            'attribute' => 'name',
+            'model' => \App\Models\Role::class,
+            'pivot' => true,
+            'wrapper' => [
+                'class' => 'form-group col-md-12'
+            ]
+        ]);
+    }
+
+    /**
+     * Store a newly created resource in storage.
+     */
+    public function store()
+    {
+        $this->crud->hasAccessOrFail('create');
+        $request = $this->crud->validateRequest();
+        $this->crud->registerFieldEvents();
+        $item = $this->crud->create($this->crud->getStrippedSaveRequest($request));
+        $this->data['entry'] = $this->crud->entry = $item;
+
+        \Alert::success(trans('backpack::crud.insert_success'))->flash();
+        $this->crud->setSaveAction();
+        return $this->crud->performSaveAction($item->getKey());
+    }
+
+    /**
+     * Update the specified resource in storage.
+     */
+    public function update()
+    {
+        $this->crud->hasAccessOrFail('update');
+        $request = $this->crud->validateRequest();
+        $this->crud->registerFieldEvents();
+        
+        // Remove password from request if it's empty
+        $data = $this->crud->getStrippedSaveRequest($request);
+        if (empty($data['password'])) {
+            unset($data['password']);
+        }
+        
+        $item = $this->crud->update($request->get($this->crud->model->getKeyName()), $data);
+        $this->data['entry'] = $this->crud->entry = $item;
+
+        \Alert::success(trans('backpack::crud.update_success'))->flash();
+        $this->crud->setSaveAction();
+        return $this->crud->performSaveAction($item->getKey());
     }
 }

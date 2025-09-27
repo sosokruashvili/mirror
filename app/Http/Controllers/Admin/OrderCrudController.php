@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use Backpack\CRUD\app\Http\Controllers\CrudController;
 use Backpack\CRUD\app\Library\CrudPanel\CrudPanelFacade as CRUD;
+use Prologue\Alerts\Facades\Alert;
 
 /**
  * Class OrderCrudController
@@ -38,15 +39,39 @@ class OrderCrudController extends CrudController
      */
     protected function setupListOperation()
     {
-        CRUD::setFromDb(); // set columns from db columns.
+        CRUD::addColumn([
+            'name' => 'name',
+            'label' => 'Name',
+            'type' => 'text',
+        ]);
 
-        /**
-         * Columns can be defined using the fluent syntax:
-         * - CRUD::column('price')->type('number');
-         */
-        
-        // Use custom view for orders
-        CRUD::setListView('vendor.backpack.crud.order.list');
+        CRUD::addColumn([
+            'name' => 'status',
+            'label' => 'Status',
+            'type' => 'text',
+        ]);
+
+        CRUD::addColumn([
+            'name' => 'order_type',
+            'label' => 'Order Type',
+            'type' => 'text',
+        ]);
+
+        CRUD::addColumn([
+            'name' => 'client_id',
+            'label' => 'Client',
+            'type' => 'select',
+            'entity' => 'client',
+            'attribute' => 'name',
+        ]);
+
+        CRUD::addColumn([
+            'name' => 'products',
+            'label' => 'Products',
+            'type' => 'select_multiple',
+            'entity' => 'products',
+            'attribute' => 'title',
+        ]);
     }
 
     /**
@@ -57,12 +82,65 @@ class OrderCrudController extends CrudController
      */
     protected function setupCreateOperation()
     {
-        CRUD::setFromDb(); // set fields from db columns.
+        CRUD::addField([
+            'name' => 'order_type',
+            'label' => 'Order Type',
+            'type' => 'select_from_array',
+            'options' => [
+                'retail' => 'Retail',
+                'wholesale' => 'Wholesale',
+            ],
+            'allows_null' => false,
+            'default' => 'retail',
+        ]);
 
-        /**
-         * Fields can be defined using the fluent syntax:
-         * - CRUD::field('price')->type('number');
-         */
+        CRUD::addField([
+            'name' => 'client_id',
+            'label' => 'Client',
+            'type' => 'select2',
+            'entity' => 'client',
+            'attribute' => 'name',
+            'model' => \App\Models\Client::class,
+            'allows_null' => true,
+            'hint' => 'Select the client for this order',
+        ]);
+
+        CRUD::addField([
+            'name' => 'status',
+            'label' => 'Status',
+            'type' => 'select_from_array',
+            'options' => [
+                'draft' => 'Draft',
+                'new' => 'New',
+                'working' => 'Working',
+                'done' => 'Done',
+                'finished' => 'Finished',
+            ],
+            'allows_null' => false,
+            'default' => 'draft',
+        ]);
+
+        CRUD::addField([
+            'name'       => 'products',
+            'label'      => 'Products',
+            'type'       => 'repeatable',
+            'init_rows'  => 1,
+            'min_rows'   => 1,
+            'fields'  => [
+                [
+                    'name'    => 'product_id',
+                    'label'   => 'Product',
+                    'type'    => 'select2',
+                    'entity' => 'product',
+                    'attribute' => 'title',
+                    'model' => \App\Models\Product::class,
+                    'allows_null' => false,
+                ],
+            ],
+            'hint' => 'Add products to this order',
+        ]);
+
+        
     }
 
     /**
@@ -75,4 +153,86 @@ class OrderCrudController extends CrudController
     {
         $this->setupCreateOperation();
     }
+
+    /**
+     * Store a newly created resource in storage.
+     */
+    public function store()
+    {
+        $this->crud->hasAccessOrFail('create');
+
+        // execute the FormRequest authorization and validation, if one is required
+        $request = $this->crud->validateRequest();
+
+        // register any Model Events defined on fields
+        $this->crud->registerFieldEvents();
+
+        // insert item in the db
+        $item = $this->crud->create($this->crud->getStrippedSaveRequest($request));
+        $this->data['entry'] = $this->crud->entry = $item;
+
+        // Handle products relationship
+        if ($request->has('products') && is_array($request->products)) {
+            $productIds = collect($request->products)
+                ->pluck('product_id')
+                ->filter()
+                ->unique()
+                ->values()
+                ->toArray();
+            
+            if (!empty($productIds)) {
+                $item->products()->sync($productIds);
+            }
+        }
+
+        // show a success message
+        \Alert::success(trans('backpack::crud.insert_success'))->flash();
+
+        // save the redirect choice for next time
+        $this->crud->setSaveAction();
+
+        return $this->crud->performSaveAction($item->getKey());
+    }
+
+    /**
+     * Update the specified resource in storage.
+     */
+    public function update()
+    {
+        $this->crud->hasAccessOrFail('update');
+
+        // execute the FormRequest authorization and validation, if one is required
+        $request = $this->crud->validateRequest();
+
+        // register any Model Events defined on fields
+        $this->crud->registerFieldEvents();
+
+        // update the row in the db
+        $item = $this->crud->update($request->get($this->crud->model->getKeyName()),
+                            $this->crud->getStrippedSaveRequest($request));
+        $this->data['entry'] = $this->crud->entry = $item;
+
+        // Handle products relationship
+        if ($request->has('products') && is_array($request->products)) {
+            $productIds = collect($request->products)
+                ->pluck('product_id')
+                ->filter()
+                ->unique()
+                ->values()
+                ->toArray();
+            
+            if (!empty($productIds)) {
+                $item->products()->sync($productIds);
+            }
+        }
+
+        // show a success message
+        \Alert::success(trans('backpack::crud.update_success'))->flash();
+
+        // save the redirect choice for next time
+        $this->crud->setSaveAction();
+
+        return $this->crud->performSaveAction($item->getKey());
+    }
+
 }

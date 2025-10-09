@@ -35,4 +35,12 @@ class Client extends Model
     {
         return $this->hasMany(Order::class);
     }
+
+    /**
+     * The payments that belong to the client.
+     */
+    public function payments()
+    {
+        return $this->hasMany(Payment::class);
+    }
 }

@@ -140,6 +140,55 @@ class OrderCrudController extends CrudController
             'hint' => 'Add products to this order',
         ]);
 
+        CRUD::addField([
+            'name'       => 'pieces',
+            'label'      => 'Pieces',
+            'type'       => 'repeatable',
+            'init_rows'  => 1,
+            'min_rows'   => 1,
+            'fields'     => [
+                [
+                    'name'      => 'width',
+                    'label'     => 'Width',
+                    'type'      => 'number',
+                    'attributes' => [
+                        'step' => '0.01',
+                        'min' => '0',
+                        'required' => true,
+                    ],
+                    'wrapper' => [
+                        'class' => 'form-group col-md-4'
+                    ],
+                ],
+                [
+                    'name'      => 'height',
+                    'label'     => 'Height',
+                    'type'      => 'number',
+                    'attributes' => [
+                        'step' => '0.01',
+                        'min' => '0',
+                        'required' => true,
+                    ],
+                    'wrapper' => [
+                        'class' => 'form-group col-md-4'
+                    ],
+                ],
+                [
+                    'name'      => 'quantity',
+                    'label'     => 'Quantity',
+                    'type'      => 'number',
+                    'attributes' => [
+                        'min' => '1',
+                        'required' => true,
+                    ],
+                    'wrapper' => [
+                        'class' => 'form-group col-md-4'
+                    ],
+                ],
+            ],
+            'hint' => 'Add pieces to this order',
+        ]);
+
         
     }
 
@@ -152,6 +201,17 @@ class OrderCrudController extends CrudController
     protected function setupUpdateOperation()
     {
         $this->setupCreateOperation();
+        
+        // Populate pieces data for editing
+        $this->crud->modifyField('pieces', [
+            'value' => $this->crud->getCurrentEntry()->pieces->map(function($piece) {
+                return [
+                    'width' => $piece->width,
+                    'height' => $piece->height,
+                    'quantity' => $piece->quantity,
+                ];
+            })->toArray()
+        ]);
     }
 
     /**
@@ -182,6 +242,24 @@ class OrderCrudController extends CrudController
             
             if (!empty($productIds)) {
                 $item->products()->sync($productIds);
+            }
+        }
+
+        // Handle pieces creation
+        if ($request->has('pieces') && is_array($request->pieces)) {
+            // Delete existing pieces for this order
+            $item->pieces()->delete();
+            
+            // Create new pieces
+            foreach ($request->pieces as $pieceData) {
+                if (!empty($pieceData['width']) && !empty($pieceData['height']) && !empty($pieceData['quantity'])) {
+                    $item->pieces()->create([
+                        'width' => $pieceData['width'],
+                        'height' => $pieceData['height'],
+                        'quantity' => $pieceData['quantity'],
+                        'status' => 'pending',
+                    ]);
+                }
             }
         }
 
@@ -223,6 +301,24 @@ class OrderCrudController extends CrudController
             
             if (!empty($productIds)) {
                 $item->products()->sync($productIds);
+            }
+        }
+
+        // Handle pieces creation/update
+        if ($request->has('pieces') && is_array($request->pieces)) {
+            // Delete existing pieces for this order
+            $item->pieces()->delete();
+            
+            // Create new pieces
+            foreach ($request->pieces as $pieceData) {
+                if (!empty($pieceData['width']) && !empty($pieceData['height']) && !empty($pieceData['quantity'])) {
+                    $item->pieces()->create([
+                        'width' => $pieceData['width'],
+                        'height' => $pieceData['height'],
+                        'quantity' => $pieceData['quantity'],
+                        'status' => 'pending',
+                    ]);
+                }
             }
         }
 

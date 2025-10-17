@@ -106,22 +106,22 @@ class PaymentCrudController extends CrudController
             'allows_null' => true,
             'hint' => 'Select the client for this payment',
             'wrapper' => [
-                'class' => 'form-group col-md-12'
+                'class' => 'form-group col-md-6'
             ]
         ]);
 
         CRUD::addField([
-            'name' => 'amount_gel',
-            'label' => 'Amount GEL',
-            'type' => 'number',
-            'attributes' => [
-                'step' => '0.01',
-                'min' => '0',
-                'required' => true,
+            'name' => 'method',
+            'label' => 'Payment Method',
+            'type' => 'select_from_array',
+            'options' => [
+                'Cash' => 'Cash',
+                'Transfer' => 'Transfer',
             ],
-            'suffix' => '₾',
+            'allows_null' => false,
+            'default' => 'Cash',
             'wrapper' => [
-                'class' => 'form-group col-md-4'
+                'class' => 'form-group col-md-6'
             ]
         ]);
 
@@ -136,7 +136,7 @@ class PaymentCrudController extends CrudController
             ],
             'hint' => 'Exchange rate for GEL to USD',
             'wrapper' => [
-                'class' => 'form-group col-md-4'
+                'class' => 'form-group col-md-6'
             ]
         ]);
 
@@ -151,20 +151,34 @@ class PaymentCrudController extends CrudController
             ],
             'prefix' => '$',
             'wrapper' => [
-                'class' => 'form-group col-md-4'
+                'class' => 'form-group col-md-6'
             ]
         ]);
 
         CRUD::addField([
-            'name' => 'method',
-            'label' => 'Payment Method',
-            'type' => 'select_from_array',
-            'options' => [
-                'Cash' => 'Cash',
-                'Transfer' => 'Transfer',
+            'name' => 'amount_gel',
+            'label' => 'Amount GEL',
+            'type' => 'number',
+            'attributes' => [
+                'step' => '0.01',
+                'min' => '0',
+                'required' => true,
             ],
-            'allows_null' => false,
-            'default' => 'Cash',
+            'suffix' => '₾',
+            'wrapper' => [
+                'class' => 'form-group col-md-6'
+            ]
+        ]);
+
+        
+
+        CRUD::addField([
+            'name' => 'file',
+            'label' => 'Payment File',
+            'type' => 'upload',
+            'upload' => true,
+            'disk' => 'public',
+            'hint' => 'Upload payment related document (invoice, receipt, etc.)',
             'wrapper' => [
                 'class' => 'form-group col-md-6'
             ]
@@ -185,17 +199,6 @@ class PaymentCrudController extends CrudController
             ]
         ]);
 
-        CRUD::addField([
-            'name' => 'file',
-            'label' => 'Payment File',
-            'type' => 'upload',
-            'upload' => true,
-            'disk' => 'public',
-            'hint' => 'Upload payment related document (invoice, receipt, etc.)',
-            'wrapper' => [
-                'class' => 'form-group col-md-12'
-            ]
-        ]);
 
         CRUD::addField([
             'name' => 'payment_date',
@@ -207,7 +210,7 @@ class PaymentCrudController extends CrudController
             ],
             'allows_null' => false,
             'wrapper' => [
-                'class' => 'form-group col-md-12'
+                'class' => 'form-group col-md-6'
             ]
         ]);
     }

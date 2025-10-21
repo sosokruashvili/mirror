@@ -29,6 +29,9 @@ class ProductCrudController extends CrudController
         CRUD::setModel(\App\Models\Product::class);
         CRUD::setRoute(config('backpack.base.route_prefix') . '/product');
         CRUD::setEntityNameStrings('product', 'products');
+        
+        // Enable export buttons
+        $this->crud->enableExportButtons();
     }
 
     /**
@@ -66,6 +69,66 @@ class ProductCrudController extends CrudController
             'decimals' => 2,
             'prefix' => '$',
         ]);
+
+        // Add Filters
+        CRUD::addFilter([
+            'name' => 'product_type',
+            'type' => 'select2',
+            'label' => 'Product Type'
+        ], function() {
+            return [
+                'glass' => 'Glass',
+                'film' => 'Film',
+            ];
+        }, function($value) {
+            $this->crud->addClause('where', 'product_type', $value);
+        });
+
+        CRUD::addFilter([
+            'type' => 'range',
+            'name' => 'price',
+            'label' => 'Retail Price',
+            'label_from' => 'Min price',
+            'label_to' => 'Max price'
+        ],
+        false,
+        function($value) {
+            $range = json_decode($value);
+            if ($range->from) {
+                $this->crud->addClause('where', 'price', '>=', (float) $range->from);
+            }
+            if ($range->to) {
+                $this->crud->addClause('where', 'price', '<=', (float) $range->to);
+            }
+        });
+
+        CRUD::addFilter([
+            'type' => 'range',
+            'name' => 'price_w',
+            'label' => 'Wholesale Price',
+            'label_from' => 'Min price',
+            'label_to' => 'Max price'
+        ],
+        false,
+        function($value) {
+            $range = json_decode($value);
+            if ($range->from) {
+                $this->crud->addClause('where', 'price_w', '>=', (float) $range->from);
+            }
+            if ($range->to) {
+                $this->crud->addClause('where', 'price_w', '<=', (float) $range->to);
+            }
+        });
+
+        CRUD::addFilter([
+            'type' => 'text',
+            'name' => 'title',
+            'label' => 'Title'
+        ],
+        false,
+        function($value) {
+            $this->crud->addClause('where', 'title', 'LIKE', "%{$value}%");
+        });
     }
 
     /**

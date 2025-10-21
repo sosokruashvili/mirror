@@ -29,6 +29,9 @@ class OrderCrudController extends CrudController
         CRUD::setModel(\App\Models\Order::class);
         CRUD::setRoute(config('backpack.base.route_prefix') . '/order');
         CRUD::setEntityNameStrings('order', 'orders');
+        
+        // Enable export buttons
+        $this->crud->enableExportButtons();
     }
 
     /**
@@ -82,6 +85,9 @@ class OrderCrudController extends CrudController
      */
     protected function setupCreateOperation()
     {
+        // Set custom view for create operation
+        $this->crud->setCreateView('vendor.backpack.crud.order.create');
+        
         CRUD::addField([
             'name' => 'order_type',
             'label' => 'Order Type',
@@ -105,19 +111,21 @@ class OrderCrudController extends CrudController
             'hint' => 'Select the client for this order',
         ]);
 
+        
+
         CRUD::addField([
-            'name' => 'status',
-            'label' => 'Status',
+            'name' => 'order_product_type',
+            'label' => 'Order Product Type',
             'type' => 'select_from_array',
             'options' => [
-                'draft' => 'Draft',
-                'new' => 'New',
-                'working' => 'Working',
-                'done' => 'Done',
-                'finished' => 'Finished',
+                'mirror' => 'Mirror',
+                'glass' => 'Glass',
+                'lamix' => 'Lamix',
+                'glass_pkg' => 'Glass Package',
+                'service' => 'Service'
             ],
-            'allows_null' => false,
-            'default' => 'draft',
+            'allows_null' => true,
+            'default' => null,
         ]);
 
         CRUD::addField([
@@ -189,6 +197,21 @@ class OrderCrudController extends CrudController
             'hint' => 'Add pieces to this order',
         ]);
 
+        CRUD::addField([
+            'name' => 'status',
+            'label' => 'Status',
+            'type' => 'select_from_array',
+            'options' => [
+                'draft' => 'Draft',
+                'new' => 'New',
+                'working' => 'Working',
+                'done' => 'Done',
+                'finished' => 'Finished',
+            ],
+            'allows_null' => false,
+            'default' => 'draft',
+        ]);
+
         
     }
 
@@ -200,6 +223,9 @@ class OrderCrudController extends CrudController
      */
     protected function setupUpdateOperation()
     {
+        // Set custom view for edit operation
+        $this->crud->setEditView('vendor.backpack.crud.order.edit');
+        
         $this->setupCreateOperation();
         
         // Populate pieces data for editing

@@ -28,6 +28,9 @@ class PaymentCrudController extends CrudController
         CRUD::setModel(\App\Models\Payment::class);
         CRUD::setRoute(config('backpack.base.route_prefix') . '/payment');
         CRUD::setEntityNameStrings('payment', 'payments');
+        
+        // Enable export buttons
+        $this->crud->enableExportButtons();
     }
 
     /**
@@ -86,6 +89,95 @@ class PaymentCrudController extends CrudController
             'label' => 'Payment Date',
             'type' => 'datetime',
         ]);
+
+        // Add Filters
+        CRUD::addFilter([
+            'name' => 'client_id',
+            'type' => 'select2',
+            'label' => 'Client'
+        ], function() {
+            return \App\Models\Client::all()->pluck('name', 'id')->toArray();
+        }, function($value) {
+            $this->crud->addClause('where', 'client_id', $value);
+        });
+
+        CRUD::addFilter([
+            'name' => 'method',
+            'type' => 'select2',
+            'label' => 'Payment Method'
+        ], function() {
+            return [
+                'Cash' => 'Cash',
+                'Transfer' => 'Transfer',
+            ];
+        }, function($value) {
+            $this->crud->addClause('where', 'method', $value);
+        });
+
+        CRUD::addFilter([
+            'name' => 'status',
+            'type' => 'select2',
+            'label' => 'Status'
+        ], function() {
+            return [
+                'Paid' => 'Paid',
+                'Pending' => 'Pending',
+            ];
+        }, function($value) {
+            $this->crud->addClause('where', 'status', $value);
+        });
+
+        CRUD::addFilter([
+            'type' => 'range',
+            'name' => 'amount_gel',
+            'label' => 'Amount GEL',
+            'label_from' => 'Min amount',
+            'label_to' => 'Max amount'
+        ],
+        false,
+        function($value) {
+            $range = json_decode($value);
+            if ($range->from) {
+                $this->crud->addClause('where', 'amount_gel', '>=', (float) $range->from);
+            }
+            if ($range->to) {
+                $this->crud->addClause('where', 'amount_gel', '<=', (float) $range->to);
+            }
+        });
+
+        CRUD::addFilter([
+            'type' => 'range',
+            'name' => 'amount_usd',
+            'label' => 'Amount USD',
+            'label_from' => 'Min amount',
+            'label_to' => 'Max amount'
+        ],
+        false,
+        function($value) {
+            $range = json_decode($value);
+            if ($range->from) {
+                $this->crud->addClause('where', 'amount_usd', '>=', (float) $range->from);
+            }
+            if ($range->to) {
+                $this->crud->addClause('where', 'amount_usd', '<=', (float) $range->to);
+            }
+        });
+
+        CRUD::addFilter([
+            'name' => 'payment_date',
+            'type' => 'date_range',
+            'label' => 'Payment Date Range'
+        ],
+        false,
+        function($value) {
+            $dates = json_decode($value);
+            if ($dates->from) {
+                $this->crud->addClause('where', 'payment_date', '>=', $dates->from);
+            }
+            if ($dates->to) {
+                $this->crud->addClause('where', 'payment_date', '<=', $dates->to . ' 23:59:59');
+            }
+        });
     }
 
     /**

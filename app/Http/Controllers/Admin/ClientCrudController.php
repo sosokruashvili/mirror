@@ -28,6 +28,9 @@ class ClientCrudController extends CrudController
         CRUD::setModel(\App\Models\Client::class);
         CRUD::setRoute(config('backpack.base.route_prefix') . '/client');
         CRUD::setEntityNameStrings('client', 'clients');
+        
+        // Enable export buttons
+        $this->crud->enableExportButtons();
     }
 
     /**
@@ -73,6 +76,60 @@ class ClientCrudController extends CrudController
         ]);
         
         CRUD::setFromDb();
+
+        // Add Filters
+        CRUD::addFilter([
+            'name' => 'client_type',
+            'type' => 'select2',
+            'label' => 'Client Type'
+        ], function() {
+            return [
+                0 => 'Individual',
+                1 => 'Legal',
+            ];
+        }, function($value) {
+            $this->crud->addClause('where', 'client_type', $value);
+        });
+
+        CRUD::addFilter([
+            'type' => 'text',
+            'name' => 'name',
+            'label' => 'Name'
+        ],
+        false,
+        function($value) {
+            $this->crud->addClause('where', 'name', 'LIKE', "%{$value}%");
+        });
+
+        CRUD::addFilter([
+            'type' => 'text',
+            'name' => 'email',
+            'label' => 'Email'
+        ],
+        false,
+        function($value) {
+            $this->crud->addClause('where', 'email', 'LIKE', "%{$value}%");
+        });
+
+        CRUD::addFilter([
+            'type' => 'text',
+            'name' => 'phone_number',
+            'label' => 'Phone'
+        ],
+        false,
+        function($value) {
+            $this->crud->addClause('where', 'phone_number', 'LIKE', "%{$value}%");
+        });
+
+        CRUD::addFilter([
+            'type' => 'text',
+            'name' => 'address',
+            'label' => 'Address'
+        ],
+        false,
+        function($value) {
+            $this->crud->addClause('where', 'address', 'LIKE', "%{$value}%");
+        });
     }
 
     /**
@@ -103,6 +160,7 @@ class ClientCrudController extends CrudController
             'name' => 'name',
             'label' => 'Name',
             'type' => 'text',
+            'validationRules' => 'required',
             'wrapper' => [
                 'class' => 'form-group col-md-6'
             ]
@@ -112,12 +170,13 @@ class ClientCrudController extends CrudController
             'name' => 'personal_id',
             'label' => 'Personal ID',
             'type' => 'text',
+            'validationRules' => 'required_if:client_type,0',
             'wrapper' => [
                 'class' => 'form-group col-md-6 personal-id-field',
                 'style' => 'display: none;'
             ],
             'attributes' => [
-                'placeholder' => 'Enter personal ID number'
+                'placeholder' => 'Enter personal ID number',
             ]
         ]);
 
@@ -125,9 +184,13 @@ class ClientCrudController extends CrudController
             'name' => 'address',
             'label' => 'Address',
             'type' => 'textarea',
+            'validationRules' => 'required',
             'wrapper' => [
                 'class' => 'form-group col-md-12'
-            ]
+            ],
+            'attributes' => [
+                'required' => true,
+            ],
         ]);
 
         
@@ -135,6 +198,7 @@ class ClientCrudController extends CrudController
             'name' => 'legal_id',
             'label' => 'Legal ID',
             'type' => 'text',
+            'validationRules' => 'required_if:client_type,1',
             'wrapper' => [
                 'class' => 'form-group col-md-6 legal-id-field',
                 'style' => 'display: none;'
@@ -149,6 +213,7 @@ class ClientCrudController extends CrudController
             'name' => 'email',
             'label' => 'Email',
             'type' => 'email',
+            'validationRules' => 'nullable|email',
             'wrapper' => [
                 'class' => 'form-group col-md-6 email-field'
             ]
@@ -159,8 +224,12 @@ class ClientCrudController extends CrudController
             'name'  => 'phone_number', // db column for phone
             'label' => 'Phone',
             'type'  => 'phone',
+            'validationRules' => 'required',
             'wrapper' => [
                 'class' => 'form-group col-md-6 phone-number-field'
+            ],
+            'attributes' => [
+                'required' => true,
             ],
         
             // OPTIONALS
@@ -188,18 +257,36 @@ class ClientCrudController extends CrudController
                     const clientTypeSelect = document.querySelector(\'select[name="client_type"]\');
                     const personalIdField = document.querySelector(\'.personal-id-field\');
                     const legalIdField = document.querySelector(\'.legal-id-field\');
+                    const personalIdInput = document.querySelector(\'input[name="personal_id"]\');
+                    const legalIdInput = document.querySelector(\'input[name="legal_id"]\');
                     
                     function toggleIdFields() {
                         if (clientTypeSelect.value == "1") {
                             // Legal client - show legal ID, hide personal ID
                             personalIdField.style.display = "none";
                             legalIdField.style.display = "block";
-                            document.querySelector(\'input[name="personal_id"]\').value = "";
+                            personalIdInput.value = "";
+                            personalIdInput.removeAttribute("required");
+                            legalIdInput.setAttribute("required", "required");
+                            
+                            // Update labels with asterisk
+                            const personalLabel = personalIdField.querySelector("label");
+                            const legalLabel = legalIdField.querySelector("label");
+                            if (personalLabel) personalLabel.innerHTML = "Personal ID";
+                            if (legalLabel) legalLabel.innerHTML = "Legal ID <span class=\"text-danger\">*</span>";
                         } else {
                             // Individual client - show personal ID, hide legal ID
                             personalIdField.style.display = "block";
                             legalIdField.style.display = "none";
-                            document.querySelector(\'input[name="legal_id"]\').value = "";
+                            legalIdInput.value = "";
+                            legalIdInput.removeAttribute("required");
+                            personalIdInput.setAttribute("required", "required");
+                            
+                            // Update labels with asterisk
+                            const personalLabel = personalIdField.querySelector("label");
+                            const legalLabel = legalIdField.querySelector("label");
+                            if (personalLabel) personalLabel.innerHTML = "Personal ID <span class=\"text-danger\">*</span>";
+                            if (legalLabel) legalLabel.innerHTML = "Legal ID";
                         }
                     }
                     

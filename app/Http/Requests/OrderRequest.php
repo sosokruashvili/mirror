@@ -25,7 +25,15 @@ class OrderRequest extends FormRequest
     public function rules()
     {
         return [
-            // 'name' => 'required|min:5|max:255'
+            'order_type' => 'required|in:retail,wholesale',
+            'client_id' => 'required|exists:clients,id',
+            'status' => 'required|in:draft,new,working,done,finished',
+            'products' => 'required|array|min:1',
+            'products.*.product_id' => 'required|exists:products,id',
+            'pieces' => 'required|array|min:1',
+            'pieces.*.width' => 'required|numeric|min:0',
+            'pieces.*.height' => 'required|numeric|min:0',
+            'pieces.*.quantity' => 'required|integer|min:1',
         ];
     }
 
@@ -37,7 +45,12 @@ class OrderRequest extends FormRequest
     public function attributes()
     {
         return [
-            //
+            'client_id' => 'client',
+            'order_type' => 'order type',
+            'products.*.product_id' => 'product',
+            'pieces.*.width' => 'width',
+            'pieces.*.height' => 'height',
+            'pieces.*.quantity' => 'quantity',
         ];
     }
 
@@ -49,7 +62,11 @@ class OrderRequest extends FormRequest
     public function messages()
     {
         return [
-            //
+            'client_id.required' => 'Please select a client for this order.',
+            'products.required' => 'At least one product is required.',
+            'products.min' => 'At least one product is required.',
+            'pieces.required' => 'At least one piece is required.',
+            'pieces.min' => 'At least one piece is required.',
         ];
     }
 }

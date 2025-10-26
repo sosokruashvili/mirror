@@ -23,7 +23,7 @@ class ProductRequest extends FormRequest
     {
         return [
             'title' => 'required|string|max:255',
-            'product_type' => 'required|in:glass,film,extra',
+            'product_type' => 'required|in:glass,film,mirror,butyl,extra',
             'price' => 'required|numeric|min:0',
             'price_w' => 'nullable|numeric|min:0',
         ];

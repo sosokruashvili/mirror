@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use Backpack\CRUD\app\Http\Controllers\CrudController;
 use Backpack\CRUD\app\Library\CrudPanel\CrudPanelFacade as CRUD;
 use Prologue\Alerts\Facades\Alert;
+use Backpack\CRUD\app\Library\Widget;
 
 /**
  * Class OrderCrudController
@@ -32,6 +33,7 @@ class OrderCrudController extends CrudController
         
         // Enable export buttons
         $this->crud->enableExportButtons();
+        Widget::add()->type('script')->content('assets/js/orders.js');
     }
 
     /**
@@ -88,6 +90,9 @@ class OrderCrudController extends CrudController
         // Set custom view for create operation
         $this->crud->setCreateView('vendor.backpack.crud.order.create');
         
+        // Set validation rules
+        $this->crud->setValidation(\App\Http\Requests\OrderRequest::class);
+        
         CRUD::addField([
             'name' => 'order_type',
             'label' => 'Order Type',
@@ -98,6 +103,9 @@ class OrderCrudController extends CrudController
             ],
             'allows_null' => false,
             'default' => 'retail',
+            'attributes' => [
+                'required' => true,
+            ]
         ]);
 
         CRUD::addField([
@@ -109,6 +117,9 @@ class OrderCrudController extends CrudController
             'model' => \App\Models\Client::class,
             'allows_null' => true,
             'hint' => 'Select the client for this order',
+            'attributes' => [
+                'required' => true,
+            ],
         ]);
 
         
@@ -126,6 +137,9 @@ class OrderCrudController extends CrudController
             ],
             'allows_null' => true,
             'default' => null,
+            'attributes' => [
+                'required' => true,
+            ],
         ]);
 
         CRUD::addField([
@@ -134,19 +148,26 @@ class OrderCrudController extends CrudController
             'type'       => 'repeatable',
             'init_rows'  => 1,
             'min_rows'   => 1,
+            'new_item_label' => 'New Product',
             'fields'  => [
                 [
                     'name'    => 'product_id',
                     'label'   => 'Product',
-                    'type'    => 'select2',
+                    'type'    => 'select2_from_ajax',
                     'entity' => 'product',
                     'attribute' => 'title',
                     'model' => \App\Models\Product::class,
                     'allows_null' => false,
+                    'data_source' => url('api/products-filtered'),
+                    'placeholder' => 'Select a product',
+                    'minimum_input_length' => 0,
+                    'dependencies' => ['order_product_type'],
+                    'method' => 'GET',
                 ],
             ],
-            'hint' => 'Add products to this order',
+            'hint' => 'Add products to this order (filtered by Order Product Type)',
         ]);
+
 
         CRUD::addField([
             'name'       => 'pieces',
@@ -159,6 +180,7 @@ class OrderCrudController extends CrudController
                     'name'      => 'width',
                     'label'     => 'Width',
                     'type'      => 'number',
+                    'showAsterisk' => true,
                     'attributes' => [
                         'step' => '0.01',
                         'min' => '0',
@@ -227,6 +249,17 @@ class OrderCrudController extends CrudController
         $this->crud->setEditView('vendor.backpack.crud.order.edit');
         
         $this->setupCreateOperation();
+        
+        // Make order_product_type readonly on edit page
+        $this->crud->modifyField('order_product_type', [
+            'attributes' => [
+                'disabled' => 'disabled',
+            ],
+            'wrapper' => [
+                'class' => 'form-group col-md-12 readonly-field'
+            ],
+            'hint' => 'Order Product Type cannot be changed after creation',
+        ]);
         
         // Populate pieces data for editing
         $this->crud->modifyField('pieces', [

@@ -157,6 +157,8 @@ class ProductCrudController extends CrudController
             'options' => [
                 'glass' => 'Glass',
                 'film' => 'Film',
+                'mirror' => 'Mirror',
+                'butyl' => 'Butyl',
             ],
             'allows_null' => false,
             'default' => 'glass',

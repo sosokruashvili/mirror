@@ -58,6 +58,16 @@ class Order extends Model
     }
 
     /**
+     * The services that belong to the order.
+     */
+    public function services()
+    {
+        return $this->belongsToMany(Service::class)
+            ->withPivot('quantity', 'description')
+            ->withTimestamps();
+    }
+
+    /**
      * The client that owns the order.
      */
     public function client()

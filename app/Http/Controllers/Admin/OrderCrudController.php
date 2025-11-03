@@ -77,6 +77,14 @@ class OrderCrudController extends CrudController
             'entity' => 'products',
             'attribute' => 'title',
         ]);
+
+        CRUD::addColumn([
+            'name' => 'services',
+            'label' => 'Services',
+            'type' => 'select_multiple',
+            'entity' => 'services',
+            'attribute' => 'title',
+        ]);
     }
 
     /**
@@ -153,7 +161,7 @@ class OrderCrudController extends CrudController
                 [
                     'name'    => 'product_id',
                     'label'   => 'Product',
-                    'type'    => 'select2_from_ajax',
+                    'type'    => 'select2',
                     'entity' => 'product',
                     'attribute' => 'title',
                     'model' => \App\Models\Product::class,
@@ -166,6 +174,57 @@ class OrderCrudController extends CrudController
                 ],
             ],
             'hint' => 'Add products to this order (filtered by Order Product Type)',
+        ]);
+
+        CRUD::addField([
+            'name'       => 'services',
+            'label'      => 'Services',
+            'type'       => 'repeatable',
+            'init_rows'  => 0,
+            'min_rows'   => 0,
+            'new_item_label' => 'Add Service',
+            'fields'     => [
+                [
+                    'name'    => 'service_id',
+                    'label'   => 'Service',
+                    'type'    => 'select2',
+                    'entity' => 'service',
+                    'attribute' => 'title',
+                    'model' => \App\Models\Service::class,
+                    'allows_null' => false,
+                    'placeholder' => 'Select a service',
+                    'minimum_input_length' => 0,
+                    'wrapper' => [
+                        'class' => 'form-group col-md-6'
+                    ],
+                ],
+                [
+                    'name'      => 'quantity',
+                    'label'     => 'Quantity',
+                    'type'      => 'number',
+                    'attributes' => [
+                        'min' => '1',
+                        'required' => true,
+                    ],
+                    'default' => 1,
+                    'wrapper' => [
+                        'class' => 'form-group col-md-6'
+                    ],
+                ],
+                [
+                    'name'      => 'description',
+                    'label'     => 'Description',
+                    'type'      => 'textarea',
+                    'attributes' => [
+                        'rows' => 2,
+                        'placeholder' => 'Additional notes for this service',
+                    ],
+                    'wrapper' => [
+                        'class' => 'form-group col-md-12'
+                    ],
+                ],
+            ],
+            'hint' => 'Add services to this order',
         ]);
 
 
@@ -219,6 +278,8 @@ class OrderCrudController extends CrudController
             'hint' => 'Add pieces to this order',
         ]);
 
+        
+
         CRUD::addField([
             'name' => 'status',
             'label' => 'Status',
@@ -271,6 +332,17 @@ class OrderCrudController extends CrudController
                 ];
             })->toArray()
         ]);
+
+        // Populate services data for editing
+        $this->crud->modifyField('services', [
+            'value' => $this->crud->getCurrentEntry()->services->map(function($service) {
+                return [
+                    'service_id' => $service->id,
+                    'quantity' => $service->pivot->quantity,
+                    'description' => $service->pivot->description,
+                ];
+            })->toArray()
+        ]);
     }
 
     /**
@@ -301,6 +373,23 @@ class OrderCrudController extends CrudController
             
             if (!empty($productIds)) {
                 $item->products()->sync($productIds);
+            }
+        }
+
+        // Handle services relationship
+        if ($request->has('services') && is_array($request->services)) {
+            $servicesData = [];
+            foreach ($request->services as $serviceData) {
+                if (!empty($serviceData['service_id'])) {
+                    $servicesData[$serviceData['service_id']] = [
+                        'quantity' => $serviceData['quantity'] ?? 1,
+                        'description' => $serviceData['description'] ?? null,
+                    ];
+                }
+            }
+            
+            if (!empty($servicesData)) {
+                $item->services()->sync($servicesData);
             }
         }
 
@@ -360,6 +449,23 @@ class OrderCrudController extends CrudController
             
             if (!empty($productIds)) {
                 $item->products()->sync($productIds);
+            }
+        }
+
+        // Handle services relationship
+        if ($request->has('services') && is_array($request->services)) {
+            $servicesData = [];
+            foreach ($request->services as $serviceData) {
+                if (!empty($serviceData['service_id'])) {
+                    $servicesData[$serviceData['service_id']] = [
+                        'quantity' => $serviceData['quantity'] ?? 1,
+                        'description' => $serviceData['description'] ?? null,
+                    ];
+                }
+            }
+            
+            if (!empty($servicesData)) {
+                $item->services()->sync($servicesData);
             }
         }
 

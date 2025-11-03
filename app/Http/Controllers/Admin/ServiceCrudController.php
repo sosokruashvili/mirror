@@ -42,6 +42,14 @@ class ServiceCrudController extends CrudController
      */
     protected function setupListOperation()
     {
+        $this->crud->orderBy('id', 'asc');
+        
+        $this->crud->addColumn([
+            'name' => 'id',
+            'label' => 'ID',
+            'type' => 'number',
+        ]);
+
         CRUD::addColumn([
             'name' => 'title',
             'label' => 'Title',
@@ -67,6 +75,14 @@ class ServiceCrudController extends CrudController
             'type' => 'number',
             'decimals' => 2,
             'prefix' => '$',
+        ]);
+
+        CRUD::addColumn([
+            'name' => 'price_gel',
+            'label' => 'Price (GEL)',
+            'type' => 'number',
+            'decimals' => 2,
+            'prefix' => '₾',
         ]);
     }
 
@@ -116,9 +132,19 @@ class ServiceCrudController extends CrudController
             'attributes' => [
                 'step' => '0.01',
                 'min' => '0',
-                'required' => true,
             ],
             'prefix' => '$',
+        ]);
+
+        CRUD::addField([
+            'name' => 'price_gel',
+            'label' => 'Price (GEL)',
+            'type' => 'number',
+            'attributes' => [
+                'step' => '0.01',
+                'min' => '0',
+            ],
+            'prefix' => '₾',
         ]);
     }
 

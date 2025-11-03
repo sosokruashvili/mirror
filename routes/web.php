@@ -16,11 +16,15 @@ Route::get('/api/products-filtered', function (Request $request) {
     $query = Product::query();
 
     if ($orderProductType == 'lamix') {
-        $query->where('product_type', 'glass');
-        $query->orWhere('product_type', 'film');
+        $query->where(function($q) {
+            $q->where('product_type', 'glass')
+              ->orWhere('product_type', 'film');
+        });
     } else if ($orderProductType == 'glass_pkg') {
-        $query->where('product_type', 'glass');
-        $query->orWhere('product_type', 'butyl');
+        $query->where(function($q) {
+            $q->where('product_type', 'glass')
+              ->orWhere('product_type', 'butyl');
+        });
     } else if ($orderProductType == 'glass') {
         $query->where('product_type', 'glass');
     } else if ($orderProductType == 'mirror') {
@@ -32,7 +36,7 @@ Route::get('/api/products-filtered', function (Request $request) {
         $query->where('title', 'LIKE', "%{$search}%");
     }
     
-    $products = $query->limit(10)->get();
+    $products = $query->get();
     
     return $products->map(function ($product) {
         return [

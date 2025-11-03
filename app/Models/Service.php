@@ -19,9 +19,27 @@ class Service extends Model
         'description',
         'unit',
         'price',
+        'price_gel',
     ];
 
     protected $casts = [
         'price' => 'decimal:2',
+        'price_gel' => 'decimal:2',
     ];
+
+    /*
+    |--------------------------------------------------------------------------
+    | RELATIONS
+    |--------------------------------------------------------------------------
+    */
+
+    /**
+     * The orders that belong to the service.
+     */
+    public function orders()
+    {
+        return $this->belongsToMany(Order::class)
+            ->withPivot('quantity', 'description')
+            ->withTimestamps();
+    }
 }

@@ -42,19 +42,27 @@ class ProductCrudController extends CrudController
      */
     protected function setupListOperation()
     {
-        CRUD::addColumn([
+        $this->crud->orderBy('id', 'asc');
+        
+        $this->crud->addColumn([
+            'name' => 'id',
+            'label' => 'ID',
+            'type' => 'number',
+        ]);
+
+        $this->crud->addColumn([
             'name' => 'title',
             'label' => 'Title',
             'type' => 'text',
         ]);
 
-        CRUD::addColumn([
+        $this->crud->addColumn([
             'name' => 'product_type',
             'label' => 'Product Type',
             'type' => 'text',
         ]);
 
-        CRUD::addColumn([
+        $this->crud->addColumn([
             'name' => 'price',
             'label' => 'Price (USD)',
             'type' => 'number',
@@ -62,7 +70,7 @@ class ProductCrudController extends CrudController
             'prefix' => '$',
         ]);
 
-        CRUD::addColumn([
+        $this->crud->addColumn([
             'name' => 'price_w',
             'label' => 'Wholesale Price (USD)',
             'type' => 'number',
@@ -71,7 +79,7 @@ class ProductCrudController extends CrudController
         ]);
 
         // Add Filters
-        CRUD::addFilter([
+        $this->crud->addFilter([
             'name' => 'product_type',
             'type' => 'select2',
             'label' => 'Product Type'
@@ -84,7 +92,7 @@ class ProductCrudController extends CrudController
             $this->crud->addClause('where', 'product_type', $value);
         });
 
-        CRUD::addFilter([
+        $this->crud->addFilter([
             'type' => 'range',
             'name' => 'price',
             'label' => 'Retail Price',
@@ -102,7 +110,7 @@ class ProductCrudController extends CrudController
             }
         });
 
-        CRUD::addFilter([
+        $this->crud->addFilter([
             'type' => 'range',
             'name' => 'price_w',
             'label' => 'Wholesale Price',
@@ -120,7 +128,7 @@ class ProductCrudController extends CrudController
             }
         });
 
-        CRUD::addFilter([
+        $this->crud->addFilter([
             'type' => 'text',
             'name' => 'title',
             'label' => 'Title'

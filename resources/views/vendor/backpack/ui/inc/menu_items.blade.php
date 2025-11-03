@@ -3,6 +3,7 @@
 
 <x-backpack::menu-item title="Products" icon="la la-box" :link="backpack_url('product')" />
 <x-backpack::menu-item title="Services" icon="la la-cogs" :link="backpack_url('service')" />
+<x-backpack::menu-item title="Warehouse" icon="la la-warehouse" :link="backpack_url('warehouse')" />
 <x-backpack::menu-item title="Orders" icon="la la-cart-plus" :link="backpack_url('order')" />
 <x-backpack::menu-item title="Pieces" icon="la la-puzzle-piece" :link="backpack_url('piece')" />
 <x-backpack::menu-item title="Clients" icon="la la-user-alt" :link="backpack_url('client')" />

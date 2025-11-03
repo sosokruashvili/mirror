@@ -36,4 +36,12 @@ class Product extends Model
     {
         return $this->hasMany(Piece::class);
     }
+
+    /**
+     * The warehouse entries for this product.
+     */
+    public function warehouses()
+    {
+        return $this->hasMany(Warehouse::class);
+    }
 }

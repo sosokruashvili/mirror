@@ -195,34 +195,45 @@ class OrderCrudController extends CrudController
                     'placeholder' => 'Select a service',
                     'minimum_input_length' => 0,
                     'wrapper' => [
-                        'class' => 'form-group col-md-6'
+                        'class' => 'form-group col-md-3'
                     ],
                 ],
                 [
-                    'name'      => 'quantity',
-                    'label'     => 'Quantity',
-                    'type'      => 'number',
-                    'attributes' => [
-                        'min' => '1',
-                        'required' => true,
-                    ],
-                    'default' => 1,
+                    'name' => 'quantity', 
+                    'label' => 'Quantity', 
+                    'type' => 'number', 
                     'wrapper' => [
-                        'class' => 'form-group col-md-6'
+                        'class' => 'form-group col-md-3 extra extra-qty d-none'
+                    ]
+                ],
+                [
+                    'name'    => 'color',
+                    'label'   => 'Color',
+                    'type'    => 'select_from_array',
+                    'options' => [
+                        'ოქროსფერი' => 'ოქროსფერი',
+                        'ვერცხლისფერი' => 'ვერცხლისფერი',
+                        'წითელი' => 'წითელი',
+                        'თეთრი' => 'თეთრი',
+                        'შავი' => 'შავი',
+                    ],
+                    'allows_null' => true,
+                    'wrapper' => [
+                        'class' => 'form-group col-md-3 extra extra-color d-none'
                     ],
                 ],
                 [
-                    'name'      => 'description',
-                    'label'     => 'Description',
-                    'type'      => 'textarea',
-                    'attributes' => [
-                        'rows' => 2,
-                        'placeholder' => 'Additional notes for this service',
-                    ],
-                    'wrapper' => [
-                        'class' => 'form-group col-md-12'
-                    ],
+                    'name' => 'light_type', 
+                    'label' => 'Light Type', 
+                    'type' => 'select_from_array', 
+                    'options' => [
+                        'თბილი' => 'თბილი',
+                        'ბნელი' => 'ბნელი',
+                        'სინათლისმცირებული' => 'სინათლისმცირებული',
+                    ], 
+                    'wrapper' => ['class' => 'form-group col-md-3 extra extra-light-type d-none']
                 ],
+               
             ],
             'hint' => 'Add services to this order',
         ]);

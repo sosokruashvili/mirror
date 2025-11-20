@@ -772,6 +772,10 @@ class OrderCrudController extends CrudController
             'name' => 'price_gel',
             'label' => 'Price (GEL)',
             'type' => 'number',
+            'value' => function ($entry) {  
+                return $entry->calculateTotalPrice();
+            },
+            'decimals' => 2,
         ]);
 
         CRUD::addColumn([
@@ -864,6 +868,8 @@ class OrderCrudController extends CrudController
                 return '<div>' . $serviceItems . '</div>';
             }
         ]);
+
+
     }
     
     /**
@@ -928,6 +934,13 @@ class OrderCrudController extends CrudController
                 ]);
             }
         }
+
+        // Refresh relationships to ensure they're loaded
+        $order->refresh();
+        $order->load(['services', 'products', 'pieces']);
+
+        // Calculate order price after all relationships are set up
+        $order->calculateOrderPrice();
 
         return $this->crud->performSaveAction($order->getKey());
     }
@@ -1170,18 +1183,15 @@ class OrderCrudController extends CrudController
         // Calculate orders count
         $ordersCount = $orders->count();
         
-        // Calculate total price (sum of price_gel for all filtered orders)
-        $totalPrice = $orders->sum(function($order) {
-            return $order->calculateTotalPrice();
-        });
-        
         // Add both cards side by side - pass data to view
         Widget::add([
             'type' => 'view',
             'view' => 'vendor.backpack.crud.widgets.order_stats',
             'wrapper' => ['class' => 'col-12'],
             'ordersCount' => $ordersCount,
-            'totalPrice' => $totalPrice,
+            'totalPriceGel' => $orders->sum(function($order) {
+                return $order->price_gel;
+            }),
         ])->to('before_content');
     }
 }

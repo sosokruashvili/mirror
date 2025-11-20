@@ -102,23 +102,26 @@ class Order extends Model
     |--------------------------------------------------------------------------
     */
 
+    public function calculateOrderPrice() {
+        $priceGel = $this->calculateTotalPrice();
+        $this->price_gel = $priceGel;
+        $this->save();
+    }
+
     public function calculateTotalPrice()
     {
-        $totalPriceGel = 0;
-        if($this->product_type != 'service') {
-            foreach($this->pieces as $piece) {
+       $totalPriceGel = 0; 
+       $servicePriceSum = $this->services->sum('pivot.price_gel');
+       $totalPriceGel += $servicePriceSum;
 
-                foreach($this->products as $product) {  
+       if($this->order_type == 'retail') {
+            foreach($this->products as $product) {
+                foreach($this->pieces as $piece) {
                     $totalPriceGel += $piece->getArea() * $product->price * $this->currency_rate;
                 }
-
             }
-
-            foreach($this->services as $service) {
-                $totalPriceGel += $service->pivot->price_gel;
-            }
-        }
-        return 0;
+       }
+       return $totalPriceGel;
     }
 
     /*

@@ -22,10 +22,12 @@ class Order extends Model
     // public $timestamps = false;
     protected $guarded = ['id'];
     protected $fillable = [
-        'name',
         'status',
         'order_type',
         'client_id',
+        'currency_rate',
+        'product_type',
+        'author'
     ];
     // protected $hidden = [];
 
@@ -63,8 +65,21 @@ class Order extends Model
     public function services()
     {
         return $this->belongsToMany(Service::class)
-            ->withPivot('quantity', 'description')
-            ->withTimestamps();
+            ->withPivot(
+                'quantity', 
+                'description', 
+                'color', 
+                'light_type', 
+                'price_gel', 
+                'distance', 
+                'length_cm', 
+                'perimeter', 
+                'area', 
+                'foam_length', 
+                'tape_length', 
+                'sensor_type',
+                'sensor_quantity1',
+                )->withTimestamps();
     }
 
     /**
@@ -86,6 +101,25 @@ class Order extends Model
     | ACCESSORS
     |--------------------------------------------------------------------------
     */
+
+    public function calculateTotalPrice()
+    {
+        $totalPriceGel = 0;
+        if($this->product_type != 'service') {
+            foreach($this->pieces as $piece) {
+
+                foreach($this->products as $product) {  
+                    $totalPriceGel += $piece->getArea() * $product->price * $this->currency_rate;
+                }
+
+            }
+
+            foreach($this->services as $service) {
+                $totalPriceGel += $service->pivot->price_gel;
+            }
+        }
+        return 0;
+    }
 
     /*
     |--------------------------------------------------------------------------

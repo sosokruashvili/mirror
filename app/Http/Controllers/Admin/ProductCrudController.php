@@ -137,6 +137,27 @@ class ProductCrudController extends CrudController
         function($value) {
             $this->crud->addClause('where', 'title', 'LIKE', "%{$value}%");
         });
+
+        // Add filter for order_id if present in URL
+        if (request()->has('order_id')) {
+            $orderId = request()->get('order_id');
+            $this->crud->addClause('whereHas', 'orders', function($query) use ($orderId) {
+                $query->where('orders.id', $orderId);
+            });
+        }
+
+        // Add filter for order_id
+        $this->crud->addFilter([
+            'name' => 'order_id',
+            'type' => 'select2',
+            'label' => 'Order'
+        ], function() {
+            return \App\Models\Order::all()->pluck('id', 'id')->toArray();
+        }, function($value) {
+            $this->crud->addClause('whereHas', 'orders', function($query) use ($value) {
+                $query->where('orders.id', $value);
+            });
+        });
     }
 
     /**

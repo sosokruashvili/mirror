@@ -13,43 +13,8 @@ Artisan::command('inspire', function () {
 // Schedule tasks after the application has booted
 app()->booted(function () {
     app(Schedule::class)->call(function () {
-        \App\Models\Currency::setRate(); // Replace with your logic
-        Log::info('Currency rates updated successfully at ' . now());
-    })->dailyAt('17:00');
-
-    app(Schedule::class)->call(function () {
-        \App\Models\Currency::setRate(); // Replace with your logic
-        Log::info('Currency rates updated successfully at ' . now());
-    })->dailyAt('18:00');
-
-    app(Schedule::class)->call(function () {
-        \App\Models\Currency::setRate(); // Replace with your logic
-        Log::info('Currency rates updated successfully at ' . now());
-    })->dailyAt('22:00');
-
-    app(Schedule::class)->call(function () {
-        \App\Models\Currency::setRate(); // Replace with your logic
-        Log::info('Currency rates updated successfully at ' . now());
-    })->dailyAt('8:00');
-
-    app(Schedule::class)->call(function () {
-        \App\Models\Currency::setRate(); // Replace with your logic
-        Log::info('Currency rates updated successfully at ' . now());
-    })->dailyAt('9:00');
-
-    app(Schedule::class)->call(function () {
-        \App\Models\Currency::setRate(); // Replace with your logic
-        Log::info('Currency rates updated successfully at ' . now());
-    })->dailyAt('10:00');
-
-    app(Schedule::class)->call(function () {
-        \App\Models\Currency::setRate(); // Replace with your logic
-        Log::info('Currency rates updated successfully at ' . now());
-    })->dailyAt('11:00');
-
-    app(Schedule::class)->call(function () {
-        \App\Models\Cachier::updateBalance();
-    })->twiceDaily(1, 10);
+        \App\Models\Currency::setRate();
+    })->dailyAt('20:00');
 
 });
 

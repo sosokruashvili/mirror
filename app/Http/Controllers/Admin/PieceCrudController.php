@@ -43,6 +43,50 @@ class PieceCrudController extends CrudController
             'type' => 'number',
         ]);
 
+        
+
+        CRUD::addColumn([
+            'name' => 'order_id',
+            'label' => 'Order',
+            'type' => 'relationship',
+            'entity' => 'order',
+            'attribute' => 'id', // Show the Order ID
+            'model' => \App\Models\Order::class,
+        ]);
+
+        CRUD::addColumn([
+            'name' => 'order.product_type',
+            'label' => 'Order Product Type',
+            'type' => 'text',
+        ]);
+
+        CRUD::addColumn([
+            'name' => 'status',
+            'label' => 'Status',
+            'type' => 'custom_html',
+            'value' => function ($entry) {
+                return status_badge($entry->status);
+            }
+        ]);
+
+        CRUD::addColumn([
+            'name' => 'width',
+            'label' => 'Width',
+            'type' => 'number',
+            'decimals' => 0,
+            'thousands_sep' => '',
+        ]);
+
+        CRUD::addColumn([
+            'name' => 'height',
+            'label' => 'Height',
+            'type' => 'number',
+            'decimals' => 0,
+            'thousands_sep' => '',
+        ]);
+
+        
+
         CRUD::addColumn([
             'name' => 'quantity',
             'label' => 'Quantity',
@@ -50,40 +94,26 @@ class PieceCrudController extends CrudController
         ]);
 
         CRUD::addColumn([
+            'name' => 'created_at',
+            'label' => 'Created At',
+            'type' => 'datetime',
+        ]);
+
+        // Add filter for order_id if present in URL
+        if (request()->has('order_id')) {
+            $this->crud->addClause('where', 'order_id', request()->get('order_id'));
+        }
+
+        // Add filter for order_id
+        $this->crud->addFilter([
             'name' => 'order_id',
-            'label' => 'Order',
-            'type' => 'select',
-            'entity' => 'order',
-            'attribute' => 'name',
-        ]);
-
-        CRUD::addColumn([
-            'name' => 'product_id',
-            'label' => 'Product',
-            'type' => 'select',
-            'entity' => 'product',
-            'attribute' => 'title',
-        ]);
-
-        CRUD::addColumn([
-            'name' => 'width',
-            'label' => 'Width',
-            'type' => 'number',
-            'decimals' => 2,
-        ]);
-
-        CRUD::addColumn([
-            'name' => 'height',
-            'label' => 'Height',
-            'type' => 'number',
-            'decimals' => 2,
-        ]);
-
-        CRUD::addColumn([
-            'name' => 'status',
-            'label' => 'Status',
-            'type' => 'text',
-        ]);
+            'type' => 'select2',
+            'label' => 'Order'
+        ], function() {
+            return \App\Models\Order::all()->pluck('id', 'id')->toArray();
+        }, function($value) {
+            $this->crud->addClause('where', 'order_id', $value);
+        });
     }
 
 

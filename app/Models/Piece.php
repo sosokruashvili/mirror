@@ -38,4 +38,9 @@ class Piece extends Model
     {
         return $this->belongsTo(Product::class);
     }
+
+    public function getArea()
+    {
+        return $this->width/1000 * $this->height/1000 * $this->quantity;
+    }
 }

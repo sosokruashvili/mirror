@@ -16,9 +16,9 @@ class Payment extends Model
     
     protected $fillable = [
         'client_id',
+        'order_id',
         'amount_gel',
         'currency_rate',
-        'amount_usd',
         'method',
         'status',
         'file',
@@ -28,7 +28,6 @@ class Payment extends Model
     protected $casts = [
         'amount_gel' => 'decimal:2',
         'currency_rate' => 'decimal:4',
-        'amount_usd' => 'decimal:2',
         'payment_date' => 'datetime'
     ];
 
@@ -38,6 +37,14 @@ class Payment extends Model
     public function client()
     {
         return $this->belongsTo(Client::class);
+    }
+
+    /**
+     * Get the order that this payment belongs to.
+     */
+    public function order()
+    {
+        return $this->belongsTo(Order::class);
     }
 }
 

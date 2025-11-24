@@ -282,7 +282,7 @@ class OrderCrudController extends CrudController
             'label' => 'Client',
             'type' => 'select2',
             'entity' => 'client',
-            'attribute' => 'name',
+            'attribute' => 'name_with_id',
             'model' => \App\Models\Client::class,
             'allows_null' => false,
             'hint' => 'Select the client for this order',
@@ -346,6 +346,56 @@ class OrderCrudController extends CrudController
                 ],
             ],
             'hint' => 'Add products to this order (filtered by Order Product Type)',
+        ]);
+
+        CRUD::addField([
+            'name'       => 'pieces',
+            'label'      => 'Pieces',
+            'type'       => 'repeatable',
+            'init_rows'  => 1,
+            'min_rows'   => 1,
+            'fields'     => [
+                [
+                    'name'      => 'width',
+                    'label'     => 'Width (cm)',
+                    'type'      => 'number',
+                    'showAsterisk' => true,
+                    'attributes' => [
+                        'step' => '0.01',
+                        'min' => '0',
+                        'required' => true,
+                    ],
+                    'wrapper' => [
+                        'class' => 'form-group col-md-4'
+                    ],
+                ],
+                [
+                    'name'      => 'height',
+                    'label'     => 'Height (cm)',
+                    'type'      => 'number',
+                    'attributes' => [
+                        'step' => '0.01',
+                        'min' => '0',
+                        'required' => true,
+                    ],
+                    'wrapper' => [
+                        'class' => 'form-group col-md-4'
+                    ],
+                ],
+                [
+                    'name'      => 'quantity',
+                    'label'     => 'Quantity',
+                    'type'      => 'number',
+                    'attributes' => [
+                        'min' => '1',
+                        'required' => true,
+                    ],
+                    'wrapper' => [
+                        'class' => 'form-group col-md-4'
+                    ],
+                ],
+            ],
+            'hint' => 'Add pieces to this order',
         ]);
 
         CRUD::addField([
@@ -516,55 +566,7 @@ class OrderCrudController extends CrudController
         ]);
 
 
-        CRUD::addField([
-            'name'       => 'pieces',
-            'label'      => 'Pieces',
-            'type'       => 'repeatable',
-            'init_rows'  => 1,
-            'min_rows'   => 1,
-            'fields'     => [
-                [
-                    'name'      => 'width',
-                    'label'     => 'Width (cm)',
-                    'type'      => 'number',
-                    'showAsterisk' => true,
-                    'attributes' => [
-                        'step' => '0.01',
-                        'min' => '0',
-                        'required' => true,
-                    ],
-                    'wrapper' => [
-                        'class' => 'form-group col-md-4'
-                    ],
-                ],
-                [
-                    'name'      => 'height',
-                    'label'     => 'Height (cm)',
-                    'type'      => 'number',
-                    'attributes' => [
-                        'step' => '0.01',
-                        'min' => '0',
-                        'required' => true,
-                    ],
-                    'wrapper' => [
-                        'class' => 'form-group col-md-4'
-                    ],
-                ],
-                [
-                    'name'      => 'quantity',
-                    'label'     => 'Quantity',
-                    'type'      => 'number',
-                    'attributes' => [
-                        'min' => '1',
-                        'required' => true,
-                    ],
-                    'wrapper' => [
-                        'class' => 'form-group col-md-4'
-                    ],
-                ],
-            ],
-            'hint' => 'Add pieces to this order',
-        ]);
+        
 
         
 
@@ -682,7 +684,8 @@ class OrderCrudController extends CrudController
             'label' => 'Client',
             'type' => 'relationship',
             'entity' => 'client',
-            'attribute' => 'name',
+            'attribute' => 'name_with_id',
+            'limit' => 9999, // Show full text without truncation
         ]);
         
         
@@ -1193,5 +1196,28 @@ class OrderCrudController extends CrudController
                 return $order->price_gel;
             }),
         ])->to('before_content');
+    }
+
+    /**
+     * Get orders by client ID for AJAX requests.
+     * Used by payment form to filter orders by selected client.
+     * 
+     * @param int $clientId
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function getOrdersByClient($clientId)
+    {
+        $orders = Order::where('client_id', $clientId)
+            ->with(['pieces', 'products', 'services'])
+            ->get()
+            ->map(function($order) {
+                return [
+                    'id' => $order->id,
+                    'text' => $order->order_display,
+                    'price' => $order->calculateTotalPrice()
+                ];
+            });
+        
+        return response()->json($orders);
     }
 }

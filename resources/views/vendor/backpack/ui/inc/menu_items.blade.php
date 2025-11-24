@@ -7,6 +7,7 @@
 <x-backpack::menu-item title="Orders" icon="la la-cart-plus" :link="backpack_url('order')" />
 <x-backpack::menu-item title="Pieces" icon="la la-puzzle-piece" :link="backpack_url('piece')" />
 <x-backpack::menu-item title="Clients" icon="la la-user-alt" :link="backpack_url('client')" />
+<x-backpack::menu-item title="Client Balances" icon="la la-wallet" :link="backpack_url('client-balance')" />
 <x-backpack::menu-item title="Payments" icon="la la-money-bill-wave" :link="backpack_url('payment')" />
 
 <x-backpack::menu-dropdown title="Settings" icon="la la-cog">

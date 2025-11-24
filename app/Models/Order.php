@@ -90,6 +90,14 @@ class Order extends Model
         return $this->belongsTo(Client::class);
     }
 
+    /**
+     * The payments that belong to the order.
+     */
+    public function payments()
+    {
+        return $this->hasMany(Payment::class);
+    }
+
     /*
     |--------------------------------------------------------------------------
     | SCOPES
@@ -122,6 +130,28 @@ class Order extends Model
             }
        }
        return $totalPriceGel;
+    }
+
+    /**
+     * Get the display name for select options.
+     * Shows: Order ID - Product Type - Price (GEL)
+     */
+    public function getOrderDisplayAttribute()
+    {
+        // Ensure relationships are loaded for price calculation
+        if (!$this->relationLoaded('services')) {
+            $this->load('services');
+        }
+        if (!$this->relationLoaded('products')) {
+            $this->load('products');
+        }
+        if (!$this->relationLoaded('pieces')) {
+            $this->load('pieces');
+        }
+        
+        $price = number_format($this->calculateTotalPrice(), 2);
+        $productType = product_type_ge($this->product_type ?? '');
+        return "Order #{$this->id} - {$productType} - {$price} ₾";
     }
 
     /*

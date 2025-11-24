@@ -28,7 +28,9 @@ Route::group([
     Route::crud('service', 'ServiceCrudController');
     Route::get('service/get-extra-fields/{id}', 'ServiceCrudController@getExtraFields')->name('service.getExtraFields');
     Route::crud('payment', 'PaymentCrudController');
+    Route::get('order/get-orders-by-client/{clientId}', 'OrderCrudController@getOrdersByClient')->name('order.getOrdersByClient');
     Route::crud('warehouse', 'WarehouseCrudController');
+    Route::crud('client-balance', 'ClientBalanceCrudController');
 }); // this should be the absolute last line of this file
 
 /**

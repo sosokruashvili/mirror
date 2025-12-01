@@ -9,7 +9,7 @@ use Backpack\CRUD\app\Library\Widget;
 use App\Models\Currency;
 use App\Models\Order;
 use App\Models\Service;
-
+use App\Models\Product;
 /**
  * Class OrderCrudController
  * @package App\Http\Controllers\Admin
@@ -333,16 +333,16 @@ class OrderCrudController extends CrudController
                 [
                     'name'    => 'product_id',
                     'label'   => 'Product',
-                    'type'    => 'select2',
-                    'entity' => 'product',
-                    'attribute' => 'title',
-                    'model' => \App\Models\Product::class,
+                    'type'    => 'select2_from_array',
+                    'options' => Product::all()->pluck('title', 'id')->toArray(),
                     'allows_null' => false,
-                    'data_source' => url('api/products-filtered'),
-                    'placeholder' => 'Select a product',
-                    'minimum_input_length' => 0,
-                    'dependencies' => ['order_product_type'],
-                    'method' => 'GET',
+                    'default' => null,
+                    'attributes' => [
+                        'required' => true,
+                    ],
+                    'wrapper' => [
+                        'class' => 'form-group col-md-4'
+                    ],
                 ],
             ],
             'hint' => 'Add products to this order (filtered by Order Product Type)',

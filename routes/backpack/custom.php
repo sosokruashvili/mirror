@@ -27,6 +27,7 @@ Route::group([
     Route::crud('piece', 'PieceCrudController');
     Route::crud('service', 'ServiceCrudController');
     Route::get('service/get-extra-fields/{id}', 'ServiceCrudController@getExtraFields')->name('service.getExtraFields');
+    Route::get('product/get-products-filtered/{product_type}', 'ProductCrudController@getProductsFiltered')->name('products.getProductsFiltered');
     Route::crud('payment', 'PaymentCrudController');
     Route::get('order/get-orders-by-client/{clientId}', 'OrderCrudController@getOrdersByClient')->name('order.getOrdersByClient');
     Route::crud('warehouse', 'WarehouseCrudController');

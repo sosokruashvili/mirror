@@ -5,7 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Requests\ProductRequest;
 use Backpack\CRUD\app\Http\Controllers\CrudController;
 use Backpack\CRUD\app\Library\CrudPanel\CrudPanelFacade as CRUD;
-
+use App\Models\Product;
 /**
  * Class ProductCrudController
  * @package App\Http\Controllers\Admin
@@ -227,5 +227,24 @@ class ProductCrudController extends CrudController
     protected function setupUpdateOperation()
     {
         $this->setupCreateOperation();
+    }
+
+    public function getProductsFiltered($product_type = null)
+    {
+        switch($product_type) {
+            case 'glass':
+                $products = Product::where('product_type', 'glass')->get();
+                break;
+            case 'mirror':
+                $products = Product::where('product_type', 'mirror')->get();
+                break;
+            case 'lamix':
+                $products = Product::where('product_type', 'film')->orWhere('product_type', 'glass')->get();
+                break;
+            case 'glass_pkg':
+                $products = Product::where('product_type', 'glass')->orWhere('product_type', 'butyl')->get();
+                break;
+        }
+        return response()->json($products);
     }
 }

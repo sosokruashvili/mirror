@@ -11,12 +11,15 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('warehouses', function (Blueprint $table) {
+        Schema::create('custom_prices', function (Blueprint $table) {
             $table->id();
+            $table->foreignId('client_id')->constrained('clients')->onDelete('cascade');
             $table->foreignId('product_id')->constrained('products')->onDelete('cascade');
-            $table->enum('unit_of_measure', ['pieces', 'cubic_meters'])->default('pieces');
-            $table->decimal('value', 15, 3)->default(0);
+            $table->decimal('price_usd', 10, 2);
             $table->timestamps();
+            
+            // Ensure unique combination of client_id and product_id
+            $table->unique(['client_id', 'product_id']);
         });
     }
 
@@ -25,6 +28,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('warehouses');
+        Schema::dropIfExists('custom_prices');
     }
 };

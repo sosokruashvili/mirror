@@ -214,6 +214,8 @@ class ServiceCrudController extends CrudController
                 'distance' => 'Distance',
                 'description' => 'Description',
                 'price_gel' => 'Price (GEL)',
+                'piece_id' => 'Piece ID',
+                'calculate_price_btn' => 'Calculate Price Button',
             ],
             'allows_null' => true,
             'default'     => [],

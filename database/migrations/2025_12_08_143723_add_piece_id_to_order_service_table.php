@@ -12,8 +12,8 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('order_service', function (Blueprint $table) {
-            $table->integer('quantity')->default(1)->after('service_id');
-            $table->text('description')->nullable()->after('quantity');
+            $table->unsignedBigInteger('piece_id')->nullable()->after('service_id');
+            $table->foreign('piece_id')->references('id')->on('pieces')->onDelete('set null');
         });
     }
 
@@ -23,7 +23,8 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('order_service', function (Blueprint $table) {
-            $table->dropColumn(['quantity', 'description']);
+            $table->dropForeign(['piece_id']);
+            $table->dropColumn('piece_id');
         });
     }
 };

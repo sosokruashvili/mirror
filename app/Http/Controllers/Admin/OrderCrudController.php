@@ -10,6 +10,7 @@ use App\Models\Currency;
 use App\Models\Order;
 use App\Models\Service;
 use App\Models\Product;
+use Illuminate\Support\Facades\DB;
 /**
  * Class OrderCrudController
  * @package App\Http\Controllers\Admin
@@ -344,6 +345,19 @@ class OrderCrudController extends CrudController
                         'class' => 'form-group col-md-4'
                     ],
                 ],
+                [
+                    'name'    => 'price',
+                    'label'   => 'Price (USD)',
+                    'type'    => 'number',
+                    'attributes' => [
+                        'step' => '0.01',
+                        'min' => '0',
+                        'required' => true,
+                    ],
+                    'wrapper' => [
+                        'class' => 'form-group col-md-4'
+                    ],
+                ],
             ],
             'hint' => 'Add products to this order (filtered by Order Product Type)',
         ]);
@@ -355,6 +369,13 @@ class OrderCrudController extends CrudController
             'init_rows'  => 1,
             'min_rows'   => 1,
             'fields'     => [
+                [
+                    'name'  => 'id',
+                    'type'  => 'hidden',
+                    'wrapper' => [
+                        'class' => 'd-none',
+                    ],
+                ],
                 [
                     'name'      => 'width',
                     'label'     => 'Width (cm)',
@@ -407,6 +428,13 @@ class OrderCrudController extends CrudController
             'new_item_label' => 'Add Service',
             'fields'     => [
                 [
+                    'name' => 'piece_id_saved',
+                    'type' => 'hidden',
+                    'wrapper' => [
+                        'class' => 'd-none',
+                    ],
+                ],
+                [
                     'name'    => 'service_id',
                     'label'   => 'Service',
                     'type'    => 'select2',
@@ -417,8 +445,21 @@ class OrderCrudController extends CrudController
                     'default' => null,
                     'placeholder' => 'Select a service',
                     'minimum_input_length' => 0,
+                    'options' => (function($query) { return $query->orderBy('id')->get(); }),
                     'wrapper' => [
                         'class' => 'form-group col-md-3'
+                    ],
+                ],
+                [
+                    'name'    => 'piece_id',
+                    'label'   => 'Piece',
+                    'type'    => 'select2_from_array',
+                    'options' => [],
+                    'allows_null' => true,
+                    'default' => null,
+                    'placeholder' => 'Select a piece',
+                    'wrapper' => [
+                        'class' => 'form-group col-md-2 js-repeatable-piece'
                     ],
                 ],
                 [
@@ -433,6 +474,11 @@ class OrderCrudController extends CrudController
                     'name' => 'perimeter',
                     'label' => 'Perimeter (m)',
                     'type' => 'number',
+                    'decimal_places' => 2,
+                    'attributes' => [
+                        'step' => '0.01',
+                        'min' => '0',
+                    ],
                     'wrapper' => [
                         'class' => 'form-group col-md-2 extra extra-perimeter price-calc d-none'
                     ]
@@ -496,6 +542,10 @@ class OrderCrudController extends CrudController
                     'name' => 'area',
                     'label' => 'Area (m²)',
                     'type' => 'number',
+                    'attributes' => [
+                        'step' => '0.01',
+                        'min' => '0',
+                    ],
                     'wrapper' => [
                         'class' => 'form-group col-md-2 extra extra-area price-calc d-none'
                     ]
@@ -549,6 +599,9 @@ class OrderCrudController extends CrudController
                     'name' => 'price_gel',
                     'label' => 'Price (GEL)',
                     'type' => 'number',
+                    'attributes' => [
+                        'step' => '0.01',
+                    ],
                     'wrapper' => [
                         'class' => 'form-group col-md-2 extra extra-price d-none'
                     ]
@@ -558,7 +611,7 @@ class OrderCrudController extends CrudController
                     'type' => 'custom_html',
                     'value' => '<button type="button" class="btn btn-primary calculate-price-btn" style="margin-top: 30px;">Calculate Price</button>',
                     'wrapper' => [
-                        'class' => 'form-group col-md-2'
+                        'class' => 'form-group col-md-2 d-none extra-calculate-price-btn'
                     ]
                 ],
                
@@ -617,8 +670,22 @@ class OrderCrudController extends CrudController
         // Populate products data for editing
         $this->crud->modifyField('products', [
             'value' => $entry->products->map(function($product) {
+                $pivot = $product->pivot;
                 return [
                     'product_id' => $product->id,
+                    'price' => $pivot->price ?? null,
+                ];
+            })->toArray()
+        ]);
+        
+        // Populate pieces data for editing (including existing IDs so JS can map services correctly)
+        $this->crud->modifyField('pieces', [
+            'value' => $entry->pieces->map(function($piece) {
+                return [
+                    'id' => $piece->id,
+                    'width' => $piece->width,
+                    'height' => $piece->height,
+                    'quantity' => $piece->quantity,
                 ];
             })->toArray()
         ]);
@@ -629,6 +696,8 @@ class OrderCrudController extends CrudController
                 $pivot = $service->pivot;
                 return [
                     'service_id' => $service->id,
+                    'piece_id_saved' => $pivot->piece_id ?? null,
+                    'piece_id' => $pivot->piece_id ?? null,
                     'quantity' => $pivot->quantity ?? null,
                     'description' => $pivot->description ?? null,
                     'color' => $pivot->color ?? null,
@@ -647,17 +716,7 @@ class OrderCrudController extends CrudController
             })->toArray()
         ]);
         
-        // Populate pieces data for editing
-        $this->crud->modifyField('pieces', [
-            'value' => $entry->pieces->map(function($piece) {
-                return [
-                    'width' => $piece->width,
-                    'height' => $piece->height,
-                    'quantity' => $piece->quantity,
-                    'product_id' => $piece->product_id ?? null,
-                ];
-            })->toArray()
-        ]);
+        
     }
 
 
@@ -716,10 +775,6 @@ class OrderCrudController extends CrudController
             }
         ]);
         
-        
-        
-        
-
 
         CRUD::addColumn([
             'name' => 'products',
@@ -880,72 +935,96 @@ class OrderCrudController extends CrudController
      */
     public function store()
     {
-        $fields = request()->all();
+        return DB::transaction(function () {
+            $fields = request()->all();
 
-        $order = Order::create(
-            [
-                'order_type' => $fields['order_type'],
-                'client_id' => $fields['client_id'],
-                'status' => $fields['status'],
-                'product_type' => $fields['product_type'],
-                'currency_rate' => $fields['currency_rate'],
-                'author' => backpack_user()->id,
-            ]
-        );
-        
-        // Sync products (many-to-many)
-        if (!empty($fields['products'])) {
-            $productIds = array_filter(array_column($fields['products'], 'product_id'));
-            $order->products()->sync($productIds);
-        }
-
-        // Sync services (many-to-many with pivot data)
-        if (!empty($fields['services'])) {
-            $syncData = [];
-            foreach ($fields['services'] as $service) {
-                if (empty($service['service_id'])) {
-                    continue;
+            $order = Order::create(
+                [
+                    'order_type' => $fields['order_type'],
+                    'client_id' => $fields['client_id'],
+                    'status' => $fields['status'],
+                    'product_type' => $fields['product_type'],
+                    'currency_rate' => $fields['currency_rate'],
+                    'author' => backpack_user()->id,
+                ]
+            );
+            
+            // Sync products (many-to-many with pivot data)
+            if (!empty($fields['products'])) {
+                $syncData = [];
+                foreach ($fields['products'] as $product) {
+                    if (empty($product['product_id'])) {
+                        continue;
+                    }
+                    $syncData[$product['product_id']] = [
+                        'price' => $product['price'] ?? null,
+                    ];
                 }
-                $syncData[$service['service_id']] = [
-                    'quantity' => $service['quantity'] ?? null,
-                    'description' => $service['description'] ?? null,
-                    'color' => $service['color'] ?? null,
-                    'light_type' => $service['light_type'] ?? null,
-                    'price_gel' => $service['price_gel'] ?? null,
-                    'distance' => $service['distance'] ?? null,
-                    'length_cm' => $service['length_cm'] ?? null,
-                    'perimeter' => $service['perimeter'] ?? null,
-                    'area' => $service['area'] ?? null,
-                    'antifog_type' => $service['antifog_type'] ?? null,
-                    'foam_length' => $service['foam_length'] ?? null,
-                    'tape_length' => $service['tape_length'] ?? null,
-                    'sensor_type' => $service['sensor_type'] ?? null,
-                    'sensor_quantity1' => $service['sensor_quantity1'] ?? null,
-                ];
+                $order->products()->sync($syncData);
             }
-            $order->services()->sync($syncData);
-        }
 
-        // Sync pieces (hasMany - delete existing and create new)
-        if (!empty($fields['pieces'])) {
-            $order->pieces()->delete();
-            foreach ($fields['pieces'] as $piece) {
-                $order->pieces()->create([
-                    'width' => $piece['width'] ?? 0,
-                    'height' => $piece['height'] ?? 0,
-                    'quantity' => $piece['quantity'] ?? 1,
-                ]);
+            // Create pieces first (hasMany - delete existing and create new)
+            // This allows us to map temporary piece IDs to real piece IDs for services
+            $pieceIdMap = []; // Maps temporary IDs (temp_rowNumber) to real piece IDs
+            if (!empty($fields['pieces'])) {
+                $order->pieces()->delete();
+                $pieceIndex = 0;
+                foreach ($fields['pieces'] as $piece) {
+                    $createdPiece = $order->pieces()->create([
+                        'width' => $piece['width'] ?? 0,
+                        'height' => $piece['height'] ?? 0,
+                        'quantity' => $piece['quantity'] ?? 1,
+                    ]);
+                    // Map temporary ID to real ID (using index as key)
+                    $tempId = 'temp_' . $pieceIndex;
+                    $pieceIdMap[$tempId] = $createdPiece->id;
+                    $pieceIndex++;
+                }
             }
-        }
 
-        // Refresh relationships to ensure they're loaded
-        $order->refresh();
-        $order->load(['services', 'products', 'pieces']);
+            // Attach services (many-to-many with pivot data) allowing duplicates and preserving order inputs
+            $order->services()->detach();
+            if (!empty($fields['services'])) {
+                foreach ($fields['services'] as $service) {
+                    if (empty($service['service_id'])) {
+                        continue;
+                    }
+                    
+                    // Map temporary piece ID to real piece ID if needed
+                    $pieceId = $service['piece_id'] ?? null;
+                    if ($pieceId && strpos($pieceId, 'temp_') === 0) {
+                        $pieceId = $pieceIdMap[$pieceId] ?? null;
+                    }
+                    
+                    $order->services()->attach($service['service_id'], [
+                        'piece_id' => $pieceId,
+                        'quantity' => $service['quantity'] ?? null,
+                        'description' => $service['description'] ?? null,
+                        'color' => $service['color'] ?? null,
+                        'light_type' => $service['light_type'] ?? null,
+                        'price_gel' => $service['price_gel'] ?? null,
+                        'distance' => $service['distance'] ?? null,
+                        'length_cm' => $service['length_cm'] ?? null,
+                        'perimeter' => $service['perimeter'] ?? null,
+                        'area' => $service['area'] ?? null,
+                        'antifog_type' => $service['antifog_type'] ?? null,
+                        'foam_length' => $service['foam_length'] ?? null,
+                        'tape_length' => $service['tape_length'] ?? null,
+                        'sensor_type' => $service['sensor_type'] ?? null,
+                        'sensor_quantity1' => $service['sensor_quantity1'] ?? null,
+                    ]);
+                }
+            }
 
-        // Calculate order price after all relationships are set up
-        $order->calculateOrderPrice();
+            // Refresh relationships to ensure they're loaded
+            $order->refresh();
+            $order->load(['services', 'products', 'pieces']);
 
-        return $this->crud->performSaveAction($order->getKey());
+            // Calculate order price after all relationships are set up
+            $order->calculateOrderPrice();
+
+            return $this->crud->performSaveAction($order->getKey());
+        });
     }
 
     /**
@@ -953,69 +1032,96 @@ class OrderCrudController extends CrudController
      */
     public function update()
     {
-        $fields = request()->all();
-        $order = $this->crud->getCurrentEntry();
+        return DB::transaction(function () {
+            $fields = request()->all();
+            $order = $this->crud->getCurrentEntry();
 
-        // Update order basic fields
-        $order->update([
-            'order_type' => $fields['order_type'],
-            'client_id' => $fields['client_id'],
-            'status' => $fields['status'],
-            'currency_rate' => $fields['currency_rate'],
-        ]);
+            // Update order basic fields
+            $order->update([
+                'order_type' => $fields['order_type'],
+                'client_id' => $fields['client_id'],
+                'status' => $fields['status'],
+                'currency_rate' => $fields['currency_rate'],
+            ]);
 
-        // Sync products (many-to-many)
-        if (!empty($fields['products'])) {
-            $productIds = array_filter(array_column($fields['products'], 'product_id'));
-            $order->products()->sync($productIds);
-        } else {
-            $order->products()->sync([]);
-        }
-
-        // Sync services (many-to-many with pivot data)
-        if (!empty($fields['services'])) {
-            $syncData = [];
-            foreach ($fields['services'] as $service) {
-                if (empty($service['service_id'])) {
-                    continue;
+            // Sync products (many-to-many with pivot data)
+            if (!empty($fields['products'])) {
+                $syncData = [];
+                foreach ($fields['products'] as $product) {
+                    if (empty($product['product_id'])) {
+                        continue;
+                    }
+                    $syncData[$product['product_id']] = [
+                        'price' => $product['price'] ?? null,
+                    ];
                 }
-                $syncData[$service['service_id']] = [
-                    'quantity' => $service['quantity'] ?? null,
-                    'description' => $service['description'] ?? null,
-                    'color' => $service['color'] ?? null,
-                    'light_type' => $service['light_type'] ?? null,
-                    'price_gel' => $service['price_gel'] ?? null,
-                    'distance' => $service['distance'] ?? null,
-                    'length_cm' => $service['length_cm'] ?? null,
-                    'perimeter' => $service['perimeter'] ?? null,
-                    'area' => $service['area'] ?? null,
-                    'antifog_type' => $service['antifog_type'] ?? null,
-                    'foam_length' => $service['foam_length'] ?? null,
-                    'tape_length' => $service['tape_length'] ?? null,
-                    'sensor_type' => $service['sensor_type'] ?? null,
-                    'sensor_quantity1' => $service['sensor_quantity1'] ?? null,
-                ];
+                $order->products()->sync($syncData);
+            } else {
+                $order->products()->sync([]);
             }
-            $order->services()->sync($syncData);
-        } else {
-            $order->services()->sync([]);
-        }
 
-        // Sync pieces (hasMany - delete existing and create new)
-        if (!empty($fields['pieces'])) {
-            $order->pieces()->delete();
-            foreach ($fields['pieces'] as $piece) {
-                $order->pieces()->create([
-                    'width' => $piece['width'] ?? 0,
-                    'height' => $piece['height'] ?? 0,
-                    'quantity' => $piece['quantity'] ?? 1,
-                ]);
+            // Sync pieces (hasMany - delete existing and create new) and keep a map of old/temp IDs to new IDs
+            $pieceIdMap = [];
+            if (!empty($fields['pieces'])) {
+                $order->pieces()->delete();
+                $pieceIndex = 0;
+                foreach ($fields['pieces'] as $piece) {
+                    $createdPiece = $order->pieces()->create([
+                        'width' => $piece['width'] ?? 0,
+                        'height' => $piece['height'] ?? 0,
+                        'quantity' => $piece['quantity'] ?? 1,
+                    ]);
+                    // Map both temporary ids (temp_#) and existing ids to the freshly created piece id
+                    $tempId = 'temp_' . $pieceIndex;
+                    $pieceIdMap[$tempId] = $createdPiece->id;
+                    if (!empty($piece['id'])) {
+                        $pieceIdMap[(string) $piece['id']] = $createdPiece->id;
+                    }
+                    $pieceIndex++;
+                }
+            } else {
+                $order->pieces()->delete();
             }
-        } else {
-            $order->pieces()->delete();
-        }
 
-        return $this->crud->performSaveAction($order->getKey());
+            // Attach services (many-to-many with pivot data) using the piece ID map to keep selections intact; allow duplicates
+            $order->services()->detach();
+            if (!empty($fields['services'])) {
+                foreach ($fields['services'] as $service) {
+                    if (empty($service['service_id'])) {
+                        continue;
+                    }
+
+                    $pieceId = $service['piece_id'] ?? null;
+                    if ($pieceId) {
+                        if (strpos((string) $pieceId, 'temp_') === 0 && isset($pieceIdMap[$pieceId])) {
+                            $pieceId = $pieceIdMap[$pieceId];
+                        } elseif (isset($pieceIdMap[(string) $pieceId])) {
+                            $pieceId = $pieceIdMap[(string) $pieceId];
+                        }
+                    }
+
+                    $order->services()->attach($service['service_id'], [
+                        'piece_id' => $pieceId,
+                        'quantity' => $service['quantity'] ?? null,
+                        'description' => $service['description'] ?? null,
+                        'color' => $service['color'] ?? null,
+                        'light_type' => $service['light_type'] ?? null,
+                        'price_gel' => $service['price_gel'] ?? null,
+                        'distance' => $service['distance'] ?? null,
+                        'length_cm' => $service['length_cm'] ?? null,
+                        'perimeter' => $service['perimeter'] ?? null,
+                        'area' => $service['area'] ?? null,
+                        'antifog_type' => $service['antifog_type'] ?? null,
+                        'foam_length' => $service['foam_length'] ?? null,
+                        'tape_length' => $service['tape_length'] ?? null,
+                        'sensor_type' => $service['sensor_type'] ?? null,
+                        'sensor_quantity1' => $service['sensor_quantity1'] ?? null,
+                    ]);
+                }
+            }
+
+            return $this->crud->performSaveAction($order->getKey());
+        });
     }
 
     /**
@@ -1096,7 +1202,7 @@ class OrderCrudController extends CrudController
         }
 
         return response()->json([
-            'price_gel' => $price_gel
+            'price_gel' => round($price_gel, 2)
         ]);
     }
 

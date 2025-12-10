@@ -247,4 +247,18 @@ class ProductCrudController extends CrudController
         }
         return response()->json($products);
     }
+
+    public function getProductPrice($id)
+    {
+        $product = Product::find($id);
+        
+        if (!$product) {
+            return response()->json(['error' => 'Product not found'], 404);
+        }
+        
+        return response()->json([
+            'price' => $product->price,
+            'price_w' => $product->price_w,
+        ]);
+    }
 }

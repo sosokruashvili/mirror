@@ -48,7 +48,7 @@ class Order extends Model
      */
     public function products()
     {
-        return $this->belongsToMany(Product::class);
+        return $this->belongsToMany(Product::class)->withPivot('price');
     }
 
     /**
@@ -79,6 +79,7 @@ class Order extends Model
                 'tape_length', 
                 'sensor_type',
                 'sensor_quantity1',
+                'piece_id',
                 )->withTimestamps();
     }
 

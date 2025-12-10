@@ -28,10 +28,12 @@ Route::group([
     Route::crud('service', 'ServiceCrudController');
     Route::get('service/get-extra-fields/{id}', 'ServiceCrudController@getExtraFields')->name('service.getExtraFields');
     Route::get('product/get-products-filtered/{product_type}', 'ProductCrudController@getProductsFiltered')->name('products.getProductsFiltered');
+    Route::get('product/get-price/{id}', 'ProductCrudController@getProductPrice')->name('product.getPrice');
     Route::crud('payment', 'PaymentCrudController');
     Route::get('order/get-orders-by-client/{clientId}', 'OrderCrudController@getOrdersByClient')->name('order.getOrdersByClient');
     Route::crud('warehouse', 'WarehouseCrudController');
     Route::crud('client-balance', 'ClientBalanceCrudController');
+    Route::crud('custom-price', 'CustomPriceCrudController');
 }); // this should be the absolute last line of this file
 
 /**

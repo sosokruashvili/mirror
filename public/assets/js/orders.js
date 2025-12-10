@@ -21,12 +21,12 @@ function filterProductsForRow(rowNumber, productType) {
             'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content') || $('input[name="_token"]').val()
         },
         success: function(response) {
-            console.log(response);
             try {
                 // Try to access the select using crud.field
                 var $select = crud.field('products').subfield('product_id', rowNumber).$input;
                 
                 if ($select && $select.length) {
+                    var currentVal = $select.val();
                     // Clear all options except the first empty option (if it exists)
                     var firstOption = $select.find('option:first');
                     var isEmptyOption = firstOption.val() === '' || firstOption.val() === null || firstOption.val() === undefined;
@@ -40,9 +40,19 @@ function filterProductsForRow(rowNumber, productType) {
                     
                     // Populate with new options from response
                     response.forEach(function(product) {
-                        $select.append('<option value="' + product.id + '">' + product.title + '</option>');
+                        var type = product.product_type || '';
+                        var opt = $('<option>')
+                            .val(product.id)
+                            .text(product.title)
+                            .attr('data-product-type', type);
+                        $select.append(opt);
                     });
                     
+                    // Restore previous selection if still present
+                    if (currentVal && $select.find('option[value="' + currentVal + '"]').length) {
+                        $select.val(currentVal);
+                    }
+
                     // Trigger change event to update select2 if it's being used
                     $select.trigger('change');
                 }
@@ -51,6 +61,7 @@ function filterProductsForRow(rowNumber, productType) {
                 var $row = $('[data-repeatable-identifier="products"][data-row-number="' + rowNumber + '"]');
                 var $select = $row.find('select[name*="[product_id]"]');
                 if ($select.length) {
+                    var currentValJq = $select.val();
                     var firstOption = $select.find('option:first');
                     var isEmptyOption = firstOption.val() === '' || firstOption.val() === null || firstOption.val() === undefined;
                     
@@ -60,9 +71,18 @@ function filterProductsForRow(rowNumber, productType) {
                         $select.append('<option value="">-</option>');
                     }
                     
-                    response.forEach(function(product) {
-                        $select.append('<option value="' + product.id + '">' + product.title + '</option>');
+                response.forEach(function(product) {
+                    var type = product.product_type || '';
+                    var opt = $('<option>')
+                        .val(product.id)
+                        .text(product.title)
+                        .attr('data-product-type', type);
+                    $select.append(opt);
                     });
+
+                    if (currentValJq && $select.find('option[value="' + currentValJq + '"]').length) {
+                        $select.val(currentValJq);
+                    }
                     
                     $select.trigger('change');
                 }
@@ -242,8 +262,9 @@ function calculateRowPrice(rowNumber) {
         },
         success: function(response) {
             if (response.price_gel !== undefined) {
-                var pieceQty = getPieceQuantityById(formData.piece_id);
-                var finalPrice = response.price_gel * (pieceQty || 1);
+                var pieceQty = getPieceQuantityById(formData.piece_id) || 1;
+                var eligibleProductsCount = getEligibleProductsCount() || 1;
+                var finalPrice = response.price_gel * pieceQty * eligibleProductsCount;
                 crud.field('services').subfield('price_gel', rowNumber).$input.val(finalPrice);
             }
         }
@@ -260,6 +281,25 @@ function getPieceQuantityById(pieceId) {
         }
     }
     return 0;
+}
+
+// Count selected products whose option has data-product-type of glass or mirror
+function getEligibleProductsCount() {
+    var count = 0;
+    $('[data-repeatable-identifier="products"][data-row-number]').each(function() {
+        var $row = $(this);
+        var $sel = $row.find('select[name*="[product_id]"]');
+        if ($sel.length) {
+            var val = $sel.val();
+            if (val) {
+                var type = ($sel.find('option[value="' + val + '"]').attr('data-product-type') || '').toLowerCase();
+                if (type === 'glass' || type === 'mirror') {
+                    count++;
+                }
+            }
+        }
+    });
+    return count;
 }
 
 // Function to get pieces from the pieces repeatable field
@@ -390,6 +430,15 @@ $(document).ready(function() {
     try {
         currentProductType = crud.field('product_type').$input.val();
     } catch(e) {}
+
+    // On edit page, refresh product options to ensure data-product-type is present and selection kept
+    (function refreshProductsOnLoad() {
+        if (!currentProductType) return;
+        $('[data-repeatable-identifier="products"][data-row-number]').each(function() {
+            var rowNumber = parseInt($(this).attr('data-row-number'));
+            filterProductsForRow(rowNumber, currentProductType);
+        });
+    })();
     
     // For edit page, get pieces from the page (if available)
     var isEditPage = window.location.pathname.includes('/edit');

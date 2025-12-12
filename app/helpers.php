@@ -21,7 +21,7 @@ if (!function_exists('status_badge')) {
             'pending' => 'text-bg-warning',
             'working' => 'text-bg-info',
             'done' => 'text-bg-success',
-            'finished' => 'text-bg-dark',
+            'finished' => 'text-bg-success',
         ];
         
         // Default to secondary if status not found

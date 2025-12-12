@@ -125,35 +125,39 @@ crud.field('product_type').onChange(function(field) {
 function setProductPriceForRow(rowNumber, productId) {
     if (!productId) return;
 
-    // Get order type to determine if we should use retail or wholesale price
-    var orderType = '';
-    try {
-        orderType = crud.field('order_type').$input.val();
-    } catch (e) {
-        // Fallback to jQuery
-        orderType = $('select[name="order_type"], input[name="order_type"]').val() || 'retail';
-    }
-
+    var orderType = crud.field('order_type').$input.val();
+    var clientId = crud.field('client_id').$input.val();
+    
     $.ajax({
-        url: '/admin/product/get-price/' + productId,
+        url: '/admin/product/get-price/' + productId + '?client_id=' + clientId,
         method: 'GET',
         headers: {
             'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content') || $('input[name="_token"]').val()
         },
         success: function(response) {
             var price = orderType === 'wholesale' && response.price_w ? response.price_w : response.price;
+            var isCustom = response.is_custom || false;
 
-            // Prefer Backpack API if available
-            try {
-                crud.field('products').subfield('price', rowNumber).$input.val(price || '');
-                return;
-            } catch (e) {
-                // Fallback to direct DOM selection
-                var $row = $('[data-repeatable-identifier="products"][data-row-number="' + rowNumber + '"]');
-                var $priceInput = $row.find('input[name*="[price]"]');
-                if ($priceInput.length) {
-                    $priceInput.val(price || '');
-                }
+            var $priceInput = crud.field('products').subfield('price', rowNumber).$input;
+            $priceInput.val(price || '');
+            
+            // Show/hide custom price badge inside input field
+            var $wrapper = $priceInput.closest('[bp-field-wrapper]');
+            $wrapper.css('position', 'relative');
+            $wrapper.find('.custom-price-badge').remove();
+            
+            if (isCustom && price) {
+                $priceInput.css('padding-right', '85px');
+                var customPriceUrl = '/admin/custom-price';
+                var $badge = $('<span class="badge badge-success custom-price-badge" style="position: absolute; right: 8px; top: 50%; transform: translateY(-50%); font-size: 10px; padding: 3px 6px; cursor: pointer; z-index: 10; background-color: #28a745 !important; color: white;" title="Click to view Custom Prices">CP</span>');
+                $badge.on('click', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    window.location.href = customPriceUrl;
+                });
+                $wrapper.append($badge);
+            } else {
+                $priceInput.css('padding-right', '');
             }
         },
         error: function() {
@@ -163,6 +167,12 @@ function setProductPriceForRow(rowNumber, productId) {
 }
 
 crud.field('products').subfield('product_id').onChange(function(field) {
+    // Remove any existing custom price badge when product changes
+    var $priceInput = crud.field('products').subfield('price', field.rowNumber).$input;
+    var $wrapper = $priceInput.closest('[bp-field-wrapper]');
+    $wrapper.find('.custom-price-badge').remove();
+    $priceInput.css('padding-right', '');
+    
     setProductPriceForRow(field.rowNumber, field.value);
 });
 
@@ -431,6 +441,31 @@ $(document).ready(function() {
         currentProductType = crud.field('product_type').$input.val();
     } catch(e) {}
 
+    // Check if we're on edit page
+    var isEditPage = window.location.pathname.includes('/edit');
+    
+    // On create page, ensure product_id fields start with no selection
+    if (!isEditPage) {
+        setTimeout(function() {
+            $('[data-repeatable-identifier="products"][data-row-number]').each(function() {
+                var $row = $(this);
+                var rowNumber = parseInt($row.attr('data-row-number'));
+                try {
+                    var $select = crud.field('products').subfield('product_id', rowNumber).$input;
+                    if ($select && $select.length && $select.val()) {
+                        $select.val(null).trigger('change');
+                    }
+                } catch(e) {
+                    // Fallback to jQuery
+                    var $select = $row.find('select[name*="[product_id]"]');
+                    if ($select.length && $select.val()) {
+                        $select.val(null).trigger('change');
+                    }
+                }
+            });
+        }, 100);
+    }
+
     // On edit page, refresh product options to ensure data-product-type is present and selection kept
     (function refreshProductsOnLoad() {
         if (!currentProductType) return;
@@ -441,7 +476,6 @@ $(document).ready(function() {
     })();
     
     // For edit page, get pieces from the page (if available)
-    var isEditPage = window.location.pathname.includes('/edit');
     if (isEditPage) {
         // Try to extract pieces from the form or make an AJAX call
         // For now, we'll populate from the pieces repeatable field
@@ -468,6 +502,14 @@ $(document).ready(function() {
         calculateRowPrice(rowNumber);
     });
     
+    // Remove custom price badge when price is manually changed
+    $(document).on('input change', '[data-repeatable-identifier="products"] input[name*="[price]"]', function() {
+        var $input = $(this);
+        var $wrapper = $input.closest('[bp-field-wrapper]');
+        $wrapper.find('.custom-price-badge').remove();
+        $input.css('padding-right', '');
+    });
+
     // Listen for clicks on add button and filter after row is added
     $(document).on('click', '[bp-field-name="products"] button.add-repeatable-element-button', function() {
         if (!isMultiProductType(currentProductType)) {
@@ -621,8 +663,8 @@ $(document).ready(function() {
             
             // Calculate perimeter in meters: 2 * (width + height) / 1000 (convert mm to meters)
             // Then multiply by quantity
-            var perimeter = (2 * (width + height) / 1000);
-            var area = width * height / 1000000;
+            var perimeter = (2 * (width + height) / 100);
+            var area = width * height / 10000;
 
             // Set perimeter and area values
             try {

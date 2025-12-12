@@ -256,9 +256,31 @@ class ProductCrudController extends CrudController
             return response()->json(['error' => 'Product not found'], 404);
         }
         
+        $price = $product->price;
+        $price_w = $product->price_w;
+        $isCustom = false;
+        
+        // Check for custom price if client_id is provided
+        $clientId = request()->query('client_id');
+        if ($clientId) {
+            $customPrice = \App\Models\CustomPrice::where('client_id', $clientId)
+                ->where('product_id', $id)
+                ->first();
+            
+            if ($customPrice && $customPrice->price_usd) {
+                // Custom price overrides default price
+                $price = $customPrice->price_usd;
+                // For wholesale, use custom price or default wholesale price if custom doesn't specify
+                // (assuming custom price applies to both retail and wholesale, or you can add price_w_usd to CustomPrice model)
+                $price_w = $customPrice->price_usd;
+                $isCustom = true;
+            }
+        }
+        
         return response()->json([
-            'price' => $product->price,
-            'price_w' => $product->price_w,
+            'price' => $price,
+            'price_w' => $price_w,
+            'is_custom' => $isCustom,
         ]);
     }
 }

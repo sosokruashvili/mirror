@@ -4,8 +4,10 @@ namespace App\Http\Controllers\Admin;
 
 use Backpack\CRUD\app\Http\Controllers\CrudController;
 use Backpack\CRUD\app\Library\CrudPanel\CrudPanelFacade as CRUD;
+use Backpack\CRUD\app\Library\Widget;
 use App\Models\Currency;
 use App\Models\Client;
+use App\Models\Payment;
 
 /**
  * Class PaymentCrudController
@@ -33,6 +35,9 @@ class PaymentCrudController extends CrudController
         
         // Enable export buttons
         $this->crud->enableExportButtons();
+        
+        // Add JavaScript to reload page on filter change (so widgets update)
+        Widget::add()->type('script')->content('assets/js/payment-filters-reload.js');
     }
 
     /**
@@ -43,21 +48,15 @@ class PaymentCrudController extends CrudController
      */
     protected function setupListOperation()
     {
+        // Add summary widget that considers filters
+        $this->addPaymentStatsWidget();
+        
         CRUD::addColumn([
             'name' => 'client_id',
             'label' => 'Client',
             'type' => 'select',
             'entity' => 'client',
             'attribute' => 'name',
-        ]);
-
-        CRUD::addColumn([
-            'name' => 'order_id',
-            'label' => 'Order',
-            'type' => 'relationship',
-            'entity' => 'order',
-            'attribute' => 'order_display',
-            'limit' => 9999,
         ]);
 
         CRUD::addColumn([
@@ -73,14 +72,6 @@ class PaymentCrudController extends CrudController
             'label' => 'Currency Rate',
             'type' => 'number',
             'decimals' => 4,
-        ]);
-
-        CRUD::addColumn([
-            'name' => 'amount_usd',
-            'label' => 'Amount USD',
-            'type' => 'number',
-            'decimals' => 2,
-            'prefix' => '$ ',
         ]);
 
         CRUD::addColumn([
@@ -120,6 +111,7 @@ class PaymentCrudController extends CrudController
             return [
                 'Cash' => 'Cash',
                 'Transfer' => 'Transfer',
+                'Terminal' => 'Terminal',
             ];
         }, function($value) {
             $this->crud->addClause('where', 'method', $value);
@@ -156,23 +148,7 @@ class PaymentCrudController extends CrudController
             }
         });
 
-        CRUD::addFilter([
-            'type' => 'range',
-            'name' => 'amount_usd',
-            'label' => 'Amount USD',
-            'label_from' => 'Min amount',
-            'label_to' => 'Max amount'
-        ],
-        false,
-        function($value) {
-            $range = json_decode($value);
-            if ($range->from) {
-                $this->crud->addClause('where', 'amount_usd', '>=', (float) $range->from);
-            }
-            if ($range->to) {
-                $this->crud->addClause('where', 'amount_usd', '<=', (float) $range->to);
-            }
-        });
+        
 
         CRUD::addFilter([
             'name' => 'payment_date',
@@ -221,37 +197,13 @@ class PaymentCrudController extends CrudController
         ]);
 
         CRUD::addField([
-            'name' => 'order_id',
-            'label' => 'Order',
-            'type' => 'select2',
-            'entity' => 'order',
-            'attribute' => 'order_display',
-            'model' => \App\Models\Order::class,
-            'allows_null' => true,
-            'hint' => 'Select the order for this payment (filtered by selected client)',
-            'options' => function ($query) {
-                // Get the client_id from the request or old input
-                $clientId = request()->input('client_id') ?? old('client_id');
-                if ($clientId) {
-                    return $query->where('client_id', $clientId)->get();
-                }
-                return collect([]);
-            },
-            'wrapper' => [
-                'class' => 'form-group col-md-6'
-            ],
-            'attributes' => [
-                'id' => 'order_id_field',
-            ]
-        ]);
-
-        CRUD::addField([
             'name' => 'method',
             'label' => 'Payment Method',
             'type' => 'select_from_array',
             'options' => [
                 'Cash' => 'Cash',
                 'Transfer' => 'Transfer',
+                'Terminal' => 'Terminal',
             ],
             'allows_null' => false,
             'default' => 'Cash',
@@ -337,137 +289,6 @@ class PaymentCrudController extends CrudController
                 'class' => 'form-group col-md-6'
             ]
         ]);
-
-        // Add JavaScript to filter orders based on selected client
-        CRUD::addField([
-            'name' => 'order_filter_script',
-            'type' => 'custom_html',
-            'value' => '
-                <script>
-                (function() {
-                    // Store orders data for price lookup (accessible across functions)
-                    let ordersData = {};
-                    
-                    function initOrderFilter() {
-                        const clientField = document.querySelector("#client_id_field");
-                        const orderField = document.querySelector("#order_id_field");
-                        
-                        if (!clientField || !orderField) {
-                            // Retry after a short delay if elements not found yet
-                            setTimeout(initOrderFilter, 500);
-                            return;
-                        }
-                        
-                        // Function to set amount from selected order
-                        function setAmountFromOrder(orderId) {
-                            const amountField = document.querySelector("#amount_gel_field");
-                            if (!amountField) return;
-                            
-                            if (!orderId || !ordersData[orderId]) {
-                                return;
-                            }
-                            
-                            const price = ordersData[orderId];
-                            amountField.value = parseFloat(price).toFixed(2);
-                            
-                            // Trigger change event to update any dependent fields
-                            if (typeof $ !== "undefined") {
-                                $(amountField).trigger("change");
-                            }
-                        }
-                        
-                        // Function to load orders for selected client
-                        function loadOrders(clientId) {
-                            if (!clientId) {
-                                // Clear orders if no client selected
-                                if (typeof $ !== "undefined" && $(orderField).length && $(orderField).data("select2")) {
-                                    $(orderField).empty().append(\'<option value="">-</option>\');
-                                    $(orderField).val(null).trigger("change");
-                                } else {
-                                    orderField.innerHTML = \'<option value="">-</option>\';
-                                }
-                                return;
-                            }
-                            
-                            // Show loading state
-                            if (typeof $ !== "undefined" && $(orderField).length && $(orderField).data("select2")) {
-                                $(orderField).prop("disabled", true);
-                            }
-                            
-                            // Fetch orders for the selected client
-                            fetch(\'/admin/order/get-orders-by-client/\' + clientId)
-                                .then(response => response.json())
-                                .then(data => {
-                                    // Clear and store orders data for price lookup
-                                    ordersData = {};
-                                    data.forEach(function(order) {
-                                        ordersData[order.id] = order.price;
-                                    });
-                                    
-                                    // Clear existing options
-                                    if (typeof $ !== "undefined" && $(orderField).length && $(orderField).data("select2")) {
-                                        $(orderField).empty().append(\'<option value="">-</option>\');
-                                        
-                                        // Add new options
-                                        data.forEach(function(order) {
-                                            const option = new Option(order.text, order.id, false, false);
-                                            $(orderField).append(option);
-                                        });
-                                        
-                                        $(orderField).prop("disabled", false).trigger("change");
-                                    } else {
-                                        orderField.innerHTML = \'<option value="">-</option>\';
-                                        data.forEach(function(order) {
-                                            const option = document.createElement(\'option\');
-                                            option.value = order.id;
-                                            option.textContent = order.text;
-                                            orderField.appendChild(option);
-                                        });
-                                    }
-                                })
-                                .catch(error => {
-                                    console.error("Error loading orders:", error);
-                                    if (typeof $ !== "undefined" && $(orderField).length) {
-                                        $(orderField).prop("disabled", false);
-                                    }
-                                });
-                        }
-                        
-                        // Wait for select2 to be initialized
-                        setTimeout(function() {
-                            // Load orders on client change
-                            $(clientField).on("change", function() {
-                                loadOrders($(this).val());
-                                // Clear amount when client changes
-                                const amountField = document.querySelector("#amount_gel_field");
-                                if (amountField) {
-                                    amountField.value = "";
-                                }
-                            });
-                            
-                            // Handle order selection change
-                            $(orderField).on("change", function() {
-                                const orderId = $(this).val();
-                                setAmountFromOrder(orderId);
-                            });
-                            
-                            // Load orders on page load if client is already selected
-                            if ($(clientField).val()) {
-                                loadOrders($(clientField).val());
-                            }
-                        }, 1000);
-                    }
-                    
-                    // Initialize when DOM is ready
-                    if (document.readyState === "loading") {
-                        document.addEventListener("DOMContentLoaded", initOrderFilter);
-                    } else {
-                        initOrderFilter();
-                    }
-                })();
-                </script>
-            '
-        ]);
     }
 
     /**
@@ -479,6 +300,141 @@ class PaymentCrudController extends CrudController
     protected function setupUpdateOperation()
     {
         $this->setupCreateOperation();
+    }
+
+    /**
+     * Apply filters to payment query based on request parameters.
+     * 
+     * @param \Illuminate\Database\Eloquent\Builder $query
+     * @return \Illuminate\Database\Eloquent\Builder
+     */
+    protected function applyPaymentFilters($query)
+    {
+        if (request()->has('client_id') && request()->get('client_id') !== '') {
+            $query->where('client_id', request()->get('client_id'));
+        }
+        
+        if (request()->has('method') && request()->get('method') !== '') {
+            $query->where('method', request()->get('method'));
+        }
+        
+        if (request()->has('status') && request()->get('status') !== '') {
+            $query->where('status', request()->get('status'));
+        }
+        
+        if (request()->has('amount_gel') && request()->get('amount_gel')) {
+            $range = json_decode(request()->get('amount_gel'));
+            if ($range && isset($range->from)) {
+                $query->where('amount_gel', '>=', (float) $range->from);
+            }
+            if ($range && isset($range->to)) {
+                $query->where('amount_gel', '<=', (float) $range->to);
+            }
+        }
+        
+        if (request()->has('amount_usd') && request()->get('amount_usd')) {
+            $range = json_decode(request()->get('amount_usd'));
+            if ($range && isset($range->from)) {
+                $query->where('amount_usd', '>=', (float) $range->from);
+            }
+            if ($range && isset($range->to)) {
+                $query->where('amount_usd', '<=', (float) $range->to);
+            }
+        }
+        
+        if (request()->has('payment_date') && request()->get('payment_date')) {
+            $dates = json_decode(request()->get('payment_date'));
+            if ($dates && isset($dates->from)) {
+                $fromDate = date('Y-m-d', strtotime($dates->from)) . ' 00:00:00';
+                $query->where('payment_date', '>=', $fromDate);
+            }
+            if ($dates && isset($dates->to)) {
+                $toDate = date('Y-m-d', strtotime($dates->to)) . ' 23:59:59';
+                $query->where('payment_date', '<=', $toDate);
+            }
+        }
+        
+        return $query;
+    }
+
+    /**
+     * Calculate payment statistics from a collection of payments.
+     * 
+     * @param \Illuminate\Support\Collection $payments
+     * @return array
+     */
+    protected function calculatePaymentStats($payments)
+    {
+
+        $paidPayments = $payments->where('status', 'Paid');
+        $pendingPayments = $payments->where('status', 'Pending');
+
+        return [
+            'paymentsCount' => $payments->count(),
+            'totalAmountGel' => $payments->sum('amount_gel') ?? 0,
+            'paidCount' => $paidPayments->count(),
+            'paidAmountGel' => $paidPayments->sum('amount_gel') ?? 0,
+            'pendingCount' => $pendingPayments->count(),
+            'pendingAmountGel' => $pendingPayments->sum('amount_gel') ?? 0,
+        ];
+    }
+
+    /**
+     * Add widgets for payment statistics (count, total amounts, paid/pending).
+     * This widget considers active filters.
+     * 
+     * @return void
+     */
+    protected function addPaymentStatsWidget()
+    {
+        $query = $this->applyPaymentFilters(Payment::query());
+        $payments = $query->get();
+        $stats = $this->calculatePaymentStats($payments);
+        
+        // Create a row container and add widgets inside it
+        Widget::add([
+            'type' => 'div',
+            'class' => 'row mb-3',
+            'wrapper' => false,
+            'content' => [
+                [
+                    'type' => 'progress',
+                    'class' => 'card text-white bg-primary',
+                    'value' => number_format($stats['paymentsCount']),
+                    'description' => 'Total Payments',
+                    'wrapper' => ['class' => 'col-3'],
+                ],
+                [
+                    'type' => 'progress',
+                    'class' => 'card text-white bg-success',
+                    'value' => number_format($stats['totalAmountGel'], 2) . ' ₾',
+                    'description' => 'Total Amount GEL',
+                    'wrapper' => ['class' => 'col-3'],
+                ],
+                [
+                    'type' => 'progress',
+                    'class' => 'card text-white bg-secondary',
+                    'value' => number_format($stats['paidCount']) . ' / ' . number_format($stats['pendingCount']),
+                    'description' => 'Paid / Pending',
+                    'hint' => number_format($stats['paidAmountGel'], 2) . ' ₾ / ' . number_format($stats['pendingAmountGel'], 2) . ' ₾',
+                    'wrapper' => ['class' => 'col-3'],
+                ],
+            ],
+        ])->to('before_content');
+    }
+
+    /**
+     * Get payment statistics via AJAX (for dynamic widget updates).
+     * 
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function getPaymentStats()
+    {
+        $query = $this->applyPaymentFilters(Payment::query());
+        $payments = $query->get();
+        $stats = $this->calculatePaymentStats($payments);
+        
+        return response()->json($stats);
     }
 }
 

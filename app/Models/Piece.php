@@ -41,6 +41,6 @@ class Piece extends Model
 
     public function getArea()
     {
-        return $this->width/1000 * $this->height/1000 * $this->quantity;
+        return $this->width/100 * $this->height/100 * $this->quantity;
     }
 }

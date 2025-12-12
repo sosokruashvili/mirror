@@ -27,6 +27,16 @@ class CheckIfAdmin
      */
     private function checkIfUserIsAdmin($user)
     {
+        if (!$user) {
+            return false;
+        }
+        
+        // Allow team role access
+        if ($user->hasRole('team')) {
+            return true;
+        }
+        
+        // Allow other admin roles (you can customize this logic)
         // return ($user->is_admin == 1);
         return true;
     }

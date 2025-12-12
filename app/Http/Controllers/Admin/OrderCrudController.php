@@ -11,6 +11,8 @@ use App\Models\Order;
 use App\Models\Service;
 use App\Models\Product;
 use Illuminate\Support\Facades\DB;
+use App\Models\CustomPrice;
+
 /**
  * Class OrderCrudController
  * @package App\Http\Controllers\Admin
@@ -106,10 +108,7 @@ class OrderCrudController extends CrudController
             'name' => 'price_gel',
             'label' => 'Price (GEL)',
             'type' => 'number',
-            'decimals' => 2,
-            'value' => function ($entry) {
-                return $entry->calculateTotalPrice();
-            }
+            'decimals' => 2
         ]);
 
         CRUD::addColumn([
@@ -336,8 +335,9 @@ class OrderCrudController extends CrudController
                     'label'   => 'Product',
                     'type'    => 'select2_from_array',
                     'options' => Product::all()->pluck('title', 'id')->toArray(),
-                    'allows_null' => false,
+                    'allows_null' => true,
                     'default' => null,
+                    'placeholder' => 'Select a product',
                     'attributes' => [
                         'required' => true,
                     ],
@@ -355,7 +355,7 @@ class OrderCrudController extends CrudController
                         'required' => true,
                     ],
                     'wrapper' => [
-                        'class' => 'form-group col-md-4'
+                        'class' => 'form-group col-md-2'
                     ],
                 ],
             ],
@@ -956,6 +956,14 @@ class OrderCrudController extends CrudController
                     if (empty($product['product_id'])) {
                         continue;
                     }
+                    if($product['price'] !== Product::find($product['product_id'])->price) {
+                        CustomPrice::updateOrCreate([
+                            'client_id' => $order->client_id,
+                            'product_id' => $product['product_id'],
+                        ], [
+                            'price_usd' => $product['price'],
+                        ]);
+                    }
                     $syncData[$product['product_id']] = [
                         'price' => $product['price'] ?? null,
                     ];
@@ -996,13 +1004,24 @@ class OrderCrudController extends CrudController
                         $pieceId = $pieceIdMap[$pieceId] ?? null;
                     }
                     
+                    // Calculate price_gel if not provided
+                    $priceGel = $service['price_gel'] ?? null;
+                    if ($priceGel === null || $priceGel === '') {
+                        $serviceModel = Service::find($service['service_id']);
+                        if ($serviceModel) {
+                            $priceGel = $this->calculateServicePriceGel($serviceModel, $service);
+                        } else {
+                            $priceGel = 0;
+                        }
+                    }
+                    
                     $order->services()->attach($service['service_id'], [
                         'piece_id' => $pieceId,
                         'quantity' => $service['quantity'] ?? null,
                         'description' => $service['description'] ?? null,
                         'color' => $service['color'] ?? null,
                         'light_type' => $service['light_type'] ?? null,
-                        'price_gel' => $service['price_gel'] ?? null,
+                        'price_gel' => $priceGel,
                         'distance' => $service['distance'] ?? null,
                         'length_cm' => $service['length_cm'] ?? null,
                         'perimeter' => $service['perimeter'] ?? null,
@@ -1020,9 +1039,7 @@ class OrderCrudController extends CrudController
             $order->refresh();
             $order->load(['services', 'products', 'pieces']);
 
-            // Calculate order price after all relationships are set up
             $order->calculateOrderPrice();
-
             return $this->crud->performSaveAction($order->getKey());
         });
     }
@@ -1050,6 +1067,14 @@ class OrderCrudController extends CrudController
                 foreach ($fields['products'] as $product) {
                     if (empty($product['product_id'])) {
                         continue;
+                    }
+                    if($product['price'] !== Product::find($product['product_id'])->price) {
+                        CustomPrice::updateOrCreate([
+                            'client_id' => $order->client_id,
+                            'product_id' => $product['product_id'],
+                        ], [
+                            'price_usd' => $product['price'],
+                        ]);
                     }
                     $syncData[$product['product_id']] = [
                         'price' => $product['price'] ?? null,
@@ -1100,13 +1125,24 @@ class OrderCrudController extends CrudController
                         }
                     }
 
+                    // Calculate price_gel if not provided
+                    $priceGel = $service['price_gel'] ?? null;
+                    if ($priceGel === null || $priceGel === '') {
+                        $serviceModel = Service::find($service['service_id']);
+                        if ($serviceModel) {
+                            $priceGel = $this->calculateServicePriceGel($serviceModel, $service);
+                        } else {
+                            $priceGel = 0;
+                        }
+                    }
+
                     $order->services()->attach($service['service_id'], [
                         'piece_id' => $pieceId,
                         'quantity' => $service['quantity'] ?? null,
                         'description' => $service['description'] ?? null,
                         'color' => $service['color'] ?? null,
                         'light_type' => $service['light_type'] ?? null,
-                        'price_gel' => $service['price_gel'] ?? null,
+                        'price_gel' => $priceGel,
                         'distance' => $service['distance'] ?? null,
                         'length_cm' => $service['length_cm'] ?? null,
                         'perimeter' => $service['perimeter'] ?? null,
@@ -1119,6 +1155,13 @@ class OrderCrudController extends CrudController
                     ]);
                 }
             }
+
+            // Refresh relationships to ensure they're loaded
+            $order->refresh();
+            $order->load(['services', 'products', 'pieces']);
+
+            // Calculate order price after all relationships are set up
+            $order->calculateOrderPrice();
 
             return $this->crud->performSaveAction($order->getKey());
         });
@@ -1153,6 +1196,58 @@ class OrderCrudController extends CrudController
     /**
      * Calculate order service price based on service data and field values.
      * 
+     * @param Service $service The service model
+     * @param array $serviceData The service data array with fields like perimeter, area, etc.
+     * @return float The calculated price in GEL
+     */
+    private function calculateServicePriceGel(Service $service, array $serviceData)
+    {
+        $price_gel = 0;
+
+        switch($service->slug) {
+            case 'ek':
+            case 'fk':
+            case 'oval':
+                $price_gel = ($serviceData['perimeter'] ?? 0) * $service->getPriceGel();
+                break;
+            case 'alum_frame':
+            case 'rubber_frame':
+                $price_gel = ($serviceData['perimeter'] ?? 0) * $service->getPriceGel() + 15;
+                break;
+            case 'training':
+            case 'matt':
+                $price_gel = ($serviceData['area'] ?? 0) * $service->getPriceGel();
+                break;
+            case 'delivery':
+                $price_gel = ($serviceData['distance'] ?? 0) * $service->getPriceGel();
+                break;
+            case 'cutout':
+                $price_gel = ($serviceData['length_cm'] ?? 0) * $service->getPriceGel();
+                break;
+            case 'hole':
+            case 'hingcut':
+            case 'hanger':
+            case 'silicone':
+            case 'stick':
+                $price_gel = ($serviceData['quantity'] ?? 0) * $service->getPriceGel();
+                break;
+            case 'antifog':
+                $price_gel = $service->getPriceGel();
+                break;
+            case 'light':
+                $price_gel = ($serviceData['tape_length'] ?? 0) * 20 + ($serviceData['foam_length'] ?? 0) * 5 + ($serviceData['sensor_quantity1'] ?? 0) * 50 + 50;
+                break;
+            default:
+                $price_gel = 0;
+                break;
+        }
+
+        return round($price_gel, 2);
+    }
+
+    /**
+     * Calculate order service price based on service data and field values.
+     * 
      * @return \Illuminate\Http\JsonResponse
      */
     public function calculate_order_service_price()
@@ -1161,48 +1256,10 @@ class OrderCrudController extends CrudController
         $formData = request()->all();
         $service = Service::find($formData['service_id']);
 
-        $price_gel = 0;
-
-        switch($service->slug) {
-            case 'ek':
-            case 'fk':
-            case 'oval':
-                $price_gel = $formData['perimeter'] * $service->getPriceGel();
-                break;
-            case 'alum_frame':
-            case 'rubber_frame':
-                $price_gel = $formData['perimeter'] * $service->getPriceGel() + 15;
-                break;
-            case 'training':
-            case 'matt':
-                $price_gel = $formData['area'] * $service->getPriceGel();
-                break;
-            case 'delivery':
-                $price_gel = $formData['distance'] * $service->getPriceGel();
-                break;
-            case 'cutout':
-                $price_gel = $formData['length_cm'] * $service->getPriceGel();
-                break;
-            case 'hole':
-            case 'hingcut':
-            case 'hanger':
-            case 'silicone':
-            case 'stick':
-                $price_gel = $formData['quantity'] * $service->getPriceGel();
-                break;
-            case 'antifog':
-                $price_gel = $service->getPriceGel();
-                break;
-            case 'light':
-                $price_gel = $formData['tape_length'] * 20 + $formData['foam_length'] * 5 + $formData['sensor_quantity1'] * 50 + 50;
-                break;
-            case 'default':
-                $price_gel = 0;
-                break;
-        }
+        $price_gel = $this->calculateServicePriceGel($service, $formData);
 
         return response()->json([
-            'price_gel' => round($price_gel, 2)
+            'price_gel' => $price_gel
         ]);
     }
 

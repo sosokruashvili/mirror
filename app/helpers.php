@@ -19,9 +19,10 @@ if (!function_exists('status_badge')) {
             'draft' => 'text-bg-secondary',
             'new' => 'text-bg-primary',
             'pending' => 'text-bg-warning',
-            'working' => 'text-bg-info',
+            'working' => 'text-bg-warning',
             'done' => 'text-bg-success',
             'finished' => 'text-bg-success',
+            'ready' => 'text-bg-success text-white',
         ];
         
         // Default to secondary if status not found
@@ -72,6 +73,74 @@ if (!function_exists('order_type_ge')) {
         ];
         
         return $translations[$orderType] ?? $orderType;
+    }
+}
+
+if (!function_exists('get_extra_field_labels')) {
+    /**
+     * Get field labels mapping for service extra fields
+     *
+     * @return array Array mapping field names to their display labels
+     */
+    function get_extra_field_labels(): array
+    {
+        return [
+            'antifog_type' => 'Anti Fog Type',
+            'quantity' => 'Quantity',
+            'perimeter' => 'Perimeter',
+            'color' => 'Color',
+            'light_type' => 'Light Type',
+            'foam_length' => 'Foam Length',
+            'tape_length' => 'Tape Length',
+            'area' => 'Area',
+            'length_cm' => 'Length (cm)',
+            'sensor_quantity1' => 'Sensor Quantity',
+            'sensor_type' => 'Sensor Type',
+            'distance' => 'Distance',
+            'description' => 'Description',
+            'price_gel' => 'Price (GEL)',
+            'piece_id' => 'Piece ID',
+            'calculate_price_btn' => 'Calculate Price Button',
+        ];
+    }
+}
+
+if (!function_exists('get_service_extra_fields')) {
+    /**
+     * Get fields to display and their labels from service's extra_field_names
+     *
+     * @param \App\Models\Service|array|null $serviceOrFields Service model instance or array of extra_field_names
+     * @return array Array with 'fields' (array of field names) and 'labels' (array of field => label)
+     */
+    function get_service_extra_fields($serviceOrFields): array
+    {
+        // Get field labels mapping
+        $allFieldLabels = get_extra_field_labels();
+        
+        // Extract extra_field_names from service or use provided array
+        if (is_object($serviceOrFields) && isset($serviceOrFields->extra_field_names)) {
+            $fieldsToDisplay = $serviceOrFields->extra_field_names ?? [];
+        } elseif (is_array($serviceOrFields)) {
+            $fieldsToDisplay = $serviceOrFields;
+        } else {
+            $fieldsToDisplay = [];
+        }
+        
+        // Ensure it's an array
+        if (!is_array($fieldsToDisplay)) {
+            $fieldsToDisplay = [];
+        }
+        
+        // Build labels array for the fields to display
+        $labels = [];
+        foreach ($fieldsToDisplay as $field) {
+            $labels[$field] = $allFieldLabels[$field] ?? ucfirst(str_replace('_', ' ', $field));
+        }
+        
+        return [
+            'fields' => $fieldsToDisplay,
+            'labels' => $labels,
+        ];
     }
 }
 

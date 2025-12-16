@@ -155,6 +155,41 @@ class Order extends Model
         return "Order #{$this->id} - {$productType} - {$price} ₾";
     }
 
+    /**
+     * Check if all pieces of this order are ready.
+     * 
+     * @return bool
+     */
+    public function allPiecesReady()
+    {
+        $pieces = $this->pieces;
+        
+        // If there are no pieces, return false
+        if ($pieces->isEmpty()) {
+            return false;
+        }
+        
+        // Check if all pieces have status 'ready'
+        return $pieces->every(function ($piece) {
+            return $piece->status === 'ready';
+        });
+    }
+
+    /**
+     * Update order status to 'ready' if all pieces are ready.
+     * 
+     * @return bool True if status was updated, false otherwise
+     */
+    public function updateStatusIfAllPiecesReady()
+    {
+        if ($this->allPiecesReady() && $this->status !== 'ready') {
+            $this->status = 'ready';
+            $this->save();
+            return true;
+        }
+        return false;
+    }
+
     /*
     |--------------------------------------------------------------------------
     | MUTATORS

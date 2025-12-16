@@ -40,6 +40,8 @@ class OrderCrudController extends CrudController
         // Enable export buttons
         $this->crud->enableExportButtons();
         Widget::add()->type('script')->content('assets/js/orders.js');
+        // Add JavaScript to reload page on filter change (so widgets update)
+        Widget::add()->type('script')->content('assets/js/payment-filters-reload.js');
     }
 
     /**
@@ -632,6 +634,7 @@ class OrderCrudController extends CrudController
                 'new' => 'New',
                 'working' => 'Working',
                 'done' => 'Done',
+                'ready' => 'Ready',
                 'finished' => 'Finished',
             ],
             'allows_null' => false,
@@ -722,6 +725,14 @@ class OrderCrudController extends CrudController
 
     protected function setupShowOperation()
     {
+        // Add styles for order preview page
+        Widget::add()->type('style')->content('assets/css/order-preview.css');
+        
+        // Use team preview view for team users
+        if (backpack_user() && backpack_user()->hasRole('team')) {
+            $this->crud->set('show.view', 'admin.team-order-preview');
+        }
+        
         // Add Confirm button (only show when status is draft)
         $this->crud->addButton('line', 'confirm', 'view', 'crud::buttons.confirm', 'end');
         
@@ -798,27 +809,6 @@ class OrderCrudController extends CrudController
         ]);
 
         CRUD::addColumn([
-            'name' => 'pieces',
-            'label' => 'Pieces',
-            'type' => 'custom_html',
-            'value' => function ($entry) {
-                $pieces = $entry->pieces;
-                if ($pieces->isEmpty()) {
-                    return '<span class="text-muted">' . trans('messages.no_pieces', [], 'ka') . '</span>';
-                }
-                
-                $pieceRoute = url(config('backpack.base.route_prefix') . '/piece');
-                $links = $pieces->map(function ($piece) use ($pieceRoute, $entry) {
-                    $url = $pieceRoute . '?order_id=' . $entry->id;
-                    $pieceInfo = 'ID: ' . $piece->id . ' - ' . $piece->width . 'x' . $piece->height . ' (Qty: ' . $piece->quantity . ') (' . number_format($piece->width/1000*$piece->height/1000*$piece->quantity, 2, '.', '') . ' m²)';
-                    return '<a href="' . $url . '" target="_blank" class="d-block mb-1">' . htmlspecialchars($pieceInfo, ENT_QUOTES, 'UTF-8') . ' <i class="la la-external-link"></i></a>';
-                })->implode('');
-                
-                return '<div>' . $links . '</div>';
-            }
-        ]);
-
-        CRUD::addColumn([
             'name' => 'currency_rate',
             'label' => 'Currency Rate',
             'type' => 'number',
@@ -837,97 +827,81 @@ class OrderCrudController extends CrudController
         ]);
 
         CRUD::addColumn([
-            'name' => 'services',
-            'label' => 'Services',
+            'name' => 'pieces',
+            'label' => 'Pieces',
             'type' => 'custom_html',
             'value' => function ($entry) {
-                $services = $entry->services;
-                if ($services->isEmpty()) {
-                    return '<span class="text-muted">' . trans('messages.no_services', [], 'ka') . '</span>';
+                $entry->load(['pieces.product', 'services']);
+                if ($entry->pieces->isEmpty() && $entry->services->isEmpty()) {
+                    return '<span>No pieces</span>';
                 }
                 
-                $serviceRoute = url(config('backpack.base.route_prefix') . '/service');
-                $serviceItems = $services->map(function ($service) use ($serviceRoute, $entry) {
-                    $url = $serviceRoute . '?order_id=' . $entry->id;
+                $numericFields = ['price_gel', 'distance', 'length_cm', 'perimeter', 'area', 'foam_length', 'tape_length'];
+                
+                // Helper to format field value
+                $formatValue = function($field, $value) use ($numericFields) {
+                    if (in_array($field, $numericFields) && is_numeric($value)) {
+                        return number_format((float)$value, 2, '.', '');
+                    }
+                    return $value;
+                };
+                
+                // Helper to render service
+                $renderService = function($service, $entry) use ($formatValue) {
                     $pivot = $service->pivot;
+                    $html = '<div class="mb-2 p-2 service-item border rounded">';
+                    $html .= '<div class="d-block mb-1 fw-bold">' . htmlspecialchars($service->title, ENT_QUOTES, 'UTF-8') . '</div>';
                     
-                    // Build service info with link
-                    $html = '<div class="mb-3 p-2 border rounded">';
-                    $html .= '<a href="' . $url . '" target="_blank" class="d-block mb-2 fw-bold">';
-                    $html .= 'ID: ' . $service->id . ' - ' . htmlspecialchars($service->title, ENT_QUOTES, 'UTF-8');
-                    $html .= ' <i class="la la-external-link"></i>';
-                    $html .= '</a>';
+                    // Get fields to display and their labels from helper function
+                    $extraFields = get_service_extra_fields($service);
+                    $fieldsToDisplay = $extraFields['fields'];
+                    $fieldLabels = $extraFields['labels'];
                     
-                    // Display non-null pivot fields in a table
                     $pivotFields = [];
-                    $fieldsToCheck = [
-                        'quantity',
-                        'description',
-                        'color',
-                        'light_type',
-                        'distance',
-                        'length_cm',
-                        'perimeter',
-                        'area',
-                        'antifog_type',
-                        'foam_length',
-                        'tape_length',
-                        'sensor_type',
-                        'sensor_quantity',
-                        'price_gel',
-                    ];
-                    
-                    foreach ($fieldsToCheck as $field) {
+                    foreach ($fieldsToDisplay as $field) {
                         if (isset($pivot->$field) && $pivot->$field !== null && $pivot->$field !== '') {
-                            $value = $pivot->$field;
-                            
-                            // Format numeric values
-                            if (in_array($field, ['price_gel', 'distance', 'length_cm', 'perimeter', 'area', 'foam_length', 'tape_length']) && is_numeric($value)) {
-                                $value = number_format((float)$value, 2, '.', '');
-                            }
-                            
-                            // Translate non-numeric values using messages.php
-                            $translatableFields = ['light_type', 'antifog_type', 'sensor_type'];
-                            if (in_array($field, $translatableFields) && !is_numeric($value)) {
-                                $translationKey = 'messages.' . $field . '.' . $value;
-                                $translatedValue = trans($translationKey, [], 'ka');
-                                // If translation exists (not the same as key), use it
-                                if ($translatedValue !== $translationKey) {
-                                    $value = $translatedValue;
-                                }
-                            }
-                            
-                            // Use Laravel translation with Georgian locale for field label
-                            $label = trans('service_pivot.' . $field, [], 'ka');
-                            $pivotFields[] = [
-                                'label' => $label,
-                                'value' => htmlspecialchars($value, ENT_QUOTES, 'UTF-8')
-                            ];
+                            $value = $formatValue($field, $pivot->$field);
+                            $label = $fieldLabels[$field] ?? ucfirst(str_replace('_', ' ', $field));
+                            $pivotFields[] = '<span>' . $label . ': </span><span>' . htmlspecialchars($value, ENT_QUOTES, 'UTF-8') . '</span>';
                         }
                     }
                     
                     if (!empty($pivotFields)) {
-                        $html .= '<table class="table table-sm table-bordered mb-0 mt-2">';
-                        $html .= '<tbody>';
-                        foreach ($pivotFields as $field) {
-                            $html .= '<tr>';
-                            $html .= '<td class="fw-bold" style="width: 40%;">' . $field['label'] . '</td>';
-                            $html .= '<td>' . $field['value'] . '</td>';
-                            $html .= '</tr>';
-                        }
-                        $html .= '</tbody>';
-                        $html .= '</table>';
+                        $html .= '<div class="small">' . implode(' | ', $pivotFields) . '</div>';
                     }
-                    
-                    $html .= '</div>';
-                    return $html;
-                })->implode('');
+                    return $html . '</div>';
+                };
                 
-                return '<div>' . $serviceItems . '</div>';
+                $html = '<div class="pieces-list">';
+                
+                // Render pieces with their services
+                foreach ($entry->pieces as $piece) {
+                    $pieceServices = $entry->services->filter(fn($s) => $s->pivot->piece_id == $piece->id);
+                    
+                    $html .= '<div class="mb-3 p-3 border rounded piece-item">';
+                    $html .= '<div class="fw-bold d-block mb-2">Piece #' . $piece->id . ($piece->product ? ' - ' . htmlspecialchars($piece->product->title, ENT_QUOTES, 'UTF-8') : '') . '</div>';
+                    $html .= '<div class="mb-2 small">';
+                    $html .= '<span>Size: </span><strong>' . number_format($piece->width, 2) . ' × ' . number_format($piece->height, 2) . ' cm</strong> | ';
+                    $html .= '<span>Quantity: </span><strong>' . $piece->quantity . '</strong> | ';
+                    $html .= '<span>Area: </span><strong>' . number_format($piece->getArea(), 2) . ' m²</strong>';
+                    if ($piece->status) $html .= ' | <span>Status: </span><strong>' . status_badge($piece->status) . '</strong>';
+                    $html .= '</div>';
+                    
+                    if ($pieceServices->count() > 0) {
+                        $html .= '<div class="mt-2 pt-2 border-top"><div class="small mb-2">Services (' . $pieceServices->count() . '):</div>';
+                        foreach ($pieceServices as $service) $html .= $renderService($service, $entry);
+                        $html .= '</div>';
+                    } else {
+                        $html .= '<div class="mt-2 pt-2 border-top small">No services assigned to this piece</div>';
+                    }
+                    $html .= '</div>';
+                }
+                
+                return $html . '</div>';
             }
         ]);
 
-
+        
     }
     
     /**

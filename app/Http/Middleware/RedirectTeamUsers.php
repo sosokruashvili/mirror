@@ -14,8 +14,10 @@ class RedirectTeamUsers
      */
     protected $allowedRoutes = [
         'team.orders',
-        'backpack.logout',
-        'backpack.login',
+        'team.orders.finish',
+        'team.pieces.ready',
+        'backpack.auth.logout',
+        'backpack.auth.login',
     ];
 
     /**
@@ -27,6 +29,15 @@ class RedirectTeamUsers
         'team/orders',
         'logout',
         'login',
+    ];
+    
+    /**
+     * Path patterns that team users are allowed to access.
+     *
+     * @var array
+     */
+    protected $allowedPathPatterns = [
+        'order/*/show', // Allow order show pages
     ];
 
     /**
@@ -55,8 +66,25 @@ class RedirectTeamUsers
                 $isLogout = str_contains($path, 'logout') || $request->isMethod('post') && str_contains($path, 'logout');
                 $isLogin = str_contains($path, 'login');
                 
-                // Allow only: team orders page, logout, and login
-                if (!$isAllowedRoute && !$isTeamOrdersPage && !$isLogout && !$isLogin) {
+                // Check if path matches allowed patterns
+                $matchesAllowedPattern = false;
+                foreach ($this->allowedPathPatterns as $pattern) {
+                    // Convert pattern to regex (simple wildcard matching)
+                    // Pattern should match with admin prefix
+                    $patternWithPrefix = $adminPrefix . '/' . $pattern;
+                    // Escape special regex characters first, then replace wildcard
+                    $escapedPattern = preg_quote($patternWithPrefix, '/');
+                    // Replace escaped wildcard with regex pattern
+                    $escapedPattern = str_replace('\*', '[^\/]+', $escapedPattern);
+                    $regex = '/^' . $escapedPattern . '$/';
+                    if (preg_match($regex, $path)) {
+                        $matchesAllowedPattern = true;
+                        break;
+                    }
+                }
+                
+                // Allow only: team orders page, logout, login, and paths matching allowed patterns
+                if (!$isAllowedRoute && !$isTeamOrdersPage && !$isLogout && !$isLogin && !$matchesAllowedPattern) {
                     // For AJAX/JSON requests, return 403
                     if ($request->ajax() || $request->wantsJson()) {
                         return response()->json(['error' => 'Access denied'], 403);

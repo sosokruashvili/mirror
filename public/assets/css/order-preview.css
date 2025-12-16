@@ -1,0 +1,58 @@
+/* Order Preview Page Styles */
+
+.piece-item {
+    background: #fff;
+    border: 1px solid #e0e0e0;
+    padding: 15px;
+    margin-bottom: 15px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    transition: box-shadow 0.2s ease;
+}
+
+.piece-item:hover {
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.service-item {
+    background: #cacaca;
+    
+    border-left: 3px solid #6081b3;
+    border-radius: 4px;
+    padding: 10px 12px;
+    margin-bottom: 8px;
+    transition: background-color 0.2s ease;
+}
+
+.service-item:hover {
+    background: #e9ecef;
+}
+
+.pieces-list {
+    margin-top: 10px;
+}
+
+.pieces-list .piece-item .fw-bold {
+    font-size: 16px;
+    margin-bottom: 10px;
+}
+
+.pieces-list .service-item .fw-bold {
+    font-size: 14px;
+    margin-bottom: 6px;
+}
+
+.pieces-list .service-item .small {
+    line-height: 1.5;
+}
+
+.pieces-list .piece-item .small {
+    line-height: 1.6;
+}
+
+.theme-dark .piece-item {
+    background: #464646;
+}
+
+.theme-dark .service-item {
+    background: #2c2a2a;
+}

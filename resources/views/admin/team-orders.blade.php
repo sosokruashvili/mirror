@@ -85,15 +85,14 @@
     .order-tile {
         background: #fff;
         border: 2px solid #e0e0e0;
-        border-radius: 12px;
-        padding: 20px;
-        margin-bottom: 20px;
+        border-radius: 8px;
+        padding: 12px;
         box-shadow: 0 2px 8px rgba(0,0,0,0.1);
         transition: transform 0.2s, box-shadow 0.2s;
-        min-height: 280px;
         display: flex;
         flex-direction: column;
         justify-content: space-between;
+        height: 100%;
     }
     
     .order-tile:hover {
@@ -102,37 +101,39 @@
     }
     
     .order-header {
-        border-bottom: 2px solid #f0f0f0;
-        padding-bottom: 15px;
-        margin-bottom: 15px;
+        border-bottom: 1px solid #f0f0f0;
+        padding-bottom: 8px;
+        margin-bottom: 10px;
     }
     
     .order-id {
-        font-size: 24px;
+        font-size: 18px;
         font-weight: bold;
         color: #2c3e50;
-        margin-bottom: 8px;
+        margin-bottom: 4px;
+        line-height: 1.2;
     }
     
     .order-status {
         display: inline-block;
-        padding: 6px 12px;
-        border-radius: 6px;
-        font-size: 14px;
+        padding: 4px 8px;
+        border-radius: 4px;
+        font-size: 12px;
         font-weight: 600;
     }
     
     .order-details {
         flex-grow: 1;
-        margin-bottom: 15px;
+        margin-bottom: 10px;
     }
     
     .detail-row {
         display: flex;
         justify-content: space-between;
-        padding: 8px 0;
+        padding: 4px 0;
         border-bottom: 1px solid #f5f5f5;
-        font-size: 15px;
+        font-size: 13px;
+        line-height: 1.3;
     }
     
     .detail-label {
@@ -147,8 +148,13 @@
     
     .order-actions {
         display: flex;
-        gap: 10px;
-        margin-top: 15px;
+        gap: 8px;
+        margin-top: 8px;
+    }
+    
+    .order-actions .btn {
+        padding: 4px 12px;
+        font-size: 13px;
     }
     
 
@@ -179,36 +185,35 @@
     }
     
     .orders-grid {
-        display: grid;
-        grid-template-columns: repeat(3, 1fr);
-        gap: 20px;
         padding: 20px 0;
     }
     
-    @media (max-width: 1200px) {
-        .orders-grid {
-            grid-template-columns: repeat(2, 1fr);
-        }
-    }
-    
-    @media (max-width: 768px) {
-        .orders-grid {
-            grid-template-columns: 1fr;
-        }
+    .orders-grid .order-tile {
+        margin-bottom: 20px;
     }
 </style>
 
 <div class="container-fluid">
     <div class="row">
         <div class="col-12">
-            <h1 class="mb-4">Order Processing</h1>
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1 class="mb-0">Order Processing</h1>
+                <form method="POST" action="{{ route('backpack.auth.logout') }}" class="d-inline">
+                    @csrf
+                    <button type="submit" class="btn btn-danger">
+                        <i class="la la-sign-out-alt"></i> Logout
+                    </button>
+                </form>
+            </div>
             
             {{-- Hidden CSRF token for AJAX requests --}}
             <input type="hidden" name="_token" id="csrf-token" value="{{ csrf_token() }}">
             
             <div class="orders-grid">
+                <div class="row">
                 @forelse($orders as $order)
-                    <div class="order-tile">
+                    <div class="col-md-3 col-sm-6 col-12" style="margin-bottom: 10px;">
+                        <div class="order-tile">
                         <div class="order-header">
                             <div class="order-id">Order #{{ $order->id }}</div>
                             {!! status_badge($order->status) !!}
@@ -242,13 +247,14 @@
                         </div>
                         
                         <div class="order-actions">
-                            <button class="btn btn-primary" onclick="previewOrder({{ $order->id }})">
-                                Preview
+                            <button class="btn btn-primary" onclick="previewOrder('{{ url(config("backpack.base.route_prefix") . "/order/" . $order->id . "/show") }}')">
+                                View
                             </button>
                             <button class="btn btn-success" onclick="finishOrder({{ $order->id }})">
                                 Finish
                             </button>
                         </div>
+                    </div>
                     </div>
                 @empty
                     <div class="col-12">
@@ -258,6 +264,7 @@
                         </div>
                     </div>
                 @endforelse
+                </div>
             </div>
         </div>
     </div>
@@ -287,9 +294,9 @@
 @endif
 
 <script>
-    function previewOrder(orderId) {
-        // Placeholder for preview functionality
-        console.log('Preview order:', orderId);
+    function previewOrder(url) {
+        // Open order preview page in new tab
+        window.open(url, '_blank');
     }
     
     function finishOrder(orderId) {

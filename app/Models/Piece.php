@@ -24,6 +24,22 @@ class Piece extends Model
     ];
 
     /**
+     * Boot the model.
+     */
+    protected static function boot()
+    {
+        parent::boot();
+
+        // After a piece is updated, check if all pieces of the order are ready
+        static::updated(function ($piece) {
+            // Only check if status was changed
+            if ($piece->wasChanged('status') && $piece->order) {
+                $piece->order->updateStatusIfAllPiecesReady();
+            }
+        });
+    }
+
+    /**
      * The order that owns the piece.
      */
     public function order()

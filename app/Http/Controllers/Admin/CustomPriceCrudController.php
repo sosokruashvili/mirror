@@ -46,6 +46,9 @@ class CustomPriceCrudController extends CrudController
      */
     protected function setupListOperation()
     {
+        // Eager load product relationship to avoid N+1 queries
+        $this->crud->query->with('product');
+        
         CRUD::addColumn([
             'name' => 'id',
             'label' => 'ID',
@@ -68,9 +71,22 @@ class CustomPriceCrudController extends CrudController
             'attribute' => 'title',
         ]);
 
+        
+
+        CRUD::addColumn([
+            'name' => 'actual_price',
+            'label' => 'Original Price',
+            'type' => 'number',
+            'decimals' => 2,
+            'prefix' => '$',
+            'value' => function ($entry) {
+                return $entry->product ? $entry->product->price : null;
+            },
+        ]);
+
         CRUD::addColumn([
             'name' => 'price_usd',
-            'label' => 'Price (USD)',
+            'label' => 'Custom Price',
             'type' => 'number',
             'decimals' => 2,
             'prefix' => '$',

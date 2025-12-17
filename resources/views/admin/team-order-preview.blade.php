@@ -2,37 +2,14 @@
 
 @push('after_styles')
     <style>
-        /* Force light theme - override dark mode */
-        body,
-        body.dark,
-        body[data-bs-theme="dark"],
-        html[data-bs-theme="dark"] body {
-			background-color: #f5f5f5 !important;
-			color: #2c3e50 !important;
+
+		body {
+			background-color:rgb(54, 54, 54);
 		}
-		
-		.page,
-		.page-wrapper,
-		.page-body,
-		.page-content {
-			background-color: #f5f5f5 !important;
-			color: #2c3e50 !important;
+		.theme-dark .service-item {
+			background:rgb(231, 231, 231) !important;
 		}
-		
-		.card,
-		.card-body {
-			background-color: #ffffff !important;
-			color: #2c3e50 !important;
-		}
-		
-		/* Override any dark text colors */
-		.text-dark,
-		.text-body,
-		h1, h2, h3, h4, h5, h6,
-		p, span, div, a {
-			color: #2c3e50 !important;
-		}
-		
+
 		/* Ensure borders are visible in light mode */
 		.border,
 		.border-top,
@@ -45,6 +22,7 @@
         aside.navbar {
 			display: none !important;
 		}
+
 		.navbar-expand-lg.navbar-vertical~.navbar, .navbar-expand-lg.navbar-vertical~.page-wrapper {
 			margin-left: 0 !important;
 		}
@@ -366,8 +344,8 @@
 								@if($piece->status !== 'ready')
 									<form method="POST" action="{{ route('team.pieces.ready', $piece->id) }}" class="d-inline">
 										@csrf
-										<button type="submit" class="btn btn-success btn-sm">
-											<i class="la la-check"></i> Ready
+										<button type="submit" class="btn btn-success btn-lg">
+											<i class="la la-check"></i>&nbspReady
 										</button>
 									</form>
 								@endif
@@ -450,56 +428,7 @@
 <script>
 	// Force light theme on this page
 	(function() {
-		// Remove dark mode classes
-		document.documentElement.removeAttribute('data-bs-theme');
-		document.body.classList.remove('dark');
-		document.body.removeAttribute('data-bs-theme');
-		
-		// Force light theme attribute
-		document.documentElement.setAttribute('data-bs-theme', 'light');
-		document.body.setAttribute('data-bs-theme', 'light');
-		
-		// Override any theme storage
-		if (typeof Storage !== 'undefined') {
-			// Temporarily override theme preference for this page
-			var originalTheme = localStorage.getItem('theme');
-			localStorage.setItem('theme', 'light');
-			
-			// Restore original theme when leaving the page
-			window.addEventListener('beforeunload', function() {
-				if (originalTheme) {
-					localStorage.setItem('theme', originalTheme);
-				} else {
-					localStorage.removeItem('theme');
-				}
-			});
-		}
-		
-		// Watch for theme changes and force light mode
-		var observer = new MutationObserver(function(mutations) {
-			mutations.forEach(function(mutation) {
-				if (mutation.type === 'attributes' && 
-					(mutation.attributeName === 'data-bs-theme' || mutation.attributeName === 'class')) {
-					var target = mutation.target;
-					if (target === document.documentElement || target === document.body) {
-						if (target.getAttribute('data-bs-theme') === 'dark' || target.classList.contains('dark')) {
-							target.setAttribute('data-bs-theme', 'light');
-							target.classList.remove('dark');
-						}
-					}
-				}
-			});
-		});
-		
-		observer.observe(document.documentElement, {
-			attributes: true,
-			attributeFilter: ['data-bs-theme', 'class']
-		});
-		
-		observer.observe(document.body, {
-			attributes: true,
-			attributeFilter: ['data-bs-theme', 'class']
-		});
+
 	})();
 </script>
 @endpush

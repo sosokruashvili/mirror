@@ -36,9 +36,9 @@
     $isTeamUser = backpack_user() && backpack_user()->hasRole('team');
 @endphp
 <style>
-    /* Reduce widget height */
-    .widget-progress .card-body {
-        padding: 0.75rem 1rem !important;
+
+    body {
+        background-color:rgb(54, 54, 54);
     }
     
     .widget-progress .text-value {
@@ -55,27 +55,21 @@
     .widget-progress .card {
         min-height: auto !important;
     }
-    /* Hide sidebar for team users */
-    @if($isTeamUser)
-        .navbar-vertical,
-        .navbar-brand,
-        .navbar-nav,
-        aside,
-        .sidebar,
-        .navbar {
-            display: none !important;
-        }
-        
-        .page-wrapper,
-        .page {
-            margin-left: 0 !important;
-            padding-left: 0 !important;
-        }
-        
-        .page-body {
-            margin-left: 0 !important;
-        }
-    @endif
+
+    .navbar {
+        display: none !important;
+    }
+    
+    .page-wrapper,
+    .page {
+        margin-left: 0 !important;
+        padding-left: 0 !important;
+    }
+    
+    .page-body {
+        margin-left: 0 !important;
+    }
+
     
     /* Optimized for 10-inch Android tablet */
     body {
@@ -93,11 +87,6 @@
         flex-direction: column;
         justify-content: space-between;
         height: 100%;
-    }
-    
-    .order-tile:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
     }
     
     .order-header {

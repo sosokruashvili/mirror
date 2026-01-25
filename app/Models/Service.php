@@ -17,6 +17,7 @@ class Service extends Model
 
     protected $fillable = [
         'title',
+        'shortname',
         'slug',
         'description',
         'unit',

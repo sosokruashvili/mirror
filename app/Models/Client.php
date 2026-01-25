@@ -75,4 +75,9 @@ class Client extends Model
         
         return $paymentsSum - $ordersSum;
     }
+
+    public function getBalanceAttribute()
+    {
+        return $this->calculateBalance();
+    }
 }

@@ -93,14 +93,17 @@
         border-bottom: 1px solid #f0f0f0;
         padding-bottom: 8px;
         margin-bottom: 10px;
+        margin-top: -10px;
     }
     
     .order-id {
         font-size: 18px;
         font-weight: bold;
         color: #2c3e50;
-        margin-bottom: 4px;
-        line-height: 1.2;
+        vertical-align: middle;
+        display: flex;
+        align-items: center;
+        margin-left: 0px;
     }
     
     .order-status {
@@ -113,7 +116,6 @@
     
     .order-details {
         flex-grow: 1;
-        margin-bottom: 10px;
     }
     
     .detail-row {
@@ -146,7 +148,17 @@
         font-size: 13px;
     }
     
-
+    .created-at {
+        font-size: 16px;
+        color: #333;
+        text-align: right;
+        margin-right: 0px;
+        font-weight: bold;
+        vertical-align: middle;
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+    }
     
     /* Ensure Bootstrap button colors are applied */
     .order-actions .btn-primary {
@@ -180,6 +192,44 @@
     .orders-grid .order-tile {
         margin-bottom: 20px;
     }
+    
+    .size-tags {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        margin-top: 8px;
+        margin-bottom: 8px;
+    }
+    
+    .size-tag {
+        display: inline-block;
+        background-color: #6081b3;
+        color: #fff;
+        padding: 4px 10px;
+        border-radius: 12px;
+        font-size: 11px;
+        font-weight: 600;
+        white-space: nowrap;
+    }
+    
+    .service-shortname-tag {
+        display: inline-block;
+        background-color: #4a6fa5;
+        color: #fff;
+        padding: 3px 8px;
+        border-radius: 10px;
+        font-size: 10px;
+        font-weight: 600;
+        margin-left: 4px;
+        white-space: nowrap;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+    }
+    
+    .size-tags-empty {
+        color: #999;
+        font-size: 11px;
+        font-style: italic;
+    }
 </style>
 
 <div class="container-fluid">
@@ -203,47 +253,106 @@
                 @forelse($orders as $order)
                     <div class="col-md-3 col-sm-6 col-12" style="margin-bottom: 10px;">
                         <div class="order-tile">
-                        <div class="order-header">
-                            <div class="order-id">Order #{{ $order->id }}</div>
-                            {!! status_badge($order->status) !!}
+                            <div class="order-header">
+                                <div class="row">
+                                    <div class="col-md-3 order-id">#{{ $order->id }}</div>
+                                    <div class="col-md-3 order-status">{!! status_badge($order->status) !!}</div>
+                                    <div class="col-md-6 created-at">{{ $order->created_at->format('Y-m-d H:i') }}</div>
+                                </div>
+                                
+                            </div>
+                            
+                            <div class="order-details">
+                                <div class="detail-row">
+                                    <span class="detail-label">Client:</span>
+                                    <span class="detail-value">{{ $order->client->name ?? 'N/A' }}</span>
+                                </div>
+                                
+                                <div class="detail-row">
+                                    <span class="detail-label">Price:</span>
+                                    <span class="detail-value">{{ number_format($order->price_gel ?? $order->calculateTotalPrice(), 2) }} ₾</span>
+                                </div>
+                                
+                                <div class="detail-row">
+                                    <span class="detail-label">Product:</span>
+                                    <span class="detail-value">{{ product_type_ge($order->product_type ?? '') }}</span>
+                                </div>
+                                
+                                @if(in_array($order->product_type, ['lamix', 'glass_pkg']) && $order->products->count() > 0)
+                                    @php
+                                        $glassProducts = $order->products->where('product_type', 'glass');
+                                    @endphp
+                                    @if($glassProducts->count() > 0)
+                                        <div class="detail-row">
+                                            <span class="detail-label">მასალა:</span>
+                                            <span class="detail-value">{{ $glassProducts->pluck('title')->implode(' x ') }}</span>
+                                        </div>
+                                    @endif
+                                @endif
+                                
+                                @php
+                                    // Get unique piece sizes with quantities and service shortnames for this order
+                                    $piecesWithSizes = $order->pieces->filter(function($piece) {
+                                        return $piece->width && $piece->height;
+                                    });
+                                    
+                                    $sizeGroups = [];
+                                    foreach($piecesWithSizes as $piece) {
+                                        $key = number_format($piece->width, 0) . 'x' . number_format($piece->height, 0);
+                                        if (!isset($sizeGroups[$key])) {
+                                            $sizeGroups[$key] = [
+                                                'width' => number_format($piece->width, 0),
+                                                'height' => number_format($piece->height, 0),
+                                                'quantity' => 0,
+                                                'piece_ids' => [],
+                                                'service_shortnames' => []
+                                            ];
+                                        }
+                                        $sizeGroups[$key]['quantity'] += $piece->quantity ?? 1;
+                                        $sizeGroups[$key]['piece_ids'][] = $piece->id;
+                                        
+                                        // Get services associated with this piece
+                                        $pieceServices = $order->services->filter(function($service) use ($piece) {
+                                            return $service->pivot->piece_id == $piece->id;
+                                        });
+                                        
+                                        // Collect unique service shortnames for this size
+                                        foreach($pieceServices as $service) {
+                                            if ($service->shortname && !in_array($service->shortname, $sizeGroups[$key]['service_shortnames'])) {
+                                                $sizeGroups[$key]['service_shortnames'][] = $service->shortname;
+                                            }
+                                        }
+                                    }
+                                    $uniqueSizes = array_values($sizeGroups);
+                                @endphp
+                                
+                                @if(count($uniqueSizes) > 0)
+                                    <div class="size-tags">
+                                        @foreach($uniqueSizes as $size)
+                                            <span class="size-tag">
+                                                {{ $size['width'] }} × {{ $size['height'] }} cm (×{{ $size['quantity'] }})
+                                                @if(count($size['service_shortnames']) > 0)
+                                                    @foreach($size['service_shortnames'] as $shortname)
+                                                        <span class="service-shortname-tag">{{ $shortname }}</span>
+                                                    @endforeach
+                                                @endif
+                                            </span>
+                                        @endforeach
+                                    </div>
+                                @else
+                                    <div class="size-tags-empty">No sizes available</div>
+                                @endif
+                            </div>
+                            
+                            <div class="order-actions">
+                                <button class="btn btn-primary" onclick="previewOrder('{{ url(config("backpack.base.route_prefix") . "/order/" . $order->id . "/show") }}')">
+                                    View
+                                </button>
+                                <button class="btn btn-success" onclick="finishOrder({{ $order->id }})">
+                                    Finish
+                                </button>
+                            </div>
                         </div>
-                        
-                        <div class="order-details">
-                            <div class="detail-row">
-                                <span class="detail-label">Client:</span>
-                                <span class="detail-value">{{ $order->client->name ?? 'N/A' }}</span>
-                            </div>
-                            
-                            <div class="detail-row">
-                                <span class="detail-label">Type:</span>
-                                <span class="detail-value">{{ order_type_ge($order->order_type ?? '') }}</span>
-                            </div>
-                            
-                            <div class="detail-row">
-                                <span class="detail-label">Product:</span>
-                                <span class="detail-value">{{ product_type_ge($order->product_type ?? '') }}</span>
-                            </div>
-                            
-                            <div class="detail-row">
-                                <span class="detail-label">Price:</span>
-                                <span class="detail-value">{{ number_format($order->price_gel ?? $order->calculateTotalPrice(), 2) }} ₾</span>
-                            </div>
-                            
-                            <div class="detail-row">
-                                <span class="detail-label">Created:</span>
-                                <span class="detail-value">{{ $order->created_at->format('d/m/Y H:i') }}</span>
-                            </div>
-                        </div>
-                        
-                        <div class="order-actions">
-                            <button class="btn btn-primary" onclick="previewOrder('{{ url(config("backpack.base.route_prefix") . "/order/" . $order->id . "/show") }}')">
-                                View
-                            </button>
-                            <button class="btn btn-success" onclick="finishOrder({{ $order->id }})">
-                                Finish
-                            </button>
-                        </div>
-                    </div>
                     </div>
                 @empty
                     <div class="col-12">

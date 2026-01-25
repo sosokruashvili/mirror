@@ -55,4 +55,36 @@
 	</div>
 </div>
 
+@include('admin.client-registration-modal')
+
+@push('after_styles')
+<style>
+    #clientRegistrationModal {
+        z-index: 1055 !important;
+    }
+    #clientRegistrationModal .modal-dialog {
+        z-index: 1055 !important;
+        position: relative;
+        pointer-events: auto;
+    }
+    #clientRegistrationModal .modal-content {
+        pointer-events: auto;
+    }
+    .modal-backdrop {
+        z-index: 1050 !important;
+        pointer-events: auto;
+    }
+    .modal-backdrop.show {
+        z-index: 1050 !important;
+    }
+    body.modal-open {
+        overflow: hidden;
+    }
+</style>
+@endpush
+
+@push('after_scripts')
+    <script src="{{ asset('assets/js/client-registration-modal.js') }}"></script>
+@endpush
+
 @endsection

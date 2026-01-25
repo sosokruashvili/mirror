@@ -57,6 +57,12 @@ class ServiceCrudController extends CrudController
         ]);
 
         CRUD::addColumn([
+            'name' => 'shortname',
+            'label' => 'Short Name',
+            'type' => 'text',
+        ]);
+
+        CRUD::addColumn([
             'name' => 'slug',
             'label' => 'Slug',
             'type' => 'text',
@@ -143,6 +149,13 @@ class ServiceCrudController extends CrudController
             'attributes' => [
                 'required' => true,
             ],
+        ]);
+
+        CRUD::addField([
+            'name' => 'shortname',
+            'label' => 'Short Name',
+            'type' => 'text',
+            'hint' => 'Short name or abbreviation for this service',
         ]);
 
         CRUD::addField([
@@ -285,6 +298,12 @@ class ServiceCrudController extends CrudController
         CRUD::addColumn([
             'name' => 'title',
             'label' => 'Title',
+            'type' => 'text',
+        ]);
+
+        CRUD::addColumn([
+            'name' => 'shortname',
+            'label' => 'Short Name',
             'type' => 'text',
         ]);
 

@@ -218,7 +218,7 @@ class ClientCrudController extends CrudController
             'name' => 'email',
             'label' => 'Email',
             'type' => 'email',
-            'validationRules' => 'nullable|email',
+            'validationRules' => 'nullable|email|unique:clients,email',
             'wrapper' => [
                 'class' => 'form-group col-md-6 email-field'
             ]
@@ -315,5 +315,51 @@ class ClientCrudController extends CrudController
     protected function setupUpdateOperation()
     {
         $this->setupCreateOperation();
+        
+        // Update email validation to ignore current client's email
+        $entry = $this->crud->getCurrentEntry();
+        if ($entry) {
+            $this->crud->modifyField('email', [
+                'validationRules' => 'nullable|email|unique:clients,email,' . $entry->id,
+            ]);
+        }
+    }
+
+    /**
+     * Create a client via AJAX request.
+     * 
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function createAjax()
+    {
+        $request = request();
+        
+        // Validate the request
+        $validated = $request->validate([
+            'name' => 'required|string|max:255',
+            'client_type' => 'required|in:0,1',
+            'personal_id' => 'required_if:client_type,0|nullable|string|max:255',
+            'legal_id' => 'required_if:client_type,1|nullable|string|max:255',
+            'address' => 'required|string',
+            'email' => 'nullable|email|max:255|unique:clients,email',
+            'phone_number' => 'required|string|max:255',
+        ]);
+
+        try {
+            $client = \App\Models\Client::create($validated);
+            
+            return response()->json([
+                'success' => true,
+                'client' => [
+                    'id' => $client->id,
+                    'name_with_id' => $client->name_with_id
+                ]
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to create client: ' . $e->getMessage()
+            ], 422);
+        }
     }
 }

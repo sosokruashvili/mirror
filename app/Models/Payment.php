@@ -31,11 +31,45 @@ class Payment extends Model
     ];
 
     /**
+     * The "booted" method of the model.
+     *
+     * @return void
+     */
+    protected static function booted()
+    {
+        // Update order payment status after payment is created or updated
+        static::saved(function ($payment) {
+            static::updateOrderPaymentStatus();
+        });
+
+        // Update order payment status after payment is deleted
+        static::deleted(function ($payment) {
+            static::updateOrderPaymentStatus();
+        });
+    }
+
+    /**
      * Get the client that owns the payment.
      */
     public function client()
     {
         return $this->belongsTo(Client::class);
+    }
+
+    /**
+     * Update order payment status based on client balances.
+     * 
+     * @return void
+     */
+    public static function updateOrderPaymentStatus() {
+        $orders = Order::where('paid', false)->where('status', '!=', 'draft')->get();
+        foreach($orders as $order) {
+            $client = $order->client;
+            if($client->balance >= $order->calculateTotalPrice()) {
+                $order->paid = true;
+                $order->save();
+            }
+        }
     }
 
 }

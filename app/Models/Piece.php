@@ -59,4 +59,9 @@ class Piece extends Model
     {
         return $this->width/100 * $this->height/100 * $this->quantity;
     }
+
+    public function servicesShortnames()
+    {
+        return $this->services->pluck('shortname')->unique()->implode(', ');
+    }
 }

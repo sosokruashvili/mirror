@@ -12,6 +12,7 @@ use App\Models\Service;
 use App\Models\Product;
 use Illuminate\Support\Facades\DB;
 use App\Models\CustomPrice;
+use App\Models\Payment;
 
 /**
  * Class OrderCrudController
@@ -78,6 +79,19 @@ class OrderCrudController extends CrudController
             'type' => 'custom_html',
             'value' => function ($entry) {
                 return status_badge($entry->status);
+            }
+        ]);
+
+        CRUD::addColumn([
+            'name' => 'paid',
+            'label' => 'Paid',
+            'type' => 'custom_html',
+            'value' => function ($entry) {
+                if ($entry->paid) {
+                    return '<span class="badge text-bg-success">Yes</span>';
+                } else {
+                    return '<span class="badge text-bg-danger">No</span>';
+                }
             }
         ]);
 
@@ -248,6 +262,20 @@ class OrderCrudController extends CrudController
                 }
             }
         });
+        
+        // Paid filter
+        CRUD::addFilter([
+            'type' => 'dropdown',
+            'name' => 'paid',
+            'label' => 'Paid',
+        ],
+        [
+            0 => 'No',
+            1 => 'Yes',
+        ],
+        function ($value) {
+            CRUD::addClause('where', 'paid', $value);
+        });
     }
 
     /**
@@ -291,6 +319,14 @@ class OrderCrudController extends CrudController
             'attributes' => [
                 'required' => true,
             ],
+        ]);
+
+        CRUD::addField([
+            'name' => 'new_client_button',
+            'type' => 'custom_html',
+            'value' => '<button type="button" id="newClientBtn" class="btn btn-sm btn-outline-primary mt-2">
+                <i class="la la-plus"></i> New Client
+            </button>',
         ]);
 
         CRUD::addField([
@@ -641,6 +677,13 @@ class OrderCrudController extends CrudController
             'default' => 'draft',
         ]);
 
+        CRUD::addField([
+            'name' => 'paid',
+            'label' => 'Paid',
+            'type' => 'checkbox',
+            'default' => false,
+        ]);
+
         
     }
 
@@ -765,6 +808,19 @@ class OrderCrudController extends CrudController
             'type' => 'custom_html',
             'value' => function ($entry) {
                 return status_badge($entry->status);
+            }
+        ]);
+
+        CRUD::addColumn([
+            'name' => 'paid',
+            'label' => 'Paid',
+            'type' => 'custom_html',
+            'value' => function ($entry) {
+                if ($entry->paid) {
+                    return '<span class="badge text-bg-success">Yes</span>';
+                } else {
+                    return '<span class="badge text-bg-danger">No</span>';
+                }
             }
         ]);
 
@@ -920,6 +976,7 @@ class OrderCrudController extends CrudController
                     'product_type' => $fields['product_type'],
                     'currency_rate' => $fields['currency_rate'],
                     'author' => backpack_user()->id,
+                    'paid' => isset($fields['paid']) ? (bool)$fields['paid'] : false,
                 ]
             );
             
@@ -1033,6 +1090,7 @@ class OrderCrudController extends CrudController
                 'client_id' => $fields['client_id'],
                 'status' => $fields['status'],
                 'currency_rate' => $fields['currency_rate'],
+                'paid' => isset($fields['paid']) ? (bool)$fields['paid'] : false,
             ]);
 
             // Sync products (many-to-many with pivot data)

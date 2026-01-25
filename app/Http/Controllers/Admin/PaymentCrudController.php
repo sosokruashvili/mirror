@@ -112,6 +112,7 @@ class PaymentCrudController extends CrudController
                 'Cash' => 'Cash',
                 'Transfer' => 'Transfer',
                 'Terminal' => 'Terminal',
+                'PM Transfer' => 'PM Transfer',
             ];
         }, function($value) {
             $this->crud->addClause('where', 'method', $value);
@@ -179,6 +180,9 @@ class PaymentCrudController extends CrudController
      */
     protected function setupCreateOperation()
     {
+        // Add JavaScript to display client balance on create/update forms
+        Widget::add()->type('script')->content('assets/js/payment-client-balance.js');
+
         CRUD::addField([
             'name' => 'client_id',
             'label' => 'Client',
@@ -196,6 +200,21 @@ class PaymentCrudController extends CrudController
             ]
         ]);
 
+        // Add a custom field to display client balance
+        CRUD::addField([
+            'name' => 'client_balance_display',
+            'type' => 'custom_html',
+            'wrapper' => [
+                'class' => 'form-group col-md-6'
+            ],
+            'value' => '<div id="client_balance_display" style="display: none;">
+                <label class="form-label" style="margin-bottom: 0;">Client Balance</label>
+                <div class="form-control" style=" padding: 0.375rem 0.75rem; min-height: 38px; display: flex; align-items: center;">
+                    <span id="client_balance_value" style="font-weight: 600; font-size: 1rem;">-</span>
+                </div>
+            </div>',
+        ]);
+
         CRUD::addField([
             'name' => 'method',
             'label' => 'Payment Method',
@@ -204,6 +223,7 @@ class PaymentCrudController extends CrudController
                 'Cash' => 'Cash',
                 'Transfer' => 'Transfer',
                 'Terminal' => 'Terminal',
+                'PM Transfer' => 'PM Transfer',
             ],
             'allows_null' => false,
             'default' => 'Cash',
@@ -435,6 +455,28 @@ class PaymentCrudController extends CrudController
         $stats = $this->calculatePaymentStats($payments);
         
         return response()->json($stats);
+    }
+
+    /**
+     * Get client balance via AJAX.
+     * 
+     * @param int $clientId
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function getClientBalance($clientId)
+    {
+        $client = Client::find($clientId);
+        
+        if (!$client) {
+            return response()->json(['error' => 'Client not found'], 404);
+        }
+        
+        $balance = $client->calculateBalance();
+        
+        return response()->json([
+            'balance' => $balance,
+            'formatted' => number_format($balance, 2) . ' ₾'
+        ]);
     }
 }
 

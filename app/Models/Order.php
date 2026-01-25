@@ -27,9 +27,14 @@ class Order extends Model
         'client_id',
         'currency_rate',
         'product_type',
-        'author'
+        'author',
+        'paid'
     ];
     // protected $hidden = [];
+    
+    protected $casts = [
+        'paid' => 'boolean',
+    ];
 
     /*
     |--------------------------------------------------------------------------

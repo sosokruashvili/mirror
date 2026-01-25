@@ -226,11 +226,12 @@
 			<span class="order-info-value">#{{ $order->id }}</span>
 		</div>
 		<div class="order-info-row">
-			<span class="order-info-value">{{ $order->client->name ?? 'N/A' }}</span>
-		</div>
-		<div class="order-info-row">
 			<span class="order-info-value">{!! status_badge($order->status) !!}</span>
 		</div>
+		<div class="order-info-row">
+			<span class="order-info-value">{{ $order->client->name ?? 'N/A' }}</span>
+		</div>
+		
 		<div class="order-info-row">
 			<span class="order-info-value">{{ order_type_ge($order->order_type ?? '') }}</span>
 		</div>

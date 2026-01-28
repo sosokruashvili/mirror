@@ -315,7 +315,6 @@ class OrderCrudController extends CrudController
             'attribute' => 'name_with_id',
             'model' => \App\Models\Client::class,
             'allows_null' => false,
-            'hint' => 'Select the client for this order',
             'attributes' => [
                 'required' => true,
             ],
@@ -324,7 +323,7 @@ class OrderCrudController extends CrudController
         CRUD::addField([
             'name' => 'new_client_button',
             'type' => 'custom_html',
-            'value' => '<button type="button" id="newClientBtn" class="btn btn-sm btn-outline-primary mt-2">
+            'value' => '<button type="button" id="newClientBtn" class="btn btn-sm btn-outline-primary">
                 <i class="la la-plus"></i> New Client
             </button>',
         ]);

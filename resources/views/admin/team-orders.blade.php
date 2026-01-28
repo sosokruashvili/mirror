@@ -264,31 +264,24 @@
                             
                             <div class="order-details">
                                 <div class="detail-row">
-                                    <span class="detail-label">Client:</span>
+                                    <span class="detail-label">კლიენტი:</span>
                                     <span class="detail-value">{{ $order->client->name ?? 'N/A' }}</span>
                                 </div>
                                 
                                 <div class="detail-row">
-                                    <span class="detail-label">Price:</span>
+                                    <span class="detail-label">ფასი:</span>
                                     <span class="detail-value">{{ number_format($order->price_gel ?? $order->calculateTotalPrice(), 2) }} ₾</span>
                                 </div>
                                 
                                 <div class="detail-row">
-                                    <span class="detail-label">Product:</span>
+                                    <span class="detail-label">პროდუქცია:</span>
                                     <span class="detail-value">{{ product_type_ge($order->product_type ?? '') }}</span>
                                 </div>
                                 
-                                @if(in_array($order->product_type, ['lamix', 'glass_pkg']) && $order->products->count() > 0)
-                                    @php
-                                        $glassProducts = $order->products->where('product_type', 'glass');
-                                    @endphp
-                                    @if($glassProducts->count() > 0)
-                                        <div class="detail-row">
-                                            <span class="detail-label">მასალა:</span>
-                                            <span class="detail-value">{{ $glassProducts->pluck('title')->implode(' x ') }}</span>
-                                        </div>
-                                    @endif
-                                @endif
+                                <div class="detail-row">
+                                    <span class="detail-label">მასალა:</span>
+                                    <span class="detail-value">{{ $order->products->pluck('title')->implode(' x ') }}</span>
+                                </div>
                                 
                                 @php
                                     // Get unique piece sizes with quantities and service shortnames for this order
@@ -346,10 +339,10 @@
                             
                             <div class="order-actions">
                                 <button class="btn btn-primary" onclick="previewOrder('{{ url(config("backpack.base.route_prefix") . "/order/" . $order->id . "/show") }}')">
-                                    View
+                                    ნახვა
                                 </button>
                                 <button class="btn btn-success" onclick="finishOrder({{ $order->id }})">
-                                    Finish
+                                    დასრულება
                                 </button>
                             </div>
                         </div>

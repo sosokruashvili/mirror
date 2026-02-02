@@ -15,7 +15,7 @@
                 <h4 class="mb-0">Total Payments</h4>
             </div>
             <div class="card-body">
-                <h2 class="mb-0" id="stats-total-payments">{{ number_format($widget['totalPayments'], 2) }} ₾</h2>
+                <h2 class="mb-0" id="stats-total-payments">{{ number_format($widget['totalPayments'], 0) }} ₾</h2>
             </div>
         </div>
     </div>
@@ -25,7 +25,7 @@
                 <h4 class="mb-0">Total Orders</h4>
             </div>
             <div class="card-body">
-                <h2 class="mb-0" id="stats-total-orders">{{ number_format($widget['totalOrders'], 2) }} ₾</h2>
+                <h2 class="mb-0" id="stats-total-orders">{{ number_format($widget['totalOrders'], 0) }} ₾</h2>
             </div>
         </div>
     </div>
@@ -35,7 +35,7 @@
                 <h4 class="mb-0">Total Balance</h4>
             </div>
             <div class="card-body">
-                <h2 class="mb-0" id="stats-total-balance">{{ number_format($widget['totalBalance'], 2) }} ₾</h2>
+                <h2 class="mb-0" id="stats-total-balance">{{ number_format($widget['totalBalance'], 0) }} ₾</h2>
             </div>
         </div>
     </div>
@@ -70,9 +70,9 @@
             success: function(response) {
                 // Update widget values
                 $('#stats-clients-count').text(response.clientsCount.toLocaleString());
-                $('#stats-total-payments').text(parseFloat(response.totalPayments).toFixed(2) + ' ₾');
-                $('#stats-total-orders').text(parseFloat(response.totalOrders).toFixed(2) + ' ₾');
-                $('#stats-total-balance').text(parseFloat(response.totalBalance).toFixed(2) + ' ₾');
+                $('#stats-total-payments').text(parseFloat(response.totalPayments).toFixed(0) + ' ₾');
+                $('#stats-total-orders').text(parseFloat(response.totalOrders).toFixed(0) + ' ₾');
+                $('#stats-total-balance').text(parseFloat(response.totalBalance).toFixed(0) + ' ₾');
                 
                 // Update balance card color
                 var $balanceCard = $('#stats-balance-card');

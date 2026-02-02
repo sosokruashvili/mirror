@@ -88,7 +88,7 @@ class ClientBalanceCrudController extends CrudController
             'name' => 'payments_total',
             'label' => 'Payments Total',
             'type' => 'number',
-            'decimals' => 2,
+            'decimals' => 0,
             'suffix' => ' ₾',
             'value' => function ($entry) {
                 return $entry->payments()->where('status', 'Paid')->sum('amount_gel') ?? 0;
@@ -100,11 +100,11 @@ class ClientBalanceCrudController extends CrudController
             'name' => 'orders_total',
             'label' => 'Orders Total',
             'type' => 'number',
-            'decimals' => 2,
+            'decimals' => 0,
             'suffix' => ' ₾',
             'value' => function ($entry) {
                 return $entry->orders()->where('status', '!=', 'draft')->get()->sum(function($order) {
-                    return $order->calculateTotalPrice();
+                    return $order->price_gel;
                 });
             },
         ]);
@@ -114,7 +114,7 @@ class ClientBalanceCrudController extends CrudController
             'name' => 'balance',
             'label' => 'Balance',
             'type' => 'number',
-            'decimals' => 2,
+            'decimals' => 0,
             'suffix' => ' ₾',
             'value' => function ($entry) {
                 return $entry->calculateBalance();
@@ -218,7 +218,7 @@ class ClientBalanceCrudController extends CrudController
         // Total orders (excluding draft orders) - use loaded relationships
         $totalOrders = $clients->sum(function($client) {
             return $client->orders->where('status', '!=', 'draft')->sum(function($order) {
-                return $order->calculateTotalPrice();
+                return $order->price_gel;
             });
         });
         
@@ -278,7 +278,7 @@ class ClientBalanceCrudController extends CrudController
         // Total orders (excluding draft orders) - use loaded relationships
         $totalOrders = $clients->sum(function($client) {
             return $client->orders->where('status', '!=', 'draft')->sum(function($order) {
-                return $order->calculateTotalPrice();
+                return $order->price_gel;
             });
         });
         

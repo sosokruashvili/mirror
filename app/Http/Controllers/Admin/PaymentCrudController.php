@@ -459,24 +459,64 @@ class PaymentCrudController extends CrudController
 
     /**
      * Get client balance via AJAX.
-     * 
+     *
      * @param int $clientId
      * @return \Illuminate\Http\JsonResponse
      */
     public function getClientBalance($clientId)
     {
         $client = Client::find($clientId);
-        
+
         if (!$client) {
             return response()->json(['error' => 'Client not found'], 404);
         }
-        
+
         $balance = $client->calculateBalance();
-        
+
         return response()->json([
             'balance' => $balance,
             'formatted' => number_format($balance, 2) . ' ₾'
         ]);
+    }
+
+    /**
+     * Create a payment via AJAX request.
+     *
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function createAjax()
+    {
+        $request = request();
+
+        $validated = $request->validate([
+            'client_id' => 'required|exists:clients,id',
+            'amount_gel' => 'required|numeric|min:0',
+            'currency_rate' => 'required|numeric|min:0',
+            'method' => 'required|in:Cash,Transfer,Terminal,PM Transfer',
+            'status' => 'required|in:Paid,Pending',
+            'payment_date' => 'required|date',
+            'file' => 'nullable|file|max:10240',
+        ]);
+
+        try {
+            if ($request->hasFile('file')) {
+                $validated['file'] = $request->file('file')->store('payments', 'public');
+            }
+
+            $payment = Payment::create($validated);
+
+            return response()->json([
+                'success' => true,
+                'payment' => [
+                    'id' => $payment->id,
+                ]
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to create payment: ' . $e->getMessage()
+            ], 422);
+        }
     }
 }
 

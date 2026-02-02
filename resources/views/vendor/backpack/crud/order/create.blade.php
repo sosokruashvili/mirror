@@ -56,18 +56,22 @@
 </div>
 
 @include('admin.client-registration-modal')
+@include('admin.payment-add-modal')
 
 @push('after_styles')
 <style>
-    #clientRegistrationModal {
+    #clientRegistrationModal,
+    #paymentAddModal {
         z-index: 1055 !important;
     }
-    #clientRegistrationModal .modal-dialog {
+    #clientRegistrationModal .modal-dialog,
+    #paymentAddModal .modal-dialog {
         z-index: 1055 !important;
         position: relative;
         pointer-events: auto;
     }
-    #clientRegistrationModal .modal-content {
+    #clientRegistrationModal .modal-content,
+    #paymentAddModal .modal-content {
         pointer-events: auto;
     }
     .modal-backdrop {
@@ -85,6 +89,7 @@
 
 @push('after_scripts')
     <script src="{{ asset('assets/js/client-registration-modal.js') }}"></script>
+    <script src="{{ asset('assets/js/payment-add-modal.js') }}"></script>
 @endpush
 
 @endsection

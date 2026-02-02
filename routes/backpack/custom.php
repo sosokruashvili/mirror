@@ -31,9 +31,11 @@ Route::group([
     Route::get('product/get-products-filtered/{product_type}', 'ProductCrudController@getProductsFiltered')->name('products.getProductsFiltered');
     Route::get('product/get-price/{id}', 'ProductCrudController@getProductPrice')->name('product.getPrice');
     Route::crud('payment', 'PaymentCrudController');
+    Route::post('payment/create-ajax', 'PaymentCrudController@createAjax')->name('payment.createAjax');
     Route::get('payment/get-payment-stats', 'PaymentCrudController@getPaymentStats')->name('payment.getPaymentStats');
     Route::get('payment/get-client-balance/{clientId}', 'PaymentCrudController@getClientBalance')->name('payment.getClientBalance');
     Route::get('order/get-orders-by-client/{clientId}', 'OrderCrudController@getOrdersByClient')->name('order.getOrdersByClient');
+    Route::get('order/{id}/invoice', 'OrderCrudController@invoice')->name('order.invoice');
     Route::crud('warehouse', 'WarehouseCrudController');
     Route::crud('client-balance', 'ClientBalanceCrudController');
     Route::get('client-balance/get-balance-stats', 'ClientBalanceCrudController@getBalanceStats')->name('client-balance.getBalanceStats');

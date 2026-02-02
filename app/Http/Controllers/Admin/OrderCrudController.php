@@ -124,7 +124,7 @@ class OrderCrudController extends CrudController
             'name' => 'price_gel',
             'label' => 'Price (GEL)',
             'type' => 'number',
-            'decimals' => 2
+            'decimals' => 0
         ]);
 
         CRUD::addColumn([
@@ -145,6 +145,9 @@ class OrderCrudController extends CrudController
         
         // Add custom delete button that only shows for draft orders
         $this->crud->addButton('line', 'delete', 'view', 'crud::buttons.delete_order', 'end');
+
+        // Invoice button (opens in new tab)
+        $this->crud->addButton('line', 'invoice', 'view', 'crud::buttons.invoice', 'end');
         
         // Add filters
         $this->addOrderFilters();
@@ -327,6 +330,8 @@ class OrderCrudController extends CrudController
                 <i class="la la-plus"></i> New Client
             </button>',
         ]);
+
+        
 
         CRUD::addField([
             'name' => 'currency_rate',
@@ -655,11 +660,6 @@ class OrderCrudController extends CrudController
             ]
         ]);
 
-
-        
-
-        
-
         CRUD::addField([
             'name' => 'status',
             'label' => 'Status',
@@ -674,6 +674,14 @@ class OrderCrudController extends CrudController
             ],
             'allows_null' => false,
             'default' => 'draft',
+        ]);
+
+        CRUD::addField([
+            'name' => 'add_payment_button',
+            'type' => 'custom_html',
+            'value' => '<button type="button" id="addPaymentBtn" class="btn btn-sm btn-outline-primary">
+                <i class="la la-plus"></i> Add Payment
+            </button>',
         ]);
 
         CRUD::addField([
@@ -777,6 +785,9 @@ class OrderCrudController extends CrudController
         
         // Add Confirm button (only show when status is draft)
         $this->crud->addButton('line', 'confirm', 'view', 'crud::buttons.confirm', 'end');
+
+        // Invoice button (opens in new tab)
+        $this->crud->addButton('line', 'invoice', 'view', 'crud::buttons.invoice', 'end');
         
         // Conditionally show edit/delete buttons only when status is draft
         $entry = $this->crud->getCurrentEntry();
@@ -878,7 +889,7 @@ class OrderCrudController extends CrudController
             'value' => function ($entry) {  
                 return $entry->calculateTotalPrice();
             },
-            'decimals' => 2,
+            'decimals' => 0,
         ]);
 
         CRUD::addColumn([
@@ -1413,5 +1424,19 @@ class OrderCrudController extends CrudController
             });
         
         return response()->json($orders);
+    }
+
+    /**
+     * Generate and display invoice for an order (opens in new tab).
+     *
+     * @param int $id Order ID
+     * @return \Illuminate\View\View
+     */
+    public function invoice($id)
+    {
+        $order = Order::with(['client', 'services', 'products', 'pieces'])
+            ->findOrFail($id);
+
+        return view('admin.order-invoice', compact('order'));
     }
 }

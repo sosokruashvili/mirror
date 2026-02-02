@@ -116,6 +116,13 @@ class Order extends Model
     |--------------------------------------------------------------------------
     */
 
+    public static function calculateAllOrdersPrice() {
+        $orders = Order::all();
+        foreach($orders as $order) {
+            $order->calculateOrderPrice();
+        }
+    }
+
     public function calculateOrderPrice() {
         $priceGel = $this->calculateTotalPrice();
         $this->price_gel = $priceGel;
@@ -131,7 +138,9 @@ class Order extends Model
        if($this->order_type == 'retail') {
             foreach($this->products as $product) {
                 foreach($this->pieces as $piece) {
-                    $totalPriceGel += $piece->getArea() * $product->price * $this->currency_rate;
+                    $piece->price = $piece->getArea() * $product->price * $this->currency_rate;
+                    $piece->save();
+                    $totalPriceGel += $piece->price;
                 }
             }
        }

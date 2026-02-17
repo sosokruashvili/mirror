@@ -41,10 +41,6 @@
 		}
 		
 		
-		.piece-tile:hover {
-			transform: translateY(-2px);
-			box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-		}
 		
 		.piece-header {
 			border-bottom: 2px solid #f0f0f0;
@@ -255,37 +251,42 @@
 						});
 					@endphp
 					<div class="col-md-4 col-sm-6 col-12">
-						<div class="piece-tile {{ $piece->status === 'ready' ? 'border-success' : '' }}">
+						<div class="piece-tile {{ $piece->status === 'ready' ? 'border-success' : '' }} {{ ($piece->broken ?? 0) > 0 ? 'border-danger' : '' }}" data-piece-id="{{ $piece->id }}">
 							<div class="piece-header d-flex justify-content-between">
-								<div class="piece-title">Size: {{ $piece->width }} x {{ $piece->height }} cm</div>
+								<div class="piece-title">ზომა: {{ $piece->width }} x {{ $piece->height }} cm</div>
 								<div class="piece-title">X {{ $piece->quantity }}</div>
 							</div>
 							
 							<div class="piece-details">
 								@if($piece->product)
 									<div class="piece-detail-item">
-										<span class="piece-detail-label">Product:</span>
+										<span class="piece-detail-label">პროდუქტი:</span>
 										<span class="piece-detail-value">{{ $piece->product->title ?? 'N/A' }}</span>
 									</div>
 								@endif
 								<div class="piece-detail-item">
-									<span class="piece-detail-label">Quantity:</span>
+									<span class="piece-detail-label">რაოდენობა:</span>
 									<span class="piece-detail-value">{{ $piece->quantity ?? 1 }}</span>
 								</div>
 								@if($piece->width && $piece->height)
 									<div class="piece-detail-item">
-										<span class="piece-detail-label">Size:</span>
+										<span class="piece-detail-label">ზომა:</span>
 										<span class="piece-detail-value">{{ number_format($piece->width, 2) }} × {{ number_format($piece->height, 2) }} cm</span>
 									</div>
 									<div class="piece-detail-item">
-										<span class="piece-detail-label">Area:</span>
+										<span class="piece-detail-label">ფართობი:</span>
 										<span class="piece-detail-value">{{ number_format($piece->getArea(), 2) }} m²</span>
 									</div>
 								@endif
 								@if($piece->status)
 									<div class="piece-detail-item">
-										<span class="piece-detail-label">Status:</span>
+										<span class="piece-detail-label">სტატუსი:</span>
 										{!! status_badge($piece->status) !!}
+									</div>
+								@endif
+								@if(($piece->broken ?? 0) > 0)
+									<div class="piece-detail-item piece-broken-badge">
+										<span class="badge bg-danger">გატყდა ({{ $piece->broken }})</span>
 									</div>
 								@endif
 							</div>
@@ -341,15 +342,18 @@
 								@endif
 							</div>
 							
-							<div class="d-flex justify-content-end mt-3 pt-3 border-top">
+							<div class="d-flex justify-content-end gap-2 mt-3 pt-3 border-top">
 								@if($piece->status !== 'ready')
 									<form method="POST" action="{{ route('team.pieces.ready', $piece->id) }}" class="d-inline">
 										@csrf
 										<button type="submit" class="btn btn-success btn-lg">
-											<i class="la la-check"></i>&nbspReady
+											<i class="la la-check"></i>&nbsp;მზადაა
 										</button>
 									</form>
 								@endif
+								<button type="button" class="btn btn-danger btn-lg btn-piece-broken" data-piece-id="{{ $piece->id }}" data-url="{{ route('team.pieces.broken', $piece->id) }}" data-broken="{{ $piece->broken ?? 0 }}">
+									<i class="la la-times"></i>&nbsp;გატყდა
+								</button>
 							</div>
 						</div>
 					</div>
@@ -427,10 +431,58 @@
 
 @push('after_scripts')
 <script>
-	// Force light theme on this page
-	(function() {
+	document.querySelectorAll('.btn-piece-broken').forEach(function(btn) {
+		btn.addEventListener('click', function() {
+			var url = this.getAttribute('data-url');
+			var tile = this.closest('.piece-tile');
+			var token = (document.querySelector('meta[name="csrf-token"]') && document.querySelector('meta[name="csrf-token"]').getAttribute('content'))
+				|| (document.querySelector('input[name="_token"]') && document.querySelector('input[name="_token"]').value);
 
-	})();
+			if (!token) {
+				alert('CSRF token not found.');
+				return;
+			}
+
+			this.disabled = true;
+			var formData = new FormData();
+			formData.append('_token', token);
+			fetch(url, {
+				method: 'POST',
+				headers: {
+					'Accept': 'application/json',
+					'X-Requested-With': 'XMLHttpRequest',
+					'X-CSRF-TOKEN': token
+				},
+				body: formData
+			})
+			.then(function(res) { return res.json(); })
+			.then(function(data) {
+				if (data.success) {
+					var broken = data.broken || 1;
+					tile.classList.add('border-danger');
+					var detailArea = tile.querySelector('.piece-details');
+					var brokenBadge = detailArea ? detailArea.querySelector('.piece-broken-badge') : null;
+					if (brokenBadge) {
+						brokenBadge.querySelector('.badge').textContent = 'გატყდა (' + broken + ')';
+					} else if (detailArea) {
+						var item = document.createElement('div');
+						item.className = 'piece-detail-item piece-broken-badge';
+						item.innerHTML = '<span class="badge bg-danger">გატყდა (' + broken + ')</span>';
+						detailArea.appendChild(item);
+					}
+					btn.setAttribute('data-broken', broken);
+					btn.disabled = false;
+				} else {
+					alert(data.message || 'Failed.');
+					btn.disabled = false;
+				}
+			})
+			.catch(function(err) {
+				alert('Request failed.');
+				btn.disabled = false;
+			});
+		});
+	});
 </script>
 @endpush
 

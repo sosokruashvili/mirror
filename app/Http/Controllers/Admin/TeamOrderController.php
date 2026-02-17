@@ -108,5 +108,24 @@ class TeamOrderController extends Controller
             return redirect()->back();
         }
     }
+
+    /**
+     * Increment broken count for a piece (AJAX).
+     *
+     * @param  int  $id
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function markPieceBroken($id)
+    {
+        try {
+            $piece = Piece::findOrFail($id);
+            $piece->increment('broken');
+
+            return response()->json(['success' => true, 'broken' => $piece->fresh()->broken]);
+        } catch (\Exception $e) {
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 422);
+        }
+    }
+
 }
 

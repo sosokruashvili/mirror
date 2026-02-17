@@ -23,6 +23,7 @@ if (!function_exists('status_badge')) {
             'done' => 'text-bg-success',
             'finished' => 'text-bg-success',
             'ready' => 'text-bg-success text-white',
+            'broken' => 'text-bg-danger',
         ];
         
         // Default to secondary if status not found

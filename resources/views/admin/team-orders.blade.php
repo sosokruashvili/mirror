@@ -1,36 +1,5 @@
 @extends(backpack_view('blank'))
 
-@php
-    // Define status badge colors
-    $statusColors = [
-        'draft' => 'bg-secondary',
-        'new' => 'bg-primary',
-        'pending' => 'bg-warning',
-        'working' => 'bg-info',
-        'done' => 'bg-success',
-        'finished' => 'bg-success',
-    ];
-    
-    // Build widget content for each status that exists in database
-    $statusWidgets = [];
-    foreach ($statusCountsFormatted as $status => $data) {
-        $color = $statusColors[$status] ?? 'bg-secondary';
-        $statusWidgets[] = [
-            'type' => 'progress',
-            'class' => 'card text-white ' . $color . ' mb-0',
-            'value' => $data['count'],
-            'description' => $data['label'] . ': ' . $data['count'],
-            'wrapper' => ['class' => 'col-lg-2 col-md-3 col-sm-4 col-6 mb-3'],
-        ];
-    }
-    
-    $widgets['before_content'][] = [
-        'type' => 'div',
-        'class' => 'row',
-        'content' => $statusWidgets,
-    ];
-@endphp
-
 @section('content')
 @php
     $isTeamUser = backpack_user() && backpack_user()->hasRole('team');
@@ -39,21 +8,6 @@
 
     body {
         background-color:rgb(54, 54, 54);
-    }
-    
-    .widget-progress .text-value {
-        font-size: 1.5rem !important;
-        line-height: 1.2 !important;
-        margin-bottom: 0.25rem !important;
-    }
-    
-    .widget-progress .card-body > div:not(.text-value) {
-        font-size: 0.875rem !important;
-        line-height: 1.2 !important;
-    }
-    
-    .widget-progress .card {
-        min-height: auto !important;
     }
 
     .navbar {
@@ -235,19 +189,6 @@
 <div class="container-fluid">
     <div class="row">
         <div class="col-12">
-            <div class="d-flex justify-content-between align-items-center mb-4">
-                <h1 class="mb-0">Order Processing</h1>
-                <form method="POST" action="{{ route('backpack.auth.logout') }}" class="d-inline">
-                    @csrf
-                    <button type="submit" class="btn btn-danger">
-                        <i class="la la-sign-out-alt"></i> Logout
-                    </button>
-                </form>
-            </div>
-            
-            {{-- Hidden CSRF token for AJAX requests --}}
-            <input type="hidden" name="_token" id="csrf-token" value="{{ csrf_token() }}">
-            
             <div class="orders-grid">
                 <div class="row">
                 @forelse($orders as $order)

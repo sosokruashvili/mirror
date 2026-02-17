@@ -135,15 +135,13 @@ class Order extends Model
        $servicePriceSum = $this->services->sum('pivot.price_gel');
        $totalPriceGel += $servicePriceSum;
 
-       if($this->order_type == 'retail') {
-            foreach($this->products as $product) {
-                foreach($this->pieces as $piece) {
-                    $piece->price = $piece->getArea() * $product->price * $this->currency_rate;
-                    $piece->save();
-                    $totalPriceGel += $piece->price;
-                }
+       foreach($this->products as $product) {
+            foreach($this->pieces as $piece) {
+                $piece->price = $piece->getArea() * $product->price * $this->currency_rate;
+                $piece->save();
+                $totalPriceGel += $piece->price;
             }
-       }
+        }
        return $totalPriceGel;
     }
 

@@ -16,11 +16,13 @@ class Piece extends Model
         'width',
         'height',
         'status',
+        'broken',
     ];
 
     protected $casts = [
         'width' => 'decimal:2',
         'height' => 'decimal:2',
+        'broken' => 'integer',
     ];
 
     /**

@@ -182,7 +182,7 @@
 @section('content')
 @php
     $order = $entry;
-    $order->load(['pieces.product', 'services', 'client']);
+    $order->load(['pieces' => function ($q) { $q->withCount('brokenGlasses')->with('product'); }, 'services', 'client']);
     
     // Sort pieces by ID
     $pieces = $order->pieces->sortBy('id');
@@ -251,7 +251,7 @@
 						});
 					@endphp
 					<div class="col-md-4 col-sm-6 col-12">
-						<div class="piece-tile {{ $piece->status === 'ready' ? 'border-success' : '' }} {{ ($piece->broken ?? 0) > 0 ? 'border-danger' : '' }}" data-piece-id="{{ $piece->id }}">
+						<div class="piece-tile {{ $piece->status === 'ready' ? 'border-success' : '' }} {{ ($piece->broken_glasses_count ?? 0) > 0 ? 'border-danger' : '' }}" data-piece-id="{{ $piece->id }}">
 							<div class="piece-header d-flex justify-content-between">
 								<div class="piece-title">ზომა: {{ $piece->width }} x {{ $piece->height }} cm</div>
 								<div class="piece-title">X {{ $piece->quantity }}</div>
@@ -284,9 +284,9 @@
 										{!! status_badge($piece->status) !!}
 									</div>
 								@endif
-								@if(($piece->broken ?? 0) > 0)
+								@if(($piece->broken_glasses_count ?? 0) > 0)
 									<div class="piece-detail-item piece-broken-badge">
-										<span class="badge bg-danger">გატყდა ({{ $piece->broken }})</span>
+										<span class="badge bg-danger">გატყდა ({{ $piece->broken_glasses_count }})</span>
 									</div>
 								@endif
 							</div>
@@ -351,7 +351,7 @@
 										</button>
 									</form>
 								@endif
-								<button type="button" class="btn btn-danger btn-lg btn-piece-broken" data-piece-id="{{ $piece->id }}" data-url="{{ route('team.pieces.broken', $piece->id) }}" data-broken="{{ $piece->broken ?? 0 }}">
+								<button type="button" class="btn btn-danger btn-lg btn-piece-broken" data-piece-id="{{ $piece->id }}" data-url="{{ route('team.pieces.broken', $piece->id) }}" data-broken="{{ $piece->broken_glasses_count ?? 0 }}">
 									<i class="la la-times"></i>&nbsp;გატყდა
 								</button>
 							</div>
@@ -427,62 +427,110 @@
 	</div>
 	</div>
 </div>
+
+{{-- Broken glass description modal --}}
+<div class="modal fade" id="brokenGlassModal" tabindex="-1" aria-labelledby="brokenGlassModalLabel" aria-hidden="true" data-bs-backdrop="true" data-bs-keyboard="true">
+	<div class="modal-dialog modal-dialog-centered modal-sm">
+		<div class="modal-content">
+			<div class="modal-header">
+				<h5 class="modal-title" id="brokenGlassModalLabel">გატყდა – აღწერა</h5>
+				<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+			</div>
+			<div class="modal-body">
+				<div class="mb-2">
+					<label for="brokenGlassDescription" class="form-label">აღწერა (არასავალდებულო)</label>
+					<textarea id="brokenGlassDescription" class="form-control" rows="3" placeholder="დამატებითი ინფორმაცია..."></textarea>
+				</div>
+			</div>
+			<div class="modal-footer">
+				<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">გაუქმება</button>
+				<button type="button" class="btn btn-danger" id="brokenGlassModalSubmit">
+					<i class="la la-check"></i> შენახვა
+				</button>
+			</div>
+		</div>
+	</div>
+</div>
 @endsection
 
 @push('after_scripts')
 <script>
+(function() {
+	var modalEl = document.getElementById('brokenGlassModal');
+	var descriptionEl = document.getElementById('brokenGlassDescription');
+	var submitBtn = document.getElementById('brokenGlassModalSubmit');
+	var currentBtn = null;
+	var currentTile = null;
+
+	if (!modalEl || typeof bootstrap === 'undefined') return;
+
+	// Move modal to body so it sits above the backdrop (same stacking context)
+	document.body.appendChild(modalEl);
+
+	var modal = new bootstrap.Modal(modalEl);
+
 	document.querySelectorAll('.btn-piece-broken').forEach(function(btn) {
 		btn.addEventListener('click', function() {
-			var url = this.getAttribute('data-url');
-			var tile = this.closest('.piece-tile');
-			var token = (document.querySelector('meta[name="csrf-token"]') && document.querySelector('meta[name="csrf-token"]').getAttribute('content'))
-				|| (document.querySelector('input[name="_token"]') && document.querySelector('input[name="_token"]').value);
-
-			if (!token) {
-				alert('CSRF token not found.');
-				return;
-			}
-
-			this.disabled = true;
-			var formData = new FormData();
-			formData.append('_token', token);
-			fetch(url, {
-				method: 'POST',
-				headers: {
-					'Accept': 'application/json',
-					'X-Requested-With': 'XMLHttpRequest',
-					'X-CSRF-TOKEN': token
-				},
-				body: formData
-			})
-			.then(function(res) { return res.json(); })
-			.then(function(data) {
-				if (data.success) {
-					var broken = data.broken || 1;
-					tile.classList.add('border-danger');
-					var detailArea = tile.querySelector('.piece-details');
-					var brokenBadge = detailArea ? detailArea.querySelector('.piece-broken-badge') : null;
-					if (brokenBadge) {
-						brokenBadge.querySelector('.badge').textContent = 'გატყდა (' + broken + ')';
-					} else if (detailArea) {
-						var item = document.createElement('div');
-						item.className = 'piece-detail-item piece-broken-badge';
-						item.innerHTML = '<span class="badge bg-danger">გატყდა (' + broken + ')</span>';
-						detailArea.appendChild(item);
-					}
-					btn.setAttribute('data-broken', broken);
-					btn.disabled = false;
-				} else {
-					alert(data.message || 'Failed.');
-					btn.disabled = false;
-				}
-			})
-			.catch(function(err) {
-				alert('Request failed.');
-				btn.disabled = false;
-			});
+			currentBtn = btn;
+			currentTile = btn.closest('.piece-tile');
+			descriptionEl.value = '';
+			modal.show();
 		});
 	});
+
+	submitBtn.addEventListener('click', function() {
+		if (!currentBtn || !currentTile) return;
+		var url = currentBtn.getAttribute('data-url');
+		var token = (document.querySelector('meta[name="csrf-token"]') && document.querySelector('meta[name="csrf-token"]').getAttribute('content'))
+			|| (document.querySelector('input[name="_token"]') && document.querySelector('input[name="_token"]').value);
+		if (!token) {
+			alert('CSRF token not found.');
+			return;
+		}
+		submitBtn.disabled = true;
+		var formData = new FormData();
+		formData.append('_token', token);
+		formData.append('description', descriptionEl.value || '');
+		fetch(url, {
+			method: 'POST',
+			headers: {
+				'Accept': 'application/json',
+				'X-Requested-With': 'XMLHttpRequest',
+				'X-CSRF-TOKEN': token
+			},
+			body: formData
+		})
+		.then(function(res) { return res.json(); })
+		.then(function(data) {
+			modal.hide();
+			if (data.success) {
+				var broken = data.broken || 1;
+				currentTile.classList.add('border-danger');
+				var detailArea = currentTile.querySelector('.piece-details');
+				var brokenBadge = detailArea ? detailArea.querySelector('.piece-broken-badge') : null;
+				if (brokenBadge) {
+					brokenBadge.querySelector('.badge').textContent = 'გატყდა (' + broken + ')';
+				} else if (detailArea) {
+					var item = document.createElement('div');
+					item.className = 'piece-detail-item piece-broken-badge';
+					item.innerHTML = '<span class="badge bg-danger">გატყდა (' + broken + ')</span>';
+					detailArea.appendChild(item);
+				}
+				currentBtn.setAttribute('data-broken', broken);
+			} else {
+				alert(data.message || 'Failed.');
+			}
+		})
+		.catch(function(err) {
+			alert('Request failed.');
+		})
+		.finally(function() {
+			submitBtn.disabled = false;
+			currentBtn = null;
+			currentTile = null;
+		});
+	});
+})();
 </script>
 @endpush
 

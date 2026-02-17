@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\BrokenGlass;
 use App\Models\Order;
 use App\Models\Piece;
 use Illuminate\Http\Request;
@@ -110,18 +111,22 @@ class TeamOrderController extends Controller
     }
 
     /**
-     * Increment broken count for a piece (AJAX).
+     * Add a broken glass record for a piece (AJAX). Count is taken from broken_glasses table.
      *
-     * @param  int  $id
+     * @param  int  $id  Piece ID
      * @return \Illuminate\Http\JsonResponse
      */
-    public function markPieceBroken($id)
+    public function markPieceBroken(Request $request, $id)
     {
         try {
             $piece = Piece::findOrFail($id);
-            $piece->increment('broken');
+            BrokenGlass::create([
+                'piece_id' => $piece->id,
+                'description' => $request->input('description'),
+            ]);
+            $count = $piece->brokenGlasses()->count();
 
-            return response()->json(['success' => true, 'broken' => $piece->fresh()->broken]);
+            return response()->json(['success' => true, 'broken' => $count]);
         } catch (\Exception $e) {
             return response()->json(['success' => false, 'message' => $e->getMessage()], 422);
         }

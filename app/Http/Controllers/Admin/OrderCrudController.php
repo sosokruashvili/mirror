@@ -989,15 +989,15 @@ class OrderCrudController extends CrudController
                     'paid' => isset($fields['paid']) ? (bool)$fields['paid'] : false,
                 ]
             );
-            
-            // Sync products (many-to-many with pivot data)
+
+            // Attach products (one pivot row per line so identical products can appear multiple times)
             if (!empty($fields['products'])) {
-                $syncData = [];
+                $order->products()->detach();
                 foreach ($fields['products'] as $product) {
                     if (empty($product['product_id'])) {
                         continue;
                     }
-                    if($product['price'] !== Product::find($product['product_id'])->price) {
+                    if ($product['price'] !== Product::find($product['product_id'])->price) {
                         CustomPrice::updateOrCreate([
                             'client_id' => $order->client_id,
                             'product_id' => $product['product_id'],
@@ -1005,11 +1005,10 @@ class OrderCrudController extends CrudController
                             'price_usd' => $product['price'],
                         ]);
                     }
-                    $syncData[$product['product_id']] = [
+                    $order->products()->attach($product['product_id'], [
                         'price' => $product['price'] ?? null,
-                    ];
+                    ]);
                 }
-                $order->products()->sync($syncData);
             }
 
             // Create pieces first (hasMany - delete existing and create new)
@@ -1103,14 +1102,14 @@ class OrderCrudController extends CrudController
                 'paid' => isset($fields['paid']) ? (bool)$fields['paid'] : false,
             ]);
 
-            // Sync products (many-to-many with pivot data)
+            // Attach products (one pivot row per line so identical products can appear multiple times)
+            $order->products()->detach();
             if (!empty($fields['products'])) {
-                $syncData = [];
                 foreach ($fields['products'] as $product) {
                     if (empty($product['product_id'])) {
                         continue;
                     }
-                    if($product['price'] !== Product::find($product['product_id'])->price) {
+                    if ($product['price'] !== Product::find($product['product_id'])->price) {
                         CustomPrice::updateOrCreate([
                             'client_id' => $order->client_id,
                             'product_id' => $product['product_id'],
@@ -1118,13 +1117,10 @@ class OrderCrudController extends CrudController
                             'price_usd' => $product['price'],
                         ]);
                     }
-                    $syncData[$product['product_id']] = [
+                    $order->products()->attach($product['product_id'], [
                         'price' => $product['price'] ?? null,
-                    ];
+                    ]);
                 }
-                $order->products()->sync($syncData);
-            } else {
-                $order->products()->sync([]);
             }
 
             // Sync pieces (hasMany - delete existing and create new) and keep a map of old/temp IDs to new IDs

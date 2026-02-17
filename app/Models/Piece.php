@@ -57,6 +57,14 @@ class Piece extends Model
         return $this->belongsTo(Product::class);
     }
 
+    /**
+     * Broken glass records for this piece (with optional description).
+     */
+    public function brokenGlasses()
+    {
+        return $this->hasMany(BrokenGlass::class);
+    }
+
     public function getArea()
     {
         return $this->width/100 * $this->height/100 * $this->quantity;

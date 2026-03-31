@@ -11,6 +11,7 @@ use App\Models\Order;
 use App\Models\Service;
 use App\Models\Product;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Carbon;
 use App\Models\CustomPrice;
 use App\Models\Payment;
 
@@ -182,6 +183,16 @@ class OrderCrudController extends CrudController
         },
         function ($value) {
             CRUD::addClause('where', 'client_id', $value);
+        });
+
+        CRUD::addFilter([
+            'name' => 'created_at',
+            'type' => 'date_range',
+            'label' => 'Order Date Range',
+        ],
+        false,
+        function ($value) {
+            $this->applyCreatedAtDateRangeFilter(CRUD::query(), $value);
         });
         
         // Status filter
@@ -1363,6 +1374,10 @@ class OrderCrudController extends CrudController
         if (request()->has('product_type') && request()->get('product_type')) {
             $query->where('product_type', request()->get('product_type'));
         }
+
+        if (request()->has('created_at') && request()->get('created_at')) {
+            $this->applyCreatedAtDateRangeFilter($query, request()->get('created_at'));
+        }
         
         // Apply price filter if set
         if (request()->has('price_gel') && request()->get('price_gel')) {
@@ -1434,5 +1449,38 @@ class OrderCrudController extends CrudController
             ->findOrFail($id);
 
         return view('admin.order-invoice', compact('order'));
+    }
+
+    /**
+     * Apply a created_at date-range filter payload to a query.
+     *
+     * @param \Illuminate\Database\Eloquent\Builder $query
+     * @param string $rawDateRange JSON payload: {"from":"YYYY-MM-DD","to":"YYYY-MM-DD"}
+     * @return void
+     */
+    private function applyCreatedAtDateRangeFilter($query, string $rawDateRange): void
+    {
+        $dates = json_decode($rawDateRange, true);
+        if (!is_array($dates)) {
+            return;
+        }
+
+        if (!empty($dates['from'])) {
+            try {
+                $fromDate = Carbon::parse($dates['from'])->startOfDay();
+                $query->where('created_at', '>=', $fromDate);
+            } catch (\Throwable $exception) {
+                // Ignore invalid date input and keep listing usable.
+            }
+        }
+
+        if (!empty($dates['to'])) {
+            try {
+                $toDate = Carbon::parse($dates['to'])->endOfDay();
+                $query->where('created_at', '<=', $toDate);
+            } catch (\Throwable $exception) {
+                // Ignore invalid date input and keep listing usable.
+            }
+        }
     }
 }

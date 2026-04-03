@@ -192,7 +192,15 @@ class OrderCrudController extends CrudController
         ],
         false,
         function ($value) {
-            $this->applyCreatedAtDateRangeFilter(CRUD::query(), $value);
+            $dateRange = $this->parseCreatedAtDateRange($value);
+
+            if (!empty($dateRange['from'])) {
+                CRUD::addClause('where', 'created_at', '>=', $dateRange['from']->toDateTimeString());
+            }
+
+            if (!empty($dateRange['to'])) {
+                CRUD::addClause('where', 'created_at', '<=', $dateRange['to']->toDateTimeString());
+            }
         });
         
         // Status filter
@@ -1376,7 +1384,15 @@ class OrderCrudController extends CrudController
         }
 
         if (request()->has('created_at') && request()->get('created_at')) {
-            $this->applyCreatedAtDateRangeFilter($query, request()->get('created_at'));
+            $dateRange = $this->parseCreatedAtDateRange(request()->get('created_at'));
+
+            if (!empty($dateRange['from'])) {
+                $query->where('created_at', '>=', $dateRange['from']);
+            }
+
+            if (!empty($dateRange['to'])) {
+                $query->where('created_at', '<=', $dateRange['to']);
+            }
         }
         
         // Apply price filter if set
@@ -1452,23 +1468,30 @@ class OrderCrudController extends CrudController
     }
 
     /**
-     * Apply a created_at date-range filter payload to a query.
+     * Parse a created_at date-range filter payload.
      *
-     * @param \Illuminate\Database\Eloquent\Builder $query
-     * @param string $rawDateRange JSON payload: {"from":"YYYY-MM-DD","to":"YYYY-MM-DD"}
-     * @return void
+     * @param string|null $rawDateRange JSON payload: {"from":"YYYY-MM-DD","to":"YYYY-MM-DD"}
+     * @return array{from: ?\Illuminate\Support\Carbon, to: ?\Illuminate\Support\Carbon}
      */
-    private function applyCreatedAtDateRangeFilter($query, string $rawDateRange): void
+    private function parseCreatedAtDateRange(?string $rawDateRange): array
     {
+        $result = [
+            'from' => null,
+            'to' => null,
+        ];
+
+        if (empty($rawDateRange)) {
+            return $result;
+        }
+
         $dates = json_decode($rawDateRange, true);
         if (!is_array($dates)) {
-            return;
+            return $result;
         }
 
         if (!empty($dates['from'])) {
             try {
-                $fromDate = Carbon::parse($dates['from'])->startOfDay();
-                $query->where('created_at', '>=', $fromDate);
+                $result['from'] = Carbon::parse($dates['from'])->startOfDay();
             } catch (\Throwable $exception) {
                 // Ignore invalid date input and keep listing usable.
             }
@@ -1476,11 +1499,12 @@ class OrderCrudController extends CrudController
 
         if (!empty($dates['to'])) {
             try {
-                $toDate = Carbon::parse($dates['to'])->endOfDay();
-                $query->where('created_at', '<=', $toDate);
+                $result['to'] = Carbon::parse($dates['to'])->endOfDay();
             } catch (\Throwable $exception) {
                 // Ignore invalid date input and keep listing usable.
             }
         }
+
+        return $result;
     }
 }

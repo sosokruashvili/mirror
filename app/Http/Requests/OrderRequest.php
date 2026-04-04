@@ -37,6 +37,7 @@ class OrderRequest extends FormRequest
             'product_type' => 'required|string|max:255',
             'currency_rate' => 'required|numeric|min:0',
             'author' => 'required|numeric|min:1',
+            'atachment' => 'nullable|file|mimes:pdf,png,jpeg,jpg',
         ];
     }
 
@@ -54,6 +55,7 @@ class OrderRequest extends FormRequest
             'pieces.*.width' => 'width',
             'pieces.*.height' => 'height',
             'pieces.*.quantity' => 'quantity',
+            'atachment' => 'atachment',
         ];
     }
 

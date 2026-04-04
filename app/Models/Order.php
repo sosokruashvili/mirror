@@ -28,7 +28,8 @@ class Order extends Model
         'currency_rate',
         'product_type',
         'author',
-        'paid'
+        'paid',
+        'atachment',
     ];
     // protected $hidden = [];
     
@@ -207,4 +208,12 @@ class Order extends Model
     | MUTATORS
     |--------------------------------------------------------------------------
     */
+    public function setAtachmentAttribute($value)
+    {
+        $attributeName = 'atachment';
+        $disk = 'public';
+        $destinationPath = 'orders/attachments';
+
+        $this->uploadFileToDisk($value, $attributeName, $disk, $destinationPath);
+    }
 }

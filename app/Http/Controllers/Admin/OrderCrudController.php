@@ -710,6 +710,18 @@ class OrderCrudController extends CrudController
             'default' => false,
         ]);
 
+        CRUD::addField([
+            'name' => 'atachment',
+            'label' => 'Atachment',
+            'type' => 'upload',
+            'upload' => true,
+            'disk' => 'public',
+            'attributes' => [
+                'accept' => '.pdf,.png,.jpeg,.jpg',
+            ],
+            'hint' => 'Allowed types: PDF, PNG, JPEG, JPG',
+        ]);
+
         
     }
 
@@ -1006,6 +1018,7 @@ class OrderCrudController extends CrudController
                     'currency_rate' => $fields['currency_rate'],
                     'author' => backpack_user()->id,
                     'paid' => isset($fields['paid']) ? (bool)$fields['paid'] : false,
+                    'atachment' => $fields['atachment'] ?? null,
                 ]
             );
 
@@ -1119,6 +1132,7 @@ class OrderCrudController extends CrudController
                 'status' => $fields['status'],
                 'currency_rate' => $fields['currency_rate'],
                 'paid' => isset($fields['paid']) ? (bool)$fields['paid'] : false,
+                'atachment' => $fields['atachment'] ?? null,
             ]);
 
             // Attach products (one pivot row per line so identical products can appear multiple times)

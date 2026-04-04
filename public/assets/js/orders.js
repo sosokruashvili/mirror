@@ -213,6 +213,9 @@ function showExtraFields(serviceId, rowNumber) {
                 crud.field('services').subfield(fname, rowNumber).show();
                 setSubfieldEnabled(fname, rowNumber, true);
             }
+            if (response.extra_field_names.indexOf('tape_length') !== -1) {
+                syncTapeLengthFromPerimeter(rowNumber, false);
+            }
         }
     });
 }
@@ -228,6 +231,96 @@ function hideAllSubfields(rowNumber) {
             setSubfieldEnabled(name, rowNumber, false);
         }
     });
+}
+
+function setServiceSubfieldValue(rowNumber, fieldName, value) {
+    try {
+        crud.field('services').subfield(fieldName, rowNumber).$input.val(value);
+    } catch (e) {
+        var $row = $('[data-repeatable-identifier="services"][data-row-number="' + rowNumber + '"]');
+        $row.find('[name*="[' + fieldName + ']"]').val(value);
+    }
+}
+
+function getServiceSubfieldValue(rowNumber, fieldName) {
+    try {
+        return crud.field('services').subfield(fieldName, rowNumber).$input.val();
+    } catch (e) {
+        var $row = $('[data-repeatable-identifier="services"][data-row-number="' + rowNumber + '"]');
+        return $row.find('[name*="[' + fieldName + ']"]').val();
+    }
+}
+
+function isTapeLengthVisible(rowNumber) {
+    var $row = $('[data-repeatable-identifier="services"][data-row-number="' + rowNumber + '"]');
+    var $input = $row.find('input[name*="[tape_length]"]');
+    if (!$input.length) {
+        return false;
+    }
+    return $input.closest('[bp-field-wrapper]').is(':visible');
+}
+
+function getSelectedPieceQuantity(rowNumber) {
+    var $row = $('[data-repeatable-identifier="services"][data-row-number="' + rowNumber + '"]');
+    var $pieceSelect = $row.find('select[name*="[piece_id]"]');
+    if (!$pieceSelect.length) {
+        return 1;
+    }
+
+    var selectedText = $pieceSelect.find('option:selected').text() || '';
+    var qtyMatch = selectedText.match(/\(x(\d+)\)/);
+    return qtyMatch ? (parseInt(qtyMatch[1], 10) || 1) : 1;
+}
+
+function syncTapeLengthFromPerimeter(rowNumber, overwrite) {
+    if (!isTapeLengthVisible(rowNumber)) {
+        return;
+    }
+
+    var perimeter = parseFloat(getServiceSubfieldValue(rowNumber, 'perimeter'));
+    if (isNaN(perimeter)) {
+        return;
+    }
+
+    var tapeValue = getServiceSubfieldValue(rowNumber, 'tape_length');
+    var hasValue = tapeValue !== null && String(tapeValue).trim() !== '';
+    if (!overwrite && hasValue) {
+        return;
+    }
+
+    var quantity = getSelectedPieceQuantity(rowNumber);
+    var totalTapeLength = perimeter * quantity;
+    setServiceSubfieldValue(rowNumber, 'tape_length', totalTapeLength.toFixed(2));
+}
+
+function recalculatePieceMetricsForServiceRow($select, rowNumber) {
+    if (!$select || !$select.length) {
+        return;
+    }
+
+    var selectedText = $select.find('option:selected').text();
+    if (!selectedText || selectedText === '-') {
+        setServiceSubfieldValue(rowNumber, 'perimeter', '');
+        setServiceSubfieldValue(rowNumber, 'area', '');
+        if (isTapeLengthVisible(rowNumber)) {
+            setServiceSubfieldValue(rowNumber, 'tape_length', '');
+        }
+        return;
+    }
+
+    var match = selectedText.match(/(\d+(?:\.\d+)?)x(\d+(?:\.\d+)?)\s*\(x(\d+)\)/);
+    if (!match) {
+        return;
+    }
+
+    var width = parseFloat(match[1]);
+    var height = parseFloat(match[2]);
+    var perimeter = (2 * (width + height) / 100);
+    var area = width * height / 10000;
+
+    setServiceSubfieldValue(rowNumber, 'perimeter', perimeter.toFixed(2));
+    setServiceSubfieldValue(rowNumber, 'area', area.toFixed(2));
+    syncTapeLengthFromPerimeter(rowNumber, true);
 }
 
 
@@ -424,6 +517,8 @@ function updatePieceOptionsForServiceRow(rowNumber, pieces) {
             isProgrammaticPieceUpdate = true;
             // Trigger change event (this will be ignored by handler)
             $select.trigger('change');
+            // Also recalculate directly when piece dimensions changed but selection stayed same.
+            recalculatePieceMetricsForServiceRow($select, rowNumber);
             // Clear flag after a short delay to ensure all event handlers have processed
             setTimeout(function() {
                 isProgrammaticPieceUpdate = false;
@@ -638,43 +733,16 @@ $(document).ready(function() {
         }
         
         var $select = $(this);
+        if (!$select.is('select')) {
+            $select = $(e.target).is('select') ? $(e.target) : $select.find('select[name*="[piece_id]"]').first();
+        }
+        if (!$select.length) {
+            return;
+        }
         var $row = $select.closest('[data-repeatable-identifier="services"][data-row-number]');
         var rowNumber = parseInt($row.attr('data-row-number'));
         
-        // Get selected option text (format: "width x height (x quantity)")
-        var selectedText = $select.find('option:selected').text();
-        
-        if (!selectedText || selectedText === '-') {
-            // Clear perimeter if no piece selected
-            try {
-                crud.field('services').subfield('perimeter', rowNumber).$input.val('');
-            } catch(e) {
-                $row.find('input[name*="[perimeter]"]').val('');
-            }
-            return;
-        }
-        
-        // Parse width, height, and quantity from option text (e.g., "100x200 (x1)")
-        var match = selectedText.match(/(\d+(?:\.\d+)?)x(\d+(?:\.\d+)?)\s*\(x(\d+)\)/);
-        if (match) {
-            var width = parseFloat(match[1]);
-            var height = parseFloat(match[2]);
-            var quantity = parseInt(match[3]) || 1;
-            
-            // Calculate perimeter in meters: 2 * (width + height) / 1000 (convert mm to meters)
-            // Then multiply by quantity
-            var perimeter = (2 * (width + height) / 100);
-            var area = width * height / 10000;
-
-            // Set perimeter and area values
-            try {
-                crud.field('services').subfield('perimeter', rowNumber).$input.val(perimeter.toFixed(2));
-                crud.field('services').subfield('area', rowNumber).$input.val(area.toFixed(2));
-            } catch(e) {
-                $row.find('input[name*="[perimeter]"]').val(perimeter.toFixed(2));
-                $row.find('input[name*="[area]"]').val(area.toFixed(2));
-            }
-        }
+        recalculatePieceMetricsForServiceRow($select, rowNumber);
     });
 });
 

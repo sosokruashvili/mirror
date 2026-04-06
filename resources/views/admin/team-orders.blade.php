@@ -7,14 +7,13 @@
     $showArchived = $showArchived ?? false;
     $dateFrom = $dateFrom ?? request()->query('from');
     $dateTo = $dateTo ?? request()->query('to');
-    $status = $status ?? 'all';
-    $statusLabels = $statusLabels ?? [];
+    $productFilter = $productFilter ?? 'all';
+    $products = $products ?? collect();
 
     $toggleQuery = array_filter([
         'from' => $dateFrom ?: null,
         'to' => $dateTo ?: null,
-        // Preserve status when it's set and isn't "all"
-        'status' => ($status !== null && $status !== '' && $status !== 'all') ? $status : null,
+        'product' => ($productFilter !== 'all') ? $productFilter : null,
     ]);
 @endphp
 <style>
@@ -237,12 +236,11 @@
             </div>
 
             <div style="min-width: 180px;">
-                <label class="form-label mb-1 text-light">Status</label>
-                <select class="form-select" name="status" id="statusFilter" autocomplete="off" data-initial-status="{{ $status ?? 'all' }}">
-                    <option value="all" {{ ($status === 'all' || $status === null || $status === '') ? 'selected' : '' }}>All</option>
-                    @foreach($statusLabels as $key => $label)
-                        @continue(in_array($key, ['draft','ready','finished'], true))
-                        <option value="{{ $key }}" {{ ($status === $key) ? 'selected' : '' }}>{{ $label }}</option>
+                <label class="form-label mb-1 text-light">მასალა</label>
+                <select class="form-select" name="product" autocomplete="off">
+                    <option value="all" {{ $productFilter === 'all' ? 'selected' : '' }}>ყველა</option>
+                    @foreach($products as $product)
+                        <option value="{{ $product->id }}" {{ $productFilter == $product->id ? 'selected' : '' }}>{{ $product->title }}</option>
                     @endforeach
                 </select>
             </div>
@@ -299,6 +297,17 @@
                                     <span class="detail-label">მასალა:</span>
                                     <span class="detail-value">{{ $order->products->pluck('title')->implode(' x ') }}</span>
                                 </div>
+
+                                <div class="detail-row">
+                                    <span class="detail-label">მიმაგრებული ფაილი:</span>
+                                    <span class="detail-value">
+                                        @if($order->atachment)
+                                            <a href="{{ asset('storage/' . $order->atachment) }}" target="_blank">ფაილის ნახვა</a>
+                                        @else
+                                            <span class="text-muted">—</span>
+                                        @endif
+                                    </span>
+                                </div>
                                 
                                 @php
                                     // Get unique piece sizes with quantities and service shortnames for this order
@@ -324,7 +333,7 @@
                                         // Get services associated with this piece
                                         $pieceServices = $order->services->filter(function($service) use ($piece) {
                                             return $service->pivot->piece_id == $piece->id;
-                                        });
+                                        })->sortBy('id');
                                         
                                         // Collect unique service shortnames for this size
                                         foreach($pieceServices as $service) {

@@ -23,15 +23,10 @@ class TeamOrderController extends Controller
         $showArchived = ($view === 'archived');
         $dateFrom = $request->query('from');
         $dateTo = $request->query('to');
-        $status = $request->query('status', 'all');
+        $productFilter = $request->query('product', 'all');
 
-        // Get all orders for status counts (including finished)
-        $allOrders = Order::all();
-        
-        // Calculate status counts from all orders
-        $statusCounts = $allOrders->groupBy('status')->map->count();
-        
-        // Get orders for display, excluding draft, ready, and finished orders
+        $products = \App\Models\Product::orderBy('title')->get();
+
         $ordersQuery = Order::with(['client', 'products', 'services', 'pieces'])
             ->whereNotIn('status', ['draft', 'ready', 'finished'])
             ->orderBy('created_at', 'desc');
@@ -42,8 +37,10 @@ class TeamOrderController extends Controller
             $ordersQuery->whereNull('archived_at');
         }
 
-        if (is_string($status) && $status !== '' && $status !== 'all') {
-            $ordersQuery->where('status', $status);
+        if ($productFilter !== 'all' && $productFilter !== '' && $productFilter !== null) {
+            $ordersQuery->whereHas('products', function ($q) use ($productFilter) {
+                $q->where('products.id', $productFilter);
+            });
         }
 
         if (is_string($dateFrom) && $dateFrom !== '') {
@@ -65,28 +62,8 @@ class TeamOrderController extends Controller
         }
 
         $orders = $ordersQuery->get();
-        
-        // Define status labels for display
-        $statusLabels = [
-            'draft' => 'Draft',
-            'new' => 'New',
-            'pending' => 'Pending',
-            'working' => 'Working',
-            'done' => 'Done',
-            'ready' => 'Ready',
-            'finished' => 'Finished',
-        ];
-        
-        // Format status counts - only include statuses that exist in the database
-        $statusCountsFormatted = [];
-        foreach ($statusCounts as $statusKey => $count) {
-            $statusCountsFormatted[$statusKey] = [
-                'label' => $statusLabels[$statusKey] ?? ucfirst($statusKey),
-                'count' => $count
-            ];
-        }
 
-        return view('admin.team-orders', compact('orders', 'statusCountsFormatted', 'showArchived', 'statusLabels', 'dateFrom', 'dateTo', 'status'));
+        return view('admin.team-orders', compact('orders', 'showArchived', 'products', 'productFilter', 'dateFrom', 'dateTo'));
     }
 
     /**

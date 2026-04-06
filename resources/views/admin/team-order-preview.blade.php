@@ -276,7 +276,7 @@
 						// Get services for this piece
 						$pieceServices = $order->services->filter(function($service) use ($piece) {
 							return $service->pivot->piece_id == $piece->id;
-						});
+						})->sortBy('id');
 					@endphp
 					<div class="col-md-4 col-sm-6 col-12">
 						<div class="piece-tile {{ $piece->status === 'ready' ? 'border-success' : '' }} {{ ($piece->broken_glasses_count ?? 0) > 0 ? 'border-danger' : '' }}" data-piece-id="{{ $piece->id }}">
@@ -372,12 +372,12 @@
 							
 							<div class="d-flex justify-content-end gap-2 mt-3 pt-3 border-top">
 								@if($piece->status !== 'ready')
-									<form method="POST" action="{{ route('team.pieces.ready', $piece->id) }}" class="d-inline">
-										@csrf
-										<button type="submit" class="btn btn-success btn-lg">
-											<i class="la la-check"></i>&nbsp;მზადაა
-										</button>
-									</form>
+								<form method="POST" action="{{ route('team.pieces.ready', $piece->id) }}" class="d-inline" onsubmit="return confirm('დარწმუნებული ხართ რომ ეს ნაჭერი მზადაა?');">
+									@csrf
+									<button type="submit" class="btn btn-success btn-lg">
+										<i class="la la-check"></i>&nbsp;მზადაა
+									</button>
+								</form>
 								@endif
 								<button type="button" class="btn btn-danger btn-lg btn-piece-broken" data-piece-id="{{ $piece->id }}" data-url="{{ route('team.pieces.broken', $piece->id) }}" data-broken="{{ $piece->broken_glasses_count ?? 0 }}">
 									<i class="la la-times"></i>&nbsp;გატყდა

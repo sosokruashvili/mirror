@@ -26,6 +26,34 @@
 		.navbar-expand-lg.navbar-vertical~.navbar, .navbar-expand-lg.navbar-vertical~.page-wrapper {
 			margin-left: 0 !important;
 		}
+
+		/* When loaded inside iframe (modal) */
+		body.in-iframe .header-operation,
+		body.in-iframe .btn.float-end,
+		body.in-iframe .navbar {
+			display: none !important;
+		}
+		body.in-iframe {
+			overflow-y: auto !important;
+			padding: 10px !important;
+		}
+		body.in-iframe .container-fluid,
+		body.in-iframe .page-wrapper,
+		body.in-iframe .page-body {
+			margin: 0 !important;
+			padding: 5px !important;
+		}
+		body.in-iframe .piece-tile {
+			padding: 10px;
+			margin-bottom: 10px;
+		}
+		body.in-iframe .order-info-section {
+			padding: 10px;
+			margin-bottom: 15px;
+		}
+		body.in-iframe .pieces-grid {
+			padding: 10px 0;
+		}
 		
 		.piece-tile {
 			background: #fff;
@@ -454,6 +482,11 @@
 @endsection
 
 @push('after_scripts')
+<script>
+if (window.self !== window.top) {
+	document.body.classList.add('in-iframe');
+}
+</script>
 <script>
 (function() {
 	var modalEl = document.getElementById('brokenGlassModal');

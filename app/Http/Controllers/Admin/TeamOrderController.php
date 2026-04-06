@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\BrokenGlass;
 use App\Models\Order;
 use App\Models\Piece;
+use Illuminate\Support\Carbon;
 use Illuminate\Http\Request;
 use Prologue\Alerts\Facades\Alert;
 
@@ -16,8 +17,14 @@ class TeamOrderController extends Controller
      *
      * @return \Illuminate\View\View
      */
-    public function index()
+    public function index(Request $request)
     {
+        $view = $request->query('view');
+        $showArchived = ($view === 'archived');
+        $dateFrom = $request->query('from');
+        $dateTo = $request->query('to');
+        $status = $request->query('status', 'all');
+
         // Get all orders for status counts (including finished)
         $allOrders = Order::all();
         
@@ -25,10 +32,39 @@ class TeamOrderController extends Controller
         $statusCounts = $allOrders->groupBy('status')->map->count();
         
         // Get orders for display, excluding draft, ready, and finished orders
-        $orders = Order::with(['client', 'products', 'services', 'pieces'])
+        $ordersQuery = Order::with(['client', 'products', 'services', 'pieces'])
             ->whereNotIn('status', ['draft', 'ready', 'finished'])
-            ->orderBy('created_at', 'desc')
-            ->get();
+            ->orderBy('created_at', 'desc');
+
+        if ($showArchived) {
+            $ordersQuery->whereNotNull('archived_at');
+        } else {
+            $ordersQuery->whereNull('archived_at');
+        }
+
+        if (is_string($status) && $status !== '' && $status !== 'all') {
+            $ordersQuery->where('status', $status);
+        }
+
+        if (is_string($dateFrom) && $dateFrom !== '') {
+            try {
+                $from = Carbon::parse($dateFrom)->startOfDay();
+                $ordersQuery->where('created_at', '>=', $from);
+            } catch (\Exception $e) {
+                // ignore invalid date
+            }
+        }
+
+        if (is_string($dateTo) && $dateTo !== '') {
+            try {
+                $to = Carbon::parse($dateTo)->endOfDay();
+                $ordersQuery->where('created_at', '<=', $to);
+            } catch (\Exception $e) {
+                // ignore invalid date
+            }
+        }
+
+        $orders = $ordersQuery->get();
         
         // Define status labels for display
         $statusLabels = [
@@ -43,14 +79,52 @@ class TeamOrderController extends Controller
         
         // Format status counts - only include statuses that exist in the database
         $statusCountsFormatted = [];
-        foreach ($statusCounts as $status => $count) {
-            $statusCountsFormatted[$status] = [
-                'label' => $statusLabels[$status] ?? ucfirst($status),
+        foreach ($statusCounts as $statusKey => $count) {
+            $statusCountsFormatted[$statusKey] = [
+                'label' => $statusLabels[$statusKey] ?? ucfirst($statusKey),
                 'count' => $count
             ];
         }
 
-        return view('admin.team-orders', compact('orders', 'statusCountsFormatted'));
+        return view('admin.team-orders', compact('orders', 'statusCountsFormatted', 'showArchived', 'statusLabels', 'dateFrom', 'dateTo', 'status'));
+    }
+
+    /**
+     * Archive an order (hide from team list).
+     *
+     * @param  int  $id
+     * @return \Illuminate\Http\RedirectResponse
+     */
+    public function archive($id)
+    {
+        try {
+            $order = Order::findOrFail($id);
+
+            $order->archived_at = now();
+            $order->save();
+
+            Alert::success('Order #' . $order->id . ' has been archived.')->flash();
+            return redirect()->route('team.orders');
+        } catch (\Exception $e) {
+            Alert::error('Failed to archive order: ' . $e->getMessage())->flash();
+            return redirect()->route('team.orders');
+        }
+    }
+
+    public function unarchive($id)
+    {
+        try {
+            $order = Order::findOrFail($id);
+
+            $order->archived_at = null;
+            $order->save();
+
+            Alert::success('Order #' . $order->id . ' has been unarchived.')->flash();
+            return redirect()->route('team.orders', ['view' => 'archived']);
+        } catch (\Exception $e) {
+            Alert::error('Failed to unarchive order: ' . $e->getMessage())->flash();
+            return redirect()->route('team.orders', ['view' => 'archived']);
+        }
     }
 
     /**

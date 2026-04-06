@@ -3,6 +3,19 @@
 @section('content')
 @php
     $isTeamUser = backpack_user() && backpack_user()->hasRole('team');
+    $dragStorageKey = 'teamOrdersGridOrder:v1:' . (backpack_user()->id ?? 'guest');
+    $showArchived = $showArchived ?? false;
+    $dateFrom = $dateFrom ?? request()->query('from');
+    $dateTo = $dateTo ?? request()->query('to');
+    $status = $status ?? 'all';
+    $statusLabels = $statusLabels ?? [];
+
+    $toggleQuery = array_filter([
+        'from' => $dateFrom ?: null,
+        'to' => $dateTo ?: null,
+        // Preserve status when it's set and isn't "all"
+        'status' => ($status !== null && $status !== '' && $status !== 'all') ? $status : null,
+    ]);
 @endphp
 <style>
 
@@ -41,6 +54,23 @@
         flex-direction: column;
         justify-content: space-between;
         height: 100%;
+    }
+
+    .order-card .order-tile {
+        cursor: grab;
+        user-select: none;
+        -webkit-user-select: none;
+        -webkit-user-drag: none;
+    }
+    .order-card.dragging .order-tile {
+        cursor: grabbing;
+        box-shadow: 0 10px 24px rgba(0,0,0,0.25);
+    }
+    .order-card-placeholder {
+        border: 3px dashed rgba(96, 129, 179, 0.9);
+        border-radius: 8px;
+        margin-bottom: 10px;
+        background: rgba(255,255,255,0.06);
     }
     
     .order-header {
@@ -96,6 +126,9 @@
         gap: 8px;
         margin-top: 8px;
     }
+    .order-actions .btn-archive {
+        margin-left: auto;
+    }
     
     .order-actions .btn {
         padding: 4px 12px;
@@ -103,7 +136,7 @@
     }
     
     .created-at {
-        font-size: 16px;
+        font-size: 14px;
         color: #333;
         text-align: right;
         margin-right: 0px;
@@ -187,12 +220,55 @@
 </style>
 
 <div class="container-fluid">
+    <div class="d-flex flex-wrap align-items-center justify-content-between pt-3 gap-2">
+        <form method="GET" action="{{ route('team.orders') }}" class="d-flex flex-wrap align-items-end gap-2" autocomplete="off">
+            @if($showArchived)
+                <input type="hidden" name="view" value="archived" />
+            @endif
+
+            <div>
+                <label class="form-label mb-1 text-light">From</label>
+                <input type="date" class="form-control" name="from" value="{{ $dateFrom }}" />
+            </div>
+
+            <div>
+                <label class="form-label mb-1 text-light">To</label>
+                <input type="date" class="form-control" name="to" value="{{ $dateTo }}" />
+            </div>
+
+            <div style="min-width: 180px;">
+                <label class="form-label mb-1 text-light">Status</label>
+                <select class="form-select" name="status" id="statusFilter" autocomplete="off" data-initial-status="{{ $status ?? 'all' }}">
+                    <option value="all" {{ ($status === 'all' || $status === null || $status === '') ? 'selected' : '' }}>All</option>
+                    @foreach($statusLabels as $key => $label)
+                        @continue(in_array($key, ['draft','ready','finished'], true))
+                        <option value="{{ $key }}" {{ ($status === $key) ? 'selected' : '' }}>{{ $label }}</option>
+                    @endforeach
+                </select>
+            </div>
+
+            <button type="submit" class="btn btn-primary">Apply</button>
+            <a href="{{ $showArchived ? route('team.orders', ['view' => 'archived']) : route('team.orders') }}" class="btn btn-outline-light">Reset</a>
+        </form>
+
+        @if($showArchived)
+            <a href="{{ route('team.orders', $toggleQuery) }}"
+               class="btn btn-primary" style="min-width: 140px;">
+                არქივი
+            </a>
+        @else
+            <a href="{{ route('team.orders', array_merge(['view' => 'archived'], $toggleQuery)) }}"
+               class="btn btn-secondary" style="min-width: 140px;">
+                არქივი
+            </a>
+        @endif
+    </div>
     <div class="row">
         <div class="col-12">
             <div class="orders-grid">
-                <div class="row">
+                <div class="row" id="ordersGridRow" data-dnd-storage-key="{{ $dragStorageKey }}">
                 @forelse($orders as $order)
-                    <div class="col-md-3 col-sm-6 col-12" style="margin-bottom: 10px;">
+                    <div class="col-md-3 col-sm-6 col-12 order-card" style="margin-bottom: 10px;" data-order-id="{{ $order->id }}">
                         <div class="order-tile">
                             <div class="order-header">
                                 <div class="row">
@@ -285,6 +361,15 @@
                                 <button class="btn btn-success" onclick="finishOrder({{ $order->id }})">
                                     დასრულება
                                 </button>
+                                @if($showArchived)
+                                <button class="btn btn-danger btn-archive" onclick="unarchiveOrder({{ $order->id }})">
+                                    დეარქივაცია
+                                </button>
+                                @else
+                                <button class="btn btn-danger btn-archive" onclick="archiveOrder({{ $order->id }})">
+                                    დაარქივება
+                                </button>
+                                @endif
                             </div>
                         </div>
                     </div>
@@ -299,6 +384,14 @@
                 </div>
             </div>
         </div>
+    </div>
+</div>
+
+{{-- Order Preview Modal --}}
+<div id="orderPreviewOverlay" style="display:none; position:fixed; inset:0; z-index:9999; background:rgba(0,0,0,0.6); align-items:center; justify-content:center;">
+    <div style="position:relative; width:92vw; height:90vh; background:#fff; border-radius:10px; overflow:hidden; box-shadow:0 8px 40px rgba(0,0,0,0.4);">
+        <button id="orderPreviewClose" type="button" style="position:absolute; top:8px; right:12px; z-index:10; background:none; border:none; font-size:28px; cursor:pointer; color:#333; line-height:1;">&times;</button>
+        <iframe id="orderPreviewIframe" style="width:100%; height:100%; border:none;"></iframe>
     </div>
 </div>
 
@@ -327,9 +420,25 @@
 
 <script>
     function previewOrder(url) {
-        // Open order preview page in new tab
-        window.open(url, '_blank');
+        var overlay = document.getElementById('orderPreviewOverlay');
+        var iframe = document.getElementById('orderPreviewIframe');
+        iframe.src = url;
+        overlay.style.display = 'flex';
     }
+
+    document.getElementById('orderPreviewClose').addEventListener('click', function() {
+        var overlay = document.getElementById('orderPreviewOverlay');
+        var iframe = document.getElementById('orderPreviewIframe');
+        overlay.style.display = 'none';
+        iframe.src = '';
+    });
+
+    document.getElementById('orderPreviewOverlay').addEventListener('click', function(e) {
+        if (e.target === this) {
+            this.style.display = 'none';
+            document.getElementById('orderPreviewIframe').src = '';
+        }
+    });
     
     function finishOrder(orderId) {
         // Confirm action
@@ -363,6 +472,128 @@
         document.body.appendChild(form);
         form.submit();
     }
+
+    function unarchiveOrder(orderId) {
+        if (!confirm('დარწმუნებული ხართ რომ გსურთ ამ შეკვეთის დეარქივაცია?')) {
+            return;
+        }
+
+        const button = event.target;
+        button.disabled = true;
+        button.textContent = 'Processing...';
+
+        const token = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') ||
+                     document.querySelector('input[name="_token"]')?.value;
+
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = '{{ route("team.orders.unarchive", ":id") }}'.replace(':id', orderId);
+
+        const csrfInput = document.createElement('input');
+        csrfInput.type = 'hidden';
+        csrfInput.name = '_token';
+        csrfInput.value = token;
+        form.appendChild(csrfInput);
+
+        document.body.appendChild(form);
+        form.submit();
+    }
+
+    function archiveOrder(orderId) {
+        if (!confirm('დარწმუნებული ხართ რომ გსურთ ამ შეკვეთის არქივაცია?')) {
+            return;
+        }
+
+        const button = event.target;
+        const originalText = button.textContent;
+        button.disabled = true;
+        button.textContent = 'Archiving...';
+
+        const token = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') ||
+                     document.querySelector('input[name="_token"]')?.value;
+
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = '{{ route("team.orders.archive", ":id") }}'.replace(':id', orderId);
+
+        const csrfInput = document.createElement('input');
+        csrfInput.type = 'hidden';
+        csrfInput.name = '_token';
+        csrfInput.value = token;
+        form.appendChild(csrfInput);
+
+        document.body.appendChild(form);
+        form.submit();
+    }
+</script>
+
+@basset('https://cdn.jsdelivr.net/npm/jquery-ui@1.13.2/dist/jquery-ui.min.js')
+<script>
+    (function() {
+        var row = document.getElementById('ordersGridRow');
+        if (!row) return;
+
+        var storageKey = row.getAttribute('data-dnd-storage-key') || 'teamOrdersGridOrder:v1';
+
+        function getCards() {
+            return Array.prototype.slice.call(row.querySelectorAll('.order-card[data-order-id]'));
+        }
+
+        function loadOrder() {
+            try {
+                var raw = localStorage.getItem(storageKey);
+                if (!raw) return;
+                var ids = JSON.parse(raw);
+                if (!Array.isArray(ids) || !ids.length) return;
+
+                var byId = new Map();
+                getCards().forEach(function(el) {
+                    byId.set(String(el.getAttribute('data-order-id')), el);
+                });
+
+                ids.forEach(function(id) {
+                    var el = byId.get(String(id));
+                    if (el) row.appendChild(el);
+                });
+            } catch (e) {
+                // ignore invalid saved state
+            }
+        }
+
+        function saveOrder() {
+            try {
+                var ids = getCards().map(function(el) { return String(el.getAttribute('data-order-id')); });
+                localStorage.setItem(storageKey, JSON.stringify(ids));
+            } catch (e) {
+                // ignore storage errors (private mode, quota, etc.)
+            }
+        }
+
+        loadOrder();
+
+        if (window.jQuery && typeof jQuery.fn.sortable === 'function') {
+            jQuery(function($) {
+                var $row = $(row);
+                $row.sortable({
+                    items: '.order-card[data-order-id]',
+                    tolerance: 'pointer',
+                    helper: 'clone',
+                    opacity: 1,
+                    forcePlaceholderSize: true,
+                    placeholder: 'order-card-placeholder col-md-3 col-sm-6 col-12',
+                    start: function(evt, ui) {
+                        ui.item.addClass('dragging');
+                    },
+                    stop: function(evt, ui) {
+                        ui.item.removeClass('dragging');
+                        saveOrder();
+                    }
+                });
+
+                $row.disableSelection();
+            });
+        }
+    })();
 </script>
 @endpush
 @endsection

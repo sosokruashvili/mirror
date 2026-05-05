@@ -214,23 +214,74 @@
         color: #fff;
         padding: 4px 10px;
         border-radius: 12px;
-        font-size: 11px;
+        font-size: 13px;
         font-weight: 600;
         max-width: 100%;
     }
     
+    .size-tag.ready {
+        background-color: #198754;
+    }
+
     .service-shortname-tag {
         display: inline-block;
         background-color: #4a6fa5;
         color: #fff;
         padding: 3px 8px;
         border-radius: 10px;
-        font-size: 10px;
+        font-size: 11px;
         font-weight: 600;
         white-space: nowrap;
         border: 1px solid rgba(255, 255, 255, 0.2);
     }
-    
+    .size-tag.ready .service-shortname-tag {
+        background-color: #146c43;
+    }
+
+    .piece-dots-btn {
+        background: none;
+        border: none;
+        color: #fff;
+        cursor: pointer;
+        font-size: 16px;
+        padding: 0 4px;
+        line-height: 1;
+        opacity: 0.7;
+        position: relative;
+    }
+    .piece-dots-btn:hover {
+        opacity: 1;
+    }
+    .piece-ctx-menu {
+        display: none;
+        position: fixed;
+        background: #fff;
+        border: 1px solid #dadcde;
+        border-radius: 6px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+        z-index: 9000;
+        min-width: 130px;
+        overflow: hidden;
+    }
+    .piece-ctx-menu.open {
+        display: block;
+    }
+    .piece-ctx-menu-item {
+        display: block;
+        width: 100%;
+        padding: 8px 14px;
+        background: none;
+        border: none;
+        text-align: left;
+        font-size: 13px;
+        color: #198754;
+        font-weight: 600;
+        cursor: pointer;
+    }
+    .piece-ctx-menu-item:hover {
+        background: #f0f4f8;
+    }
+
     .size-tags-empty {
         color: #999;
         font-size: 11px;
@@ -509,11 +560,15 @@
                                                 'height' => number_format($piece->height, 0),
                                                 'quantity' => 0,
                                                 'piece_ids' => [],
-                                                'service_shortnames' => []
+                                                'service_shortnames' => [],
+                                                'all_ready' => true
                                             ];
                                         }
                                         $sizeGroups[$key]['quantity'] += $piece->quantity ?? 1;
                                         $sizeGroups[$key]['piece_ids'][] = $piece->id;
+                                        if ($piece->status !== 'ready') {
+                                            $sizeGroups[$key]['all_ready'] = false;
+                                        }
                                         
                                         // Get services associated with this piece
                                         $pieceServices = $order->services->filter(function($service) use ($piece) {
@@ -533,12 +588,15 @@
                                 @if(count($uniqueSizes) > 0)
                                     <div class="size-tags">
                                         @foreach($uniqueSizes as $size)
-                                            <span class="size-tag">
+                                            <span class="size-tag {{ $size['all_ready'] ? 'ready' : '' }}" data-piece-ids="{{ implode(',', $size['piece_ids']) }}">
                                                 {{ $size['width'] }} × {{ $size['height'] }} cm (×{{ $size['quantity'] }})
                                                 @if(count($size['service_shortnames']) > 0)
                                                     @foreach($size['service_shortnames'] as $shortname)
                                                         <span class="service-shortname-tag">{{ $shortname }}</span>
                                                     @endforeach
+                                                @endif
+                                                @if(!$size['all_ready'])
+                                                <span class="piece-dots-btn" onclick="togglePieceMenu(event, this)">⋮</span>
                                                 @endif
                                             </span>
                                         @endforeach
@@ -549,7 +607,7 @@
                             </div>
                             
                             <div class="order-actions">
-                                <button class="btn btn-primary" onclick="previewOrder('{{ url(config("backpack.base.route_prefix") . "/order/" . $order->id . "/show") }}')">
+                                <button class="btn btn-primary" onclick="previewOrder('{{ url(config("backpack.base.route_prefix") . "/order/" . $order->id . "/show") }}', {{ $order->pieces->count() }})">
                                     ნახვა
                                 </button>
                                 <button class="btn btn-success" onclick="finishOrder({{ $order->id }})">
@@ -582,6 +640,11 @@
     </div>
 </div>
 
+{{-- Shared piece context menu --}}
+<div id="pieceCtxMenu" class="piece-ctx-menu">
+    <button type="button" class="piece-ctx-menu-item" id="pieceCtxMenuReady">დასრულება</button>
+</div>
+
 @if(!$showArchived)
 <a href="{{ route('team.orders', array_merge(['view' => 'archived'], $toggleQuery)) }}" id="archiveDropZone" class="archive-drop-zone" title="არქივი">
     <span class="archive-icon"><i class="la la-archive"></i></span>
@@ -594,9 +657,9 @@
 
 {{-- Order Preview Modal --}}
 <div id="orderPreviewOverlay" style="display:none; position:fixed; inset:0; z-index:9999; background:rgba(0,0,0,0.6); align-items:center; justify-content:center;">
-    <div style="position:relative; width:92vw; height:90vh; background:#fff; border-radius:10px; overflow:hidden; box-shadow:0 8px 40px rgba(0,0,0,0.4);">
-        <button id="orderPreviewClose" type="button" style="position:absolute; top:8px; right:12px; z-index:10; background:none; border:none; font-size:28px; cursor:pointer; color:#333; line-height:1;">&times;</button>
-        <iframe id="orderPreviewIframe" style="width:100%; height:100%; border:none;"></iframe>
+    <div id="orderPreviewDialog" style="position:relative; height:90vh; background:#fff; border-radius:10px; box-shadow:0 8px 40px rgba(0,0,0,0.4); transition: width 0.2s ease;">
+        <button id="orderPreviewClose" type="button" style="position:absolute; top:-18px; right:-18px; z-index:99999; background:#fff; border:2px solid #ccc; font-size:18px; cursor:pointer; color:#333; width:36px; height:36px; border-radius:50%; display:flex; align-items:center; justify-content:center; line-height:1; box-shadow:0 2px 8px rgba(0,0,0,0.3); pointer-events:auto;">&times;</button>
+        <iframe id="orderPreviewIframe" style="width:100%; height:100%; border:none; border-radius:10px;"></iframe>
     </div>
 </div>
 
@@ -662,25 +725,94 @@
 @endif
 
 <script>
-    function previewOrder(url) {
+    function previewOrder(url, pieceCount) {
         var overlay = document.getElementById('orderPreviewOverlay');
+        var dialog = document.getElementById('orderPreviewDialog');
         var iframe = document.getElementById('orderPreviewIframe');
+
+        if (pieceCount <= 1) {
+            dialog.style.width = '500px';
+            dialog.style.maxWidth = '95vw';
+        } else if (pieceCount <= 3) {
+            dialog.style.width = '75vw';
+            dialog.style.maxWidth = '95vw';
+        } else {
+            dialog.style.width = '92vw';
+            dialog.style.maxWidth = '95vw';
+        }
+
         iframe.src = url;
         overlay.style.display = 'flex';
     }
 
-    document.getElementById('orderPreviewClose').addEventListener('click', function() {
+    function closePreview() {
         var overlay = document.getElementById('orderPreviewOverlay');
         var iframe = document.getElementById('orderPreviewIframe');
         overlay.style.display = 'none';
         iframe.src = '';
-    });
+    }
+
+    document.getElementById('orderPreviewClose').addEventListener('click', closePreview);
 
     document.getElementById('orderPreviewOverlay').addEventListener('click', function(e) {
-        if (e.target === this) {
-            this.style.display = 'none';
-            document.getElementById('orderPreviewIframe').src = '';
+        if (e.target === this) closePreview();
+    });
+
+    var _pieceCtxMenu = document.getElementById('pieceCtxMenu');
+    var _pieceCtxTag = null;
+
+    function togglePieceMenu(e, dotsBtn) {
+        e.stopPropagation();
+        var tag = dotsBtn.closest('.size-tag');
+        var wasOpen = _pieceCtxMenu.classList.contains('open') && _pieceCtxTag === tag;
+
+        _pieceCtxMenu.classList.remove('open');
+
+        if (!wasOpen) {
+            _pieceCtxTag = tag;
+            var rect = dotsBtn.getBoundingClientRect();
+            _pieceCtxMenu.style.top = (rect.bottom + 4) + 'px';
+            _pieceCtxMenu.style.left = rect.left + 'px';
+            _pieceCtxMenu.classList.add('open');
         }
+    }
+
+    document.addEventListener('click', function() {
+        _pieceCtxMenu.classList.remove('open');
+    });
+
+    document.getElementById('pieceCtxMenuReady').addEventListener('click', function(e) {
+        e.stopPropagation();
+        if (!_pieceCtxTag) return;
+
+        var tag = _pieceCtxTag;
+        var pieceIds = tag.getAttribute('data-piece-ids').split(',');
+        var token = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') ||
+                    document.querySelector('input[name="_token"]')?.value;
+
+        _pieceCtxMenu.classList.remove('open');
+
+        var dotsBtn = tag.querySelector('.piece-dots-btn');
+        if (dotsBtn) { dotsBtn.style.opacity = '0.3'; dotsBtn.style.pointerEvents = 'none'; }
+
+        var done = 0;
+        pieceIds.forEach(function(id) {
+            fetch('{{ route("team.pieces.ready", ":id") }}'.replace(':id', id), {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                    'X-CSRF-TOKEN': token,
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            }).then(function() {
+                done++;
+                if (done === pieceIds.length) {
+                    tag.classList.add('ready');
+                    if (dotsBtn) dotsBtn.remove();
+                }
+            });
+        });
     });
     
     function finishOrder(orderId) {

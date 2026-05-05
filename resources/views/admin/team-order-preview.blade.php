@@ -6,6 +6,9 @@
 		body {
 			background-color:rgb(54, 54, 54);
 		}
+		footer, .main-footer {
+			display: none !important;
+		}
 		.theme-dark .service-item {
 			background:rgb(231, 231, 231) !important;
 		}

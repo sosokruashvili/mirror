@@ -161,27 +161,32 @@ class TeamOrderController extends Controller
      * @param  int  $id
      * @return \Illuminate\Http\RedirectResponse
      */
-    public function markPieceReady($id)
+    public function markPieceReady(Request $request, $id)
     {
         try {
             $piece = Piece::findOrFail($id);
             $order = $piece->order;
             
-            // Update piece status to ready
             $piece->status = 'ready';
             $piece->save();
             
-            // Check if all pieces of the order are ready and update order status
             $order->updateStatusIfAllPiecesReady();
             if(!$order->allPiecesReady()) {
                 $order->status = 'working';
                 $order->save();
             }
+
+            if ($request->ajax() || $request->wantsJson()) {
+                return response()->json(['success' => true, 'piece_id' => $piece->id]);
+            }
             
             Alert::success('Piece #' . $piece->id . ' has been marked as ready.')->flash();
-            
             return redirect()->route('order.show', $order->id);
         } catch (\Exception $e) {
+            if ($request->ajax() || $request->wantsJson()) {
+                return response()->json(['success' => false, 'message' => $e->getMessage()], 422);
+            }
+
             Alert::error('Failed to mark piece as ready: ' . $e->getMessage())->flash();
             return redirect()->back();
         }

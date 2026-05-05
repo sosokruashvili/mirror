@@ -7,19 +7,29 @@
     $showArchived = $showArchived ?? false;
     $dateFrom = $dateFrom ?? request()->query('from');
     $dateTo = $dateTo ?? request()->query('to');
-    $productFilter = $productFilter ?? 'all';
+    $productFilter = $productFilter ?? [];
+    if (!is_array($productFilter)) {
+        $productFilter = $productFilter === 'all' ? [] : [$productFilter];
+    }
+    $clientFilter = $clientFilter ?? 'all';
     $products = $products ?? collect();
+    $clients = $clients ?? collect();
 
     $toggleQuery = array_filter([
         'from' => $dateFrom ?: null,
         'to' => $dateTo ?: null,
-        'product' => ($productFilter !== 'all') ? $productFilter : null,
+        'client' => ($clientFilter !== 'all') ? $clientFilter : null,
     ]);
+    if (!empty($productFilter)) {
+        $toggleQuery['product'] = $productFilter;
+    }
 @endphp
 <style>
 
     body {
         background-color:rgb(54, 54, 54);
+        font-size: 16px;
+        overflow-x: hidden;
     }
 
     .navbar {
@@ -36,10 +46,13 @@
         margin-left: 0 !important;
     }
 
-    
-    /* Optimized for 10-inch Android tablet */
-    body {
-        font-size: 16px;
+    footer, .main-footer {
+        display: none !important;
+    }
+
+    .container-fluid {
+        max-width: 100vw;
+        overflow-x: hidden;
     }
     
     .order-tile {
@@ -53,6 +66,8 @@
         flex-direction: column;
         justify-content: space-between;
         height: 100%;
+        overflow: hidden;
+        container-type: inline-size;
     }
 
     .order-card .order-tile {
@@ -60,6 +75,7 @@
         user-select: none;
         -webkit-user-select: none;
         -webkit-user-drag: none;
+        touch-action: pan-y;
     }
     .order-card.dragging .order-tile {
         cursor: grabbing;
@@ -106,7 +122,7 @@
         justify-content: space-between;
         padding: 4px 0;
         border-bottom: 1px solid #f5f5f5;
-        font-size: 13px;
+        font-size: clamp(11px, 5cqw, 14px);
         line-height: 1.3;
     }
     
@@ -122,7 +138,8 @@
     
     .order-actions {
         display: flex;
-        gap: 8px;
+        flex-wrap: wrap;
+        gap: 6px;
         margin-top: 8px;
     }
     .order-actions .btn-archive {
@@ -130,12 +147,13 @@
     }
     
     .order-actions .btn {
-        padding: 4px 12px;
-        font-size: 13px;
+        padding: 4px 10px;
+        font-size: 12px;
+        white-space: nowrap;
     }
     
     .created-at {
-        font-size: 14px;
+        font-size: clamp(11px, 5cqw, 14px);
         color: #333;
         text-align: right;
         margin-right: 0px;
@@ -188,14 +206,17 @@
     }
     
     .size-tag {
-        display: inline-block;
+        display: inline-flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 2px;
         background-color: #6081b3;
         color: #fff;
         padding: 4px 10px;
         border-radius: 12px;
         font-size: 11px;
         font-weight: 600;
-        white-space: nowrap;
+        max-width: 100%;
     }
     
     .service-shortname-tag {
@@ -206,7 +227,6 @@
         border-radius: 10px;
         font-size: 10px;
         font-weight: 600;
-        margin-left: 4px;
         white-space: nowrap;
         border: 1px solid rgba(255, 255, 255, 0.2);
     }
@@ -216,10 +236,181 @@
         font-size: 11px;
         font-style: italic;
     }
+
+    /* Archive drop zone / button */
+    .archive-drop-zone {
+        position: fixed;
+        bottom: 24px;
+        right: 24px;
+        width: 56px;
+        height: 56px;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.12);
+        border: 2px solid rgba(255, 255, 255, 0.25);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 1000;
+        transition: all 0.25s ease;
+        text-decoration: none;
+        cursor: pointer;
+    }
+    .archive-drop-zone .archive-icon {
+        font-size: 24px;
+        color: rgba(255, 255, 255, 0.6);
+        transition: all 0.25s ease;
+    }
+    .archive-drop-zone:hover {
+        background: rgba(255, 255, 255, 0.2);
+        border-color: rgba(255, 255, 255, 0.4);
+    }
+    .archive-drop-zone:hover .archive-icon {
+        color: rgba(255, 255, 255, 0.9);
+    }
+    .archive-drop-zone.drag-active {
+        width: 80px;
+        height: 80px;
+        background: rgba(220, 53, 69, 0.25);
+        border: 3px dashed rgba(220, 53, 69, 0.6);
+    }
+    .archive-drop-zone.drag-active .archive-icon {
+        font-size: 30px;
+        color: rgba(220, 53, 69, 0.8);
+    }
+    .archive-drop-zone.drag-hover {
+        width: 110px;
+        height: 110px;
+        background: rgba(220, 53, 69, 0.5);
+        border-color: #dc3545;
+        box-shadow: 0 0 30px rgba(220, 53, 69, 0.5);
+    }
+    .archive-drop-zone.drag-hover .archive-icon {
+        font-size: 40px;
+        color: #fff;
+    }
+
+    /* Undo toast */
+    .archive-undo-toast {
+        position: fixed;
+        bottom: 24px;
+        left: 50%;
+        transform: translateX(-50%) translateY(100px);
+        background: #333;
+        color: #fff;
+        padding: 12px 20px;
+        border-radius: 8px;
+        font-size: 14px;
+        z-index: 2000;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+        transition: transform 0.3s ease;
+        white-space: nowrap;
+    }
+    .archive-undo-toast.show {
+        transform: translateX(-50%) translateY(0);
+    }
+    .archive-undo-toast .undo-btn {
+        background: none;
+        border: 1px solid rgba(255,255,255,0.4);
+        color: #6ea8fe;
+        padding: 4px 12px;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 13px;
+        font-weight: 600;
+    }
+    .archive-undo-toast .undo-btn:hover {
+        background: rgba(255,255,255,0.1);
+    }
+
+    /* Checkbox dropdown for multiselect */
+    .checkbox-dropdown {
+        position: relative;
+        width: 200px;
+    }
+    .checkbox-dropdown-toggle {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        width: 100%;
+        padding: 0.4375rem 0.75rem;
+        font-size: 0.875rem;
+        line-height: 1.4285714286;
+        background-color: var(--tblr-bg-forms, #1a2234);
+        color: var(--tblr-body-color, #dadcde);
+        border: 1px solid var(--tblr-border-color, #2c3c56);
+        border-radius: 4px;
+        cursor: pointer;
+        min-height: 38px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    .checkbox-dropdown-toggle::after {
+        content: '';
+        border-top: 5px solid currentColor;
+        border-left: 4px solid transparent;
+        border-right: 4px solid transparent;
+        margin-left: 8px;
+        flex-shrink: 0;
+        opacity: 0.5;
+    }
+    .checkbox-dropdown-toggle:hover {
+        border-color: var(--tblr-border-color-active, #3a4f6f);
+    }
+    .checkbox-dropdown-menu {
+        display: none;
+        position: absolute;
+        top: 100%;
+        left: 0;
+        right: 0;
+        z-index: 1050;
+        background: var(--tblr-bg-surface, #1a2234);
+        border: 1px solid var(--tblr-border-color, #2c3c56);
+        border-top: none;
+        border-radius: 0 0 4px 4px;
+        max-height: 220px;
+        overflow-y: auto;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    }
+    .checkbox-dropdown.open .checkbox-dropdown-menu {
+        display: block;
+    }
+    .checkbox-dropdown.open .checkbox-dropdown-toggle {
+        border-radius: 4px 4px 0 0;
+        border-color: #90b5e2;
+        box-shadow: 0 0 0 0.25rem rgba(32,107,196,0.25);
+    }
+    .checkbox-dropdown-menu label {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 6px 12px;
+        margin: 0;
+        cursor: pointer;
+        font-size: 13px;
+        color: var(--tblr-body-color, #dadcde);
+    }
+    .checkbox-dropdown-menu label:hover {
+        background-color: rgba(255,255,255,0.05);
+    }
+    .checkbox-dropdown-menu input[type="checkbox"] {
+        accent-color: #6081b3;
+        width: 15px;
+        height: 15px;
+        flex-shrink: 0;
+    }
 </style>
 
 <div class="container-fluid">
-    <div class="d-flex flex-wrap align-items-center justify-content-between pt-3 gap-2">
+    <div class="d-flex flex-wrap align-items-end pt-3 gap-2">
+        @if($showArchived)
+        <a href="{{ route('team.orders') }}" class="btn btn-outline-light" title="მთავარი">
+            <i class="la la-home"></i>
+        </a>
+        @endif
         <form method="GET" action="{{ route('team.orders') }}" class="d-flex flex-wrap align-items-end gap-2" autocomplete="off">
             @if($showArchived)
                 <input type="hidden" name="view" value="archived" />
@@ -235,12 +426,27 @@
                 <input type="date" class="form-control" name="to" value="{{ $dateTo }}" />
             </div>
 
-            <div style="min-width: 180px;">
+            <div>
                 <label class="form-label mb-1 text-light">მასალა</label>
-                <select class="form-select" name="product" autocomplete="off">
-                    <option value="all" {{ $productFilter === 'all' ? 'selected' : '' }}>ყველა</option>
-                    @foreach($products as $product)
-                        <option value="{{ $product->id }}" {{ $productFilter == $product->id ? 'selected' : '' }}>{{ $product->title }}</option>
+                <div class="checkbox-dropdown" id="productDropdown">
+                    <div class="checkbox-dropdown-toggle" id="productDropdownToggle">ყველა</div>
+                    <div class="checkbox-dropdown-menu">
+                        @foreach($products as $product)
+                        <label>
+                            <input type="checkbox" name="product[]" value="{{ $product->id }}" {{ in_array($product->id, $productFilter) ? 'checked' : '' }}>
+                            {{ $product->title }}
+                        </label>
+                        @endforeach
+                    </div>
+                </div>
+            </div>
+
+            <div>
+                <label class="form-label mb-1 text-light">კლიენტი</label>
+                <select class="form-select" name="client" style="width: 200px;" autocomplete="off">
+                    <option value="all" {{ $clientFilter === 'all' ? 'selected' : '' }}>ყველა</option>
+                    @foreach($clients as $client)
+                        <option value="{{ $client->id }}" {{ $clientFilter == $client->id ? 'selected' : '' }}>{{ $client->name }}</option>
                     @endforeach
                 </select>
             </div>
@@ -248,18 +454,6 @@
             <button type="submit" class="btn btn-primary">Apply</button>
             <a href="{{ $showArchived ? route('team.orders', ['view' => 'archived']) : route('team.orders') }}" class="btn btn-outline-light">Reset</a>
         </form>
-
-        @if($showArchived)
-            <a href="{{ route('team.orders', $toggleQuery) }}"
-               class="btn btn-primary" style="min-width: 140px;">
-                არქივი
-            </a>
-        @else
-            <a href="{{ route('team.orders', array_merge(['view' => 'archived'], $toggleQuery)) }}"
-               class="btn btn-secondary" style="min-width: 140px;">
-                არქივი
-            </a>
-        @endif
     </div>
     <div class="row">
         <div class="col-12">
@@ -270,9 +464,9 @@
                         <div class="order-tile">
                             <div class="order-header">
                                 <div class="row">
-                                    <div class="col-md-3 order-id">#{{ $order->id }}</div>
+                                    <div class="col-md-2 order-id">#{{ $order->id }}</div>
                                     <div class="col-md-3 order-status">{!! status_badge($order->status) !!}</div>
-                                    <div class="col-md-6 created-at">{{ $order->created_at->format('Y-m-d H:i') }}</div>
+                                    <div class="col-md-7 created-at">{{ $order->created_at->format('Y-m-d H:i') }}</div>
                                 </div>
                                 
                             </div>
@@ -298,16 +492,7 @@
                                     <span class="detail-value">{{ $order->products->pluck('title')->implode(' x ') }}</span>
                                 </div>
 
-                                <div class="detail-row">
-                                    <span class="detail-label">მიმაგრებული ფაილი:</span>
-                                    <span class="detail-value">
-                                        @if($order->atachment)
-                                            <a href="{{ asset('storage/' . $order->atachment) }}" target="_blank">ფაილის ნახვა</a>
-                                        @else
-                                            <span class="text-muted">—</span>
-                                        @endif
-                                    </span>
-                                </div>
+                                
                                 
                                 @php
                                     // Get unique piece sizes with quantities and service shortnames for this order
@@ -370,13 +555,14 @@
                                 <button class="btn btn-success" onclick="finishOrder({{ $order->id }})">
                                     დასრულება
                                 </button>
+                                @if($order->atachment)
+                                <a href="{{ asset('storage/' . $order->atachment) }}" target="_blank" class="btn" style="background-color: #e67e22; border-color: #e67e22; color: #fff;">
+                                    <i class="la la-file-download"></i>
+                                </a>
+                                @endif
                                 @if($showArchived)
                                 <button class="btn btn-danger btn-archive" onclick="unarchiveOrder({{ $order->id }})">
                                     დეარქივაცია
-                                </button>
-                                @else
-                                <button class="btn btn-danger btn-archive" onclick="archiveOrder({{ $order->id }})">
-                                    დაარქივება
                                 </button>
                                 @endif
                             </div>
@@ -396,6 +582,16 @@
     </div>
 </div>
 
+@if(!$showArchived)
+<a href="{{ route('team.orders', array_merge(['view' => 'archived'], $toggleQuery)) }}" id="archiveDropZone" class="archive-drop-zone" title="არქივი">
+    <span class="archive-icon"><i class="la la-archive"></i></span>
+</a>
+<div id="archiveUndoToast" class="archive-undo-toast">
+    <span id="archiveUndoText"></span>
+    <button class="undo-btn" id="archiveUndoBtn">გაუქმება</button>
+</div>
+@endif
+
 {{-- Order Preview Modal --}}
 <div id="orderPreviewOverlay" style="display:none; position:fixed; inset:0; z-index:9999; background:rgba(0,0,0,0.6); align-items:center; justify-content:center;">
     <div style="position:relative; width:92vw; height:90vh; background:#fff; border-radius:10px; overflow:hidden; box-shadow:0 8px 40px rgba(0,0,0,0.4);">
@@ -405,6 +601,44 @@
 </div>
 
 @push('after_scripts')
+<script>
+(function() {
+    var dd = document.getElementById('productDropdown');
+    var toggle = document.getElementById('productDropdownToggle');
+    if (!dd || !toggle) return;
+
+    function updateLabel() {
+        var checked = dd.querySelectorAll('input[type="checkbox"]:checked');
+        if (checked.length === 0) {
+            toggle.textContent = 'ყველა';
+        } else {
+            var names = [];
+            checked.forEach(function(cb) { names.push(cb.parentElement.textContent.trim()); });
+            toggle.textContent = names.join(', ');
+        }
+    }
+
+    toggle.addEventListener('click', function(e) {
+        e.stopPropagation();
+        dd.classList.toggle('open');
+    });
+
+    dd.querySelector('.checkbox-dropdown-menu').addEventListener('click', function(e) {
+        e.stopPropagation();
+    });
+
+    dd.querySelectorAll('input[type="checkbox"]').forEach(function(cb) {
+        cb.addEventListener('change', updateLabel);
+    });
+
+    document.addEventListener('click', function() {
+        dd.classList.remove('open');
+    });
+
+    updateLabel();
+})();
+</script>
+
 @php
     // Get and process Backpack alerts for display
     $backpack_alerts = \Prologue\Alerts\Facades\Alert::getMessages();
@@ -508,35 +742,43 @@
         form.submit();
     }
 
-    function archiveOrder(orderId) {
-        if (!confirm('დარწმუნებული ხართ რომ გსურთ ამ შეკვეთის არქივაცია?')) {
-            return;
-        }
-
-        const button = event.target;
-        const originalText = button.textContent;
-        button.disabled = true;
-        button.textContent = 'Archiving...';
-
-        const token = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') ||
+    function archiveOrderAjax(orderId, $card, callback) {
+        var token = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') ||
                      document.querySelector('input[name="_token"]')?.value;
 
-        const form = document.createElement('form');
-        form.method = 'POST';
-        form.action = '{{ route("team.orders.archive", ":id") }}'.replace(':id', orderId);
+        fetch('{{ route("team.orders.archive", ":id") }}'.replace(':id', orderId), {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+                'X-CSRF-TOKEN': token,
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+        .then(function() { if (callback) callback(true); })
+        .catch(function() { if (callback) callback(false); });
+    }
 
-        const csrfInput = document.createElement('input');
-        csrfInput.type = 'hidden';
-        csrfInput.name = '_token';
-        csrfInput.value = token;
-        form.appendChild(csrfInput);
+    function unarchiveOrderAjax(orderId, callback) {
+        var token = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') ||
+                     document.querySelector('input[name="_token"]')?.value;
 
-        document.body.appendChild(form);
-        form.submit();
+        fetch('{{ route("team.orders.unarchive", ":id") }}'.replace(':id', orderId), {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+                'X-CSRF-TOKEN': token,
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+        .then(function() { if (callback) callback(true); })
+        .catch(function() { if (callback) callback(false); });
     }
 </script>
 
 @basset('https://cdn.jsdelivr.net/npm/jquery-ui@1.13.2/dist/jquery-ui.min.js')
+@basset('https://cdnjs.cloudflare.com/ajax/libs/jqueryui-touch-punch/0.2.3/jquery.ui.touch-punch.min.js')
 <script>
     (function() {
         var row = document.getElementById('ordersGridRow');
@@ -583,8 +825,17 @@
         if (window.jQuery && typeof jQuery.fn.sortable === 'function') {
             jQuery(function($) {
                 var $row = $(row);
+                var $dropZone = $('#archiveDropZone');
+                var $undoToast = $('#archiveUndoToast');
+                var $undoText = $('#archiveUndoText');
+                var $undoBtn = $('#archiveUndoBtn');
+                var undoTimer = null;
+
                 $row.sortable({
                     items: '.order-card[data-order-id]',
+                    cancel: 'a,button,input,textarea,select,option,.order-actions',
+                    delay: 150,
+                    distance: 10,
                     tolerance: 'pointer',
                     helper: 'clone',
                     opacity: 1,
@@ -592,14 +843,81 @@
                     placeholder: 'order-card-placeholder col-md-3 col-sm-6 col-12',
                     start: function(evt, ui) {
                         ui.item.addClass('dragging');
+                        $dropZone.addClass('drag-active');
                     },
                     stop: function(evt, ui) {
                         ui.item.removeClass('dragging');
+                        $dropZone.removeClass('drag-active drag-hover');
                         saveOrder();
                     }
                 });
 
                 $row.disableSelection();
+
+                if ($dropZone.length && typeof $.fn.droppable === 'function') {
+                    $dropZone.droppable({
+                        accept: '.order-card[data-order-id]',
+                        tolerance: 'touch',
+                        over: function() {
+                            $dropZone.addClass('drag-hover');
+                        },
+                        out: function() {
+                            $dropZone.removeClass('drag-hover');
+                        },
+                        drop: function(evt, ui) {
+                            var $card = ui.draggable;
+                            var orderId = $card.attr('data-order-id');
+                            if (!orderId) return;
+
+                            $row.sortable('cancel');
+                            $dropZone.removeClass('drag-active drag-hover');
+
+                            var cardHtml = $card[0].outerHTML;
+                            var $next = $card.next();
+                            var $parent = $card.parent();
+
+                            $card.css({ transition: 'opacity 0.3s, transform 0.3s', opacity: 0, transform: 'scale(0.8)' });
+                            setTimeout(function() { $card.remove(); saveOrder(); }, 300);
+
+                            archiveOrderAjax(orderId, $card, function(ok) {
+                                if (!ok) {
+                                    restoreCard(cardHtml, $next, $parent);
+                                    return;
+                                }
+                                showUndoToast(orderId, cardHtml, $next, $parent);
+                            });
+                        }
+                    });
+                }
+
+                function showUndoToast(orderId, cardHtml, $next, $parent) {
+                    clearTimeout(undoTimer);
+                    $undoText.text('#' + orderId + ' დაარქივებულია');
+                    $undoToast.addClass('show');
+
+                    $undoBtn.off('click').on('click', function() {
+                        clearTimeout(undoTimer);
+                        $undoToast.removeClass('show');
+                        unarchiveOrderAjax(orderId, function() {
+                            restoreCard(cardHtml, $next, $parent);
+                        });
+                    });
+
+                    undoTimer = setTimeout(function() {
+                        $undoToast.removeClass('show');
+                    }, 5000);
+                }
+
+                function restoreCard(cardHtml, $next, $parent) {
+                    var $restored = $(cardHtml).css({ opacity: 0 });
+                    if ($next.length) {
+                        $restored.insertBefore($next);
+                    } else {
+                        $parent.append($restored);
+                    }
+                    $restored.animate({ opacity: 1 }, 300);
+                    saveOrder();
+                }
             });
         }
     })();

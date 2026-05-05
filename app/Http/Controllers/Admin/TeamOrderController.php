@@ -23,9 +23,15 @@ class TeamOrderController extends Controller
         $showArchived = ($view === 'archived');
         $dateFrom = $request->query('from');
         $dateTo = $request->query('to');
-        $productFilter = $request->query('product', 'all');
+        $productFilter = $request->query('product', []);
+        if (!is_array($productFilter)) {
+            $productFilter = $productFilter === 'all' ? [] : [$productFilter];
+        }
+        $productFilter = array_filter($productFilter);
+        $clientFilter = $request->query('client', 'all');
 
         $products = \App\Models\Product::orderBy('title')->get();
+        $clients = \App\Models\Client::orderBy('name')->get();
 
         $ordersQuery = Order::with(['client', 'products', 'services', 'pieces'])
             ->whereNotIn('status', ['draft', 'ready', 'finished'])
@@ -37,10 +43,14 @@ class TeamOrderController extends Controller
             $ordersQuery->whereNull('archived_at');
         }
 
-        if ($productFilter !== 'all' && $productFilter !== '' && $productFilter !== null) {
+        if (!empty($productFilter)) {
             $ordersQuery->whereHas('products', function ($q) use ($productFilter) {
-                $q->where('products.id', $productFilter);
+                $q->whereIn('products.id', $productFilter);
             });
+        }
+
+        if ($clientFilter !== 'all' && $clientFilter !== '' && $clientFilter !== null) {
+            $ordersQuery->where('client_id', $clientFilter);
         }
 
         if (is_string($dateFrom) && $dateFrom !== '') {
@@ -63,7 +73,7 @@ class TeamOrderController extends Controller
 
         $orders = $ordersQuery->get();
 
-        return view('admin.team-orders', compact('orders', 'showArchived', 'products', 'productFilter', 'dateFrom', 'dateTo'));
+        return view('admin.team-orders', compact('orders', 'showArchived', 'products', 'productFilter', 'clients', 'clientFilter', 'dateFrom', 'dateTo'));
     }
 
     /**
@@ -72,7 +82,7 @@ class TeamOrderController extends Controller
      * @param  int  $id
      * @return \Illuminate\Http\RedirectResponse
      */
-    public function archive($id)
+    public function archive(Request $request, $id)
     {
         try {
             $order = Order::findOrFail($id);
@@ -80,15 +90,23 @@ class TeamOrderController extends Controller
             $order->archived_at = now();
             $order->save();
 
+            if ($request->ajax() || $request->wantsJson()) {
+                return response()->json(['success' => true]);
+            }
+
             Alert::success('Order #' . $order->id . ' has been archived.')->flash();
             return redirect()->route('team.orders');
         } catch (\Exception $e) {
+            if ($request->ajax() || $request->wantsJson()) {
+                return response()->json(['success' => false, 'message' => $e->getMessage()], 422);
+            }
+
             Alert::error('Failed to archive order: ' . $e->getMessage())->flash();
             return redirect()->route('team.orders');
         }
     }
 
-    public function unarchive($id)
+    public function unarchive(Request $request, $id)
     {
         try {
             $order = Order::findOrFail($id);
@@ -96,9 +114,17 @@ class TeamOrderController extends Controller
             $order->archived_at = null;
             $order->save();
 
+            if ($request->ajax() || $request->wantsJson()) {
+                return response()->json(['success' => true]);
+            }
+
             Alert::success('Order #' . $order->id . ' has been unarchived.')->flash();
             return redirect()->route('team.orders', ['view' => 'archived']);
         } catch (\Exception $e) {
+            if ($request->ajax() || $request->wantsJson()) {
+                return response()->json(['success' => false, 'message' => $e->getMessage()], 422);
+            }
+
             Alert::error('Failed to unarchive order: ' . $e->getMessage())->flash();
             return redirect()->route('team.orders', ['view' => 'archived']);
         }

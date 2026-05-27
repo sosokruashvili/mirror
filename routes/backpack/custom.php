@@ -47,6 +47,7 @@ Route::group([
     Route::post('team/orders/{id}/archive', 'TeamOrderController@archive')->name('team.orders.archive');
     Route::post('team/orders/{id}/unarchive', 'TeamOrderController@unarchive')->name('team.orders.unarchive');
     Route::post('team/pieces/{id}/ready', 'TeamOrderController@markPieceReady')->name('team.pieces.ready');
+    Route::post('team/pieces/{id}/cut', 'TeamOrderController@markPieceCut')->name('team.pieces.cut');
     Route::post('team/pieces/{id}/broken', 'TeamOrderController@markPieceBroken')->name('team.pieces.broken');
 }); // this should be the absolute last line of this file
 

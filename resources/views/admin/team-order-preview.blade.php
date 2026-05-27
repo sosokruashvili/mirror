@@ -248,26 +248,13 @@
 	@endif
 	
 	{{-- Order Information --}}
-	<div class="order-info-section col-md-4">
-		<div class="order-info-row">
-			<span class="order-info-value">#{{ $order->id }}</span>
-		</div>
-		<div class="order-info-row">
-			<span class="order-info-value">{!! status_badge($order->status) !!}</span>
-		</div>
-		<div class="order-info-row">
-			<span class="order-info-value">{{ $order->client->name ?? 'N/A' }}</span>
-		</div>
-		
-		<div class="order-info-row">
-			<span class="order-info-value">{{ order_type_ge($order->order_type ?? '') }}</span>
-		</div>
-		<div class="order-info-row">
-			<span class="order-info-value">{{ product_type_ge($order->product_type ?? '') }}</span>
-		</div>
-		<div class="order-info-row">
-			<span class="order-info-value">{{ number_format($order->price_gel ?? $order->calculateTotalPrice(), 2) }} ₾</span>
-		</div>
+	<div class="order-info-section d-flex flex-wrap align-items-center gap-3">
+		<span class="order-info-value">#{{ $order->id }}</span>
+		<span class="order-info-value">{!! status_badge($order->status) !!}</span>
+		<span class="order-info-value">{{ $order->client->name ?? 'N/A' }}</span>
+		<span class="order-info-value">{{ order_type_ge($order->order_type ?? '') }}</span>
+		<span class="order-info-value">{{ product_type_ge($order->product_type ?? '') }}</span>
+		<span class="order-info-value">{{ number_format($order->price_gel ?? $order->calculateTotalPrice(), 2) }} ₾</span>
 	</div>
 	
 	{{-- Pieces Grid --}}
@@ -374,6 +361,11 @@
 							</div>
 							
 							<div class="d-flex justify-content-end gap-2 mt-3 pt-3 border-top">
+								@if($piece->status !== 'cut' && $piece->status !== 'ready')
+								<button type="button" class="btn btn-warning btn-lg btn-piece-cut" data-piece-id="{{ $piece->id }}" data-url="{{ route('team.pieces.cut', $piece->id) }}">
+									<i class="la la-cut"></i>&nbsp;მოიჭრა
+								</button>
+								@endif
 								@if($piece->status !== 'ready')
 								<form method="POST" action="{{ route('team.pieces.ready', $piece->id) }}" class="d-inline" onsubmit="return confirm('დარწმუნებული ხართ რომ ეს ნაჭერი მზადაა?');">
 									@csrf
@@ -489,6 +481,55 @@
 if (window.self !== window.top) {
 	document.body.classList.add('in-iframe');
 }
+</script>
+<script>
+(function() {
+	document.querySelectorAll('.btn-piece-cut').forEach(function(btn) {
+		btn.addEventListener('click', function() {
+			var url = btn.getAttribute('data-url');
+			var tile = btn.closest('.piece-tile');
+			var token = (document.querySelector('meta[name="csrf-token"]') && document.querySelector('meta[name="csrf-token"]').getAttribute('content'))
+				|| (document.querySelector('input[name="_token"]') && document.querySelector('input[name="_token"]').value);
+			if (!token) { alert('CSRF token not found.'); return; }
+
+			btn.disabled = true;
+			var formData = new FormData();
+			formData.append('_token', token);
+			fetch(url, {
+				method: 'POST',
+				headers: {
+					'Accept': 'application/json',
+					'X-Requested-With': 'XMLHttpRequest',
+					'X-CSRF-TOKEN': token
+				},
+				body: formData
+			})
+			.then(function(res) { return res.json(); })
+			.then(function(data) {
+				if (data.success) {
+					btn.remove();
+					var detailArea = tile.querySelector('.piece-details');
+					if (detailArea) {
+						var items = detailArea.querySelectorAll('.piece-detail-item');
+						items.forEach(function(item) {
+							var label = item.querySelector('.piece-detail-label');
+							if (label && label.textContent.trim() === 'სტატუსი:') {
+								item.innerHTML = '<span class="piece-detail-label">სტატუსი:</span> <span class="badge" style="background-color:#ffc107;color:#fff;">cut</span>';
+							}
+						});
+					}
+				} else {
+					btn.disabled = false;
+					alert(data.message || 'Failed.');
+				}
+			})
+			.catch(function() {
+				btn.disabled = false;
+				alert('Request failed.');
+			});
+		});
+	});
+})();
 </script>
 <script>
 (function() {

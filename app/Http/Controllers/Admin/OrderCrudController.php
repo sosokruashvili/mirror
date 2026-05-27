@@ -1308,6 +1308,9 @@ class OrderCrudController extends CrudController
             case 'light':
                 $price_gel = ($serviceData['tape_length'] ?? 0) * 20 + ($serviceData['foam_length'] ?? 0) * 5 + ($serviceData['sensor_quantity1'] ?? 0) * 50 + 50;
                 break;
+            case 'kutxis_momrgvaleba':
+                $price_gel = ($serviceData['quantity'] ?? 0) * $service->getPriceGel();
+                break;
             default:
                 $price_gel = 0;
                 break;

@@ -193,6 +193,36 @@ class TeamOrderController extends Controller
     }
 
     /**
+     * Mark a piece as cut by updating its status to 'cut'.
+     *
+     * @param  int  $id
+     * @return \Illuminate\Http\JsonResponse|\Illuminate\Http\RedirectResponse
+     */
+    public function markPieceCut(Request $request, $id)
+    {
+        try {
+            $piece = Piece::findOrFail($id);
+
+            $piece->status = 'cut';
+            $piece->save();
+
+            if ($request->ajax() || $request->wantsJson()) {
+                return response()->json(['success' => true, 'piece_id' => $piece->id]);
+            }
+
+            Alert::success('Piece #' . $piece->id . ' has been marked as cut.')->flash();
+            return redirect()->back();
+        } catch (\Exception $e) {
+            if ($request->ajax() || $request->wantsJson()) {
+                return response()->json(['success' => false, 'message' => $e->getMessage()], 422);
+            }
+
+            Alert::error('Failed to mark piece as cut: ' . $e->getMessage())->flash();
+            return redirect()->back();
+        }
+    }
+
+    /**
      * Add a broken glass record for a piece (AJAX). Count is taken from broken_glasses table.
      *
      * @param  int  $id  Piece ID

@@ -22,12 +22,17 @@ if (!function_exists('status_badge')) {
             'working' => 'text-bg-warning',
             'done' => 'text-bg-success',
             'finished' => 'text-bg-success',
+            'cut' => 'bg-warning text-dark',
             'ready' => 'text-bg-success text-white',
             'broken' => 'text-bg-danger',
         ];
         
         // Default to secondary if status not found
         $badgeClass = $badgeClasses[$status] ?? 'text-bg-secondary';
+        
+        if ($status === 'cut') {
+            return '<span class="badge px-2 py-2 fs-4" style="background-color:#ffc107;color:#fff;">' . htmlspecialchars($displayText, ENT_QUOTES, 'UTF-8') . '</span>';
+        }
         
         // Add padding and font size classes to make badge bigger
         return '<span class="badge ' . $badgeClass . ' px-2 py-2 fs-4">' . htmlspecialchars($displayText, ENT_QUOTES, 'UTF-8') . '</span>';

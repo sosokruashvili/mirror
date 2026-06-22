@@ -166,6 +166,29 @@ function setProductPriceForRow(rowNumber, productId) {
     });
 }
 
+function refreshProductPricesForAllRows() {
+    $('[data-repeatable-identifier="products"][data-row-number]').each(function() {
+        var rowNumber = parseInt($(this).attr('data-row-number'));
+        var productId = null;
+        try {
+            productId = crud.field('products').subfield('product_id', rowNumber).$input.val();
+        } catch (e) {
+            productId = $(this).find('select[name*="[product_id]"]').val();
+        }
+        if (productId) {
+            setProductPriceForRow(rowNumber, productId);
+        }
+    });
+}
+
+crud.field('client_id').onChange(function() {
+    refreshProductPricesForAllRows();
+});
+
+crud.field('order_type').onChange(function() {
+    refreshProductPricesForAllRows();
+});
+
 crud.field('products').subfield('product_id').onChange(function(field) {
     // Remove any existing custom price badge when product changes
     var $priceInput = crud.field('products').subfield('price', field.rowNumber).$input;
@@ -455,6 +478,29 @@ function getPiecesFromForm() {
     return pieces;
 }
 
+// Tracks whether the user has manually edited the expenses field.
+// Once edited by hand, auto-calculation stops overwriting their value.
+var expensesManuallyEdited = false;
+
+// Calculate total area (m²) of all pieces and write it into the expenses field
+function calculateExpenses() {
+    // Respect a manual override: don't overwrite a hand-entered value
+    if (expensesManuallyEdited) {
+        return;
+    }
+
+    var pieces = getPiecesFromForm();
+    var total = 0;
+
+    pieces.forEach(function(piece) {
+        if (piece.width && piece.height) {
+            total += (piece.width / 100) * (piece.height / 100) * (piece.quantity || 1);
+        }
+    });
+
+    $('input[name="expenses"]').val(total > 0 ? total.toFixed(2) : '');
+}
+
 // Function to update piece options for all service rows
 function updatePieceOptionsForAllServices() {
     var pieces = getPiecesFromForm();
@@ -665,6 +711,7 @@ $(document).ready(function() {
     var piecesContainer = document.querySelector('[bp-field-name="pieces"]');
     if (piecesContainer) {
         var piecesObserver = new MutationObserver(function(mutations) {
+            calculateExpenses();
             setTimeout(function() {
                 updatePieceOptionsForAllServices();
             }, 300);
@@ -677,10 +724,21 @@ $(document).ready(function() {
         
         // Also listen to input changes in pieces fields (width, height, and quantity)
         $(document).on('input change', '[data-repeatable-identifier="pieces"] input[name*="[width]"], [data-repeatable-identifier="pieces"] input[name*="[height]"], [data-repeatable-identifier="pieces"] input[name*="[quantity]"]', function() {
+            calculateExpenses();
             setTimeout(function() {
                 updatePieceOptionsForAllServices();
             }, 300);
         });
+    }
+
+    // When the user types in the expenses field by hand, stop auto-overwriting it
+    $(document).on('input', 'input[name="expenses"]', function() {
+        expensesManuallyEdited = true;
+    });
+
+    // Initial calculation on create page only (avoid overwriting a manual value on edit)
+    if (!window.location.pathname.includes('/edit')) {
+        calculateExpenses();
     }
     
     // Update piece options when a new service row is added

@@ -38,6 +38,8 @@ class OrderRequest extends FormRequest
             'currency_rate' => 'required|numeric|min:0',
             'author' => 'required|numeric|min:1',
             'atachment' => 'nullable|file|mimes:pdf,png,jpeg,jpg',
+            'comment' => 'nullable|string|max:5000',
+            'expenses' => 'nullable|numeric|min:0',
         ];
     }
 

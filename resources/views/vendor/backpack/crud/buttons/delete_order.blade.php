@@ -1,4 +1,4 @@
-@if ($crud->hasAccess('delete', $entry) && $entry->status === 'draft')
+@if ($crud->hasAccess('delete', $entry) && in_array($entry->status, ['draft', 'new'], true))
     <a href="javascript:void(0)" onclick="deleteEntry(this)" bp-button="delete" data-route="{{ url($crud->route.'/'.$entry->getKey()) }}" class="btn btn-sm btn-link" data-button-type="delete">
         <i class="la la-trash"></i> <span>{{ trans('backpack::crud.delete') }}</span>
     </a>

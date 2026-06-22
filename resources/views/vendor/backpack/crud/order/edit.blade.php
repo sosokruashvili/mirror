@@ -53,4 +53,42 @@
 		  </form>
 	</div>
 </div>
+
+@include('admin.client-registration-modal')
+@include('admin.payment-add-modal')
+
+@push('after_styles')
+<style>
+    #clientRegistrationModal,
+    #paymentAddModal {
+        z-index: 1055 !important;
+    }
+    #clientRegistrationModal .modal-dialog,
+    #paymentAddModal .modal-dialog {
+        z-index: 1055 !important;
+        position: relative;
+        pointer-events: auto;
+    }
+    #clientRegistrationModal .modal-content,
+    #paymentAddModal .modal-content {
+        pointer-events: auto;
+    }
+    .modal-backdrop {
+        z-index: 1050 !important;
+        pointer-events: auto;
+    }
+    .modal-backdrop.show {
+        z-index: 1050 !important;
+    }
+    body.modal-open {
+        overflow: hidden;
+    }
+</style>
+@endpush
+
+@push('after_scripts')
+    <script src="{{ asset('assets/js/client-registration-modal.js') }}"></script>
+    <script src="{{ asset('assets/js/payment-add-modal.js') }}"></script>
+    <script src="{{ asset('assets/js/orders.js') }}?v={{ filemtime(public_path('assets/js/orders.js')) }}"></script>
+@endpush
 @endsection

@@ -175,7 +175,7 @@ class ClientCrudController extends CrudController
             'name' => 'personal_id',
             'label' => 'Personal ID',
             'type' => 'text',
-            'validationRules' => 'required_if:client_type,0',
+            'validationRules' => 'required_if:client_type,0|nullable|string|max:255|unique:clients,personal_id',
             'wrapper' => [
                 'class' => 'form-group col-md-6 personal-id-field',
                 'style' => 'display: none;'
@@ -229,7 +229,7 @@ class ClientCrudController extends CrudController
             'name'  => 'phone_number', // db column for phone
             'label' => 'Phone',
             'type'  => 'phone',
-            'validationRules' => 'required',
+            'validationRules' => 'required|unique:clients,phone_number',
             'wrapper' => [
                 'class' => 'form-group col-md-6 phone-number-field'
             ],
@@ -316,11 +316,16 @@ class ClientCrudController extends CrudController
     {
         $this->setupCreateOperation();
         
-        // Update email validation to ignore current client's email
         $entry = $this->crud->getCurrentEntry();
         if ($entry) {
+            $this->crud->modifyField('personal_id', [
+                'validationRules' => 'required_if:client_type,0|nullable|string|max:255|unique:clients,personal_id,' . $entry->id,
+            ]);
             $this->crud->modifyField('email', [
                 'validationRules' => 'nullable|email|unique:clients,email,' . $entry->id,
+            ]);
+            $this->crud->modifyField('phone_number', [
+                'validationRules' => 'required|unique:clients,phone_number,' . $entry->id,
             ]);
         }
     }
@@ -338,11 +343,11 @@ class ClientCrudController extends CrudController
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'client_type' => 'required|in:0,1',
-            'personal_id' => 'required_if:client_type,0|nullable|string|max:255',
+            'personal_id' => 'required_if:client_type,0|nullable|string|max:255|unique:clients,personal_id',
             'legal_id' => 'required_if:client_type,1|nullable|string|max:255',
             'address' => 'required|string',
             'email' => 'nullable|email|max:255|unique:clients,email',
-            'phone_number' => 'required|string|max:255',
+            'phone_number' => 'required|string|max:255|unique:clients,phone_number',
         ]);
 
         try {

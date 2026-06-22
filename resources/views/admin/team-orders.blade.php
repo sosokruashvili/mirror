@@ -11,8 +11,13 @@
     if (!is_array($productFilter)) {
         $productFilter = $productFilter === 'all' ? [] : [$productFilter];
     }
+    $serviceFilter = $serviceFilter ?? [];
+    if (!is_array($serviceFilter)) {
+        $serviceFilter = $serviceFilter === 'all' ? [] : [$serviceFilter];
+    }
     $clientFilter = $clientFilter ?? 'all';
     $products = $products ?? collect();
+    $services = $services ?? collect();
     $clients = $clients ?? collect();
 
     $toggleQuery = array_filter([
@@ -22,6 +27,9 @@
     ]);
     if (!empty($productFilter)) {
         $toggleQuery['product'] = $productFilter;
+    }
+    if (!empty($serviceFilter)) {
+        $toggleQuery['service'] = $serviceFilter;
     }
 @endphp
 <style>
@@ -93,6 +101,26 @@
         padding-bottom: 8px;
         margin-bottom: 10px;
         margin-top: -10px;
+        position: relative;
+        padding-right: 28px;
+    }
+
+    .order-dots-btn {
+        position: absolute;
+        top: 10px;
+        right: 0;
+        background: none;
+        border: none;
+        color: #666;
+        cursor: pointer;
+        font-size: 18px;
+        padding: 2px 4px;
+        line-height: 1;
+        opacity: 0.7;
+        z-index: 2;
+    }
+    .order-dots-btn:hover {
+        opacity: 1;
     }
     
     .order-id {
@@ -144,6 +172,28 @@
     }
     .order-actions .btn-archive {
         margin-left: auto;
+    }
+
+    .order-actions:has(.btn-order-comment) .btn-archive {
+        margin-left: 0;
+    }
+    
+    .order-actions .btn-order-comment {
+        margin-left: auto;
+        background-color: #ffc107;
+        border-color: #ffc107;
+        color: #212529;
+        font-weight: 600;
+    }
+
+    .order-actions .btn-order-comment:hover {
+        background-color: #e0a800;
+        border-color: #d39e00;
+        color: #212529;
+    }
+
+    #orderCommentModal {
+        z-index: 10050 !important;
     }
     
     .order-actions .btn {
@@ -220,7 +270,27 @@
     }
     
     .size-tag.ready {
+        background-color: #0d6efd;
+    }
+
+    .size-tag.finished {
         background-color: #198754;
+    }
+
+    .size-tag.cut:not(.ready):not(.processed):not(.finished) {
+        background-color: #ffc107;
+        color: #212529;
+    }
+    .size-tag.cut .piece-dots-btn {
+        color: #212529;
+    }
+
+    .size-tag.processed:not(.ready):not(.finished) {
+        background-color: #fd7e14;
+    }
+
+    .size-tag.broken {
+        box-shadow: 0 0 0 2px #dc3545;
     }
 
     .service-shortname-tag {
@@ -235,7 +305,18 @@
         border: 1px solid rgba(255, 255, 255, 0.2);
     }
     .size-tag.ready .service-shortname-tag {
+        background-color: #0a58ca;
+    }
+    .size-tag.finished .service-shortname-tag {
         background-color: #146c43;
+    }
+    .size-tag.cut .service-shortname-tag {
+        background-color: #e0a800;
+        color: #212529;
+        border-color: rgba(33, 37, 41, 0.2);
+    }
+    .size-tag.processed .service-shortname-tag {
+        background-color: #ca6510;
     }
 
     .piece-dots-btn {
@@ -260,26 +341,51 @@
         border-radius: 6px;
         box-shadow: 0 4px 12px rgba(0,0,0,0.2);
         z-index: 9000;
-        min-width: 130px;
+        min-width: 150px;
         overflow: hidden;
     }
     .piece-ctx-menu.open {
         display: block;
     }
     .piece-ctx-menu-item {
-        display: block;
+        display: flex;
+        align-items: center;
+        gap: 8px;
         width: 100%;
         padding: 8px 14px;
         background: none;
         border: none;
         text-align: left;
         font-size: 13px;
-        color: #198754;
         font-weight: 600;
         cursor: pointer;
     }
+    .piece-ctx-menu-item i {
+        width: 16px;
+        text-align: center;
+        font-size: 14px;
+        flex-shrink: 0;
+    }
+    .piece-ctx-menu-item.item-cut {
+        color: #997404;
+    }
+    .piece-ctx-menu-item.item-processed {
+        color: #fd7e14;
+    }
+    .piece-ctx-menu-item.item-ready {
+        color: #0d6efd;
+    }
+    .piece-ctx-menu-item.item-broken {
+        color: #dc3545;
+    }
+    .piece-ctx-menu-item.item-finished {
+        color: #198754;
+    }
     .piece-ctx-menu-item:hover {
         background: #f0f4f8;
+    }
+    .piece-ctx-menu-item + .piece-ctx-menu-item {
+        border-top: 1px solid #f0f0f0;
     }
 
     .size-tags-empty {
@@ -453,7 +559,56 @@
         height: 15px;
         flex-shrink: 0;
     }
+
+    #clientFilterSelect + .select2-container {
+        width: 240px !important;
+    }
+    #clientFilterSelect + .select2-container .select2-selection--single {
+        min-height: 38px;
+        background-color: var(--tblr-bg-forms, #1a2234);
+        border-color: var(--tblr-border-color, #2c3c56);
+        color: var(--tblr-body-color, #dadcde);
+    }
+    #clientFilterSelect + .select2-container .select2-selection__rendered {
+        color: var(--tblr-body-color, #dadcde);
+        line-height: 36px;
+    }
+    #clientFilterSelect + .select2-container .select2-selection__arrow b {
+        border-color: var(--tblr-body-color, #dadcde) transparent transparent transparent;
+    }
+
+    .team-logout-btn {
+        position: fixed;
+        top: 16px;
+        right: 16px;
+        z-index: 1001;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        white-space: nowrap;
+    }
+
+    .select2-container--open .select2-dropdown--below {
+        background: var(--tblr-bg-surface, #1a2234);
+        border-color: var(--tblr-border-color, #2c3c56);
+    }
+    .select2-container--default .select2-search--dropdown .select2-search__field {
+        background: var(--tblr-bg-forms, #1a2234);
+        border-color: var(--tblr-border-color, #2c3c56);
+        color: var(--tblr-body-color, #dadcde);
+    }
+    .select2-container--default .select2-results__option {
+        color: var(--tblr-body-color, #dadcde);
+    }
+    .select2-container--default .select2-results__option--highlighted[aria-selected] {
+        background-color: #6081b3;
+    }
 </style>
+
+<a href="{{ route('backpack.auth.logout') }}" class="btn btn-outline-light team-logout-btn" title="გასვლა">
+    <i class="la la-sign-out-alt"></i>
+    <span>გასვლა</span>
+</a>
 
 <div class="container-fluid">
     <div class="d-flex flex-wrap align-items-end pt-3 gap-2">
@@ -493,8 +648,24 @@
             </div>
 
             <div>
+                <label class="form-label mb-1 text-light">სერვისები</label>
+                <div class="checkbox-dropdown" id="serviceDropdown">
+                    <div class="checkbox-dropdown-toggle" id="serviceDropdownToggle">ყველა</div>
+                    <div class="checkbox-dropdown-menu">
+                        @foreach($services as $service)
+                        @php $serviceLabel = $service->shortname ?: $service->title; @endphp
+                        <label>
+                            <input type="checkbox" name="service[]" value="{{ $serviceLabel }}" {{ in_array($serviceLabel, $serviceFilter) ? 'checked' : '' }}>
+                            {{ $serviceLabel }}
+                        </label>
+                        @endforeach
+                    </div>
+                </div>
+            </div>
+
+            <div>
                 <label class="form-label mb-1 text-light">კლიენტი</label>
-                <select class="form-select" name="client" style="width: 200px;" autocomplete="off">
+                <select class="form-select" id="clientFilterSelect" name="client" style="width: 240px;" autocomplete="off">
                     <option value="all" {{ $clientFilter === 'all' ? 'selected' : '' }}>ყველა</option>
                     @foreach($clients as $client)
                         <option value="{{ $client->id }}" {{ $clientFilter == $client->id ? 'selected' : '' }}>{{ $client->name }}</option>
@@ -514,6 +685,7 @@
                     <div class="col-md-3 col-sm-6 col-12 order-card" style="margin-bottom: 10px;" data-order-id="{{ $order->id }}">
                         <div class="order-tile">
                             <div class="order-header">
+                                <button type="button" class="order-dots-btn" onclick="toggleOrderMenu(event, this)" title="მოქმედებები">⋮</button>
                                 <div class="row">
                                     <div class="col-md-2 order-id">#{{ $order->id }}</div>
                                     <div class="col-md-3 order-status">{!! status_badge($order->status) !!}</div>
@@ -543,8 +715,6 @@
                                     <span class="detail-value">{{ $order->products->pluck('title')->implode(' x ') }}</span>
                                 </div>
 
-                                
-                                
                                 @php
                                     // Get unique piece sizes with quantities and service shortnames for this order
                                     $piecesWithSizes = $order->pieces->filter(function($piece) {
@@ -561,13 +731,25 @@
                                                 'quantity' => 0,
                                                 'piece_ids' => [],
                                                 'service_shortnames' => [],
-                                                'all_ready' => true
+                                                'all_ready' => true,
+                                                'all_finished' => true,
+                                                'all_processed' => true,
+                                                'all_cut' => true,
                                             ];
                                         }
                                         $sizeGroups[$key]['quantity'] += $piece->quantity ?? 1;
                                         $sizeGroups[$key]['piece_ids'][] = $piece->id;
-                                        if ($piece->status !== 'ready') {
+                                        if ($piece->status !== 'ready' && $piece->status !== 'finished') {
                                             $sizeGroups[$key]['all_ready'] = false;
+                                        }
+                                        if ($piece->status !== 'finished') {
+                                            $sizeGroups[$key]['all_finished'] = false;
+                                        }
+                                        if (!in_array($piece->status, ['processed', 'ready', 'finished'], true)) {
+                                            $sizeGroups[$key]['all_processed'] = false;
+                                        }
+                                        if (!in_array($piece->status, ['cut', 'processed', 'ready', 'finished'], true)) {
+                                            $sizeGroups[$key]['all_cut'] = false;
                                         }
                                         
                                         // Get services associated with this piece
@@ -588,16 +770,14 @@
                                 @if(count($uniqueSizes) > 0)
                                     <div class="size-tags">
                                         @foreach($uniqueSizes as $size)
-                                            <span class="size-tag {{ $size['all_ready'] ? 'ready' : '' }}" data-piece-ids="{{ implode(',', $size['piece_ids']) }}">
+                                            <span class="size-tag {{ $size['all_finished'] ? 'finished' : ($size['all_ready'] ? 'ready' : ($size['all_processed'] ? 'processed' : ($size['all_cut'] ? 'cut' : ''))) }}" data-piece-ids="{{ implode(',', $size['piece_ids']) }}">
                                                 {{ $size['width'] }} × {{ $size['height'] }} cm (×{{ $size['quantity'] }})
                                                 @if(count($size['service_shortnames']) > 0)
                                                     @foreach($size['service_shortnames'] as $shortname)
                                                         <span class="service-shortname-tag">{{ $shortname }}</span>
                                                     @endforeach
                                                 @endif
-                                                @if(!$size['all_ready'])
                                                 <span class="piece-dots-btn" onclick="togglePieceMenu(event, this)">⋮</span>
-                                                @endif
                                             </span>
                                         @endforeach
                                     </div>
@@ -611,7 +791,7 @@
                                     ნახვა
                                 </button>
                                 <button class="btn btn-success" onclick="finishOrder({{ $order->id }})">
-                                    დასრულება
+                                    გატანილია
                                 </button>
                                 @if($order->atachment)
                                 <a href="{{ asset('storage/' . $order->atachment) }}" target="_blank" class="btn" style="background-color: #e67e22; border-color: #e67e22; color: #fff;">
@@ -621,6 +801,11 @@
                                 @if($showArchived)
                                 <button class="btn btn-danger btn-archive" onclick="unarchiveOrder({{ $order->id }})">
                                     დეარქივაცია
+                                </button>
+                                @endif
+                                @if($order->comment)
+                                <button type="button" class="btn btn-order-comment" data-comment="{{ e($order->comment) }}" onclick="showOrderComment(this)">
+                                    <i class="la la-sticky-note"></i> შენიშვნა
                                 </button>
                                 @endif
                             </div>
@@ -642,7 +827,58 @@
 
 {{-- Shared piece context menu --}}
 <div id="pieceCtxMenu" class="piece-ctx-menu">
-    <button type="button" class="piece-ctx-menu-item" id="pieceCtxMenuReady">დასრულება</button>
+    <button type="button" class="piece-ctx-menu-item item-cut" id="pieceCtxMenuCut"><i class="la la-cut"></i> მოიჭრა</button>
+    <button type="button" class="piece-ctx-menu-item item-processed" id="pieceCtxMenuProcessed"><i class="la la-cog"></i> დამუშავდა</button>
+    <button type="button" class="piece-ctx-menu-item item-ready" id="pieceCtxMenuReady"><i class="la la-check"></i> მზადაა</button>
+    <button type="button" class="piece-ctx-menu-item item-broken" id="pieceCtxMenuBroken"><i class="la la-times"></i> გატყდა</button>
+    <button type="button" class="piece-ctx-menu-item item-finished" id="pieceCtxMenuFinished"><i class="la la-sign-out-alt"></i> გატანილია</button>
+</div>
+
+{{-- Order comment modal --}}
+<div class="modal fade" id="orderCommentModal" tabindex="-1" aria-labelledby="orderCommentModalLabel" aria-hidden="true" data-bs-backdrop="true" data-bs-keyboard="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="orderCommentModalLabel">შენიშვნა</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p id="orderCommentModalText" class="mb-0" style="white-space: pre-wrap;"></p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">დახურვა</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{{-- Broken glass description modal --}}
+<div class="modal fade" id="brokenGlassModal" tabindex="-1" aria-labelledby="brokenGlassModalLabel" aria-hidden="true" data-bs-backdrop="true" data-bs-keyboard="true">
+    <div class="modal-dialog modal-dialog-centered modal-sm">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="brokenGlassModalLabel">გატყდა – აღწერა</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-2">
+                    <label for="brokenGlassDescription" class="form-label">აღწერა (არასავალდებულო)</label>
+                    <textarea id="brokenGlassDescription" class="form-control" rows="3" placeholder="დამატებითი ინფორმაცია..."></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">გაუქმება</button>
+                <button type="button" class="btn btn-danger" id="brokenGlassModalSubmit">
+                    <i class="la la-check"></i> შენახვა
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{{-- Order card context menu --}}
+<div id="orderCtxMenu" class="piece-ctx-menu">
+    <button type="button" class="piece-ctx-menu-item item-finished" id="orderCtxMenuFinished"><i class="la la-sign-out-alt"></i> გატანილია</button>
 </div>
 
 @if(!$showArchived)
@@ -663,42 +899,76 @@
     </div>
 </div>
 
+@push('after_styles')
+    @basset('https://cdn.jsdelivr.net/npm/select2@4.0.13/dist/css/select2.min.css')
+@endpush
+
 @push('after_scripts')
+    @basset('https://cdn.jsdelivr.net/npm/select2@4.0.13/dist/js/select2.full.min.js')
+<script>
+jQuery(function($) {
+    var clientSelect = document.getElementById('clientFilterSelect');
+    if (!clientSelect || !$.fn.select2) return;
+
+    var $clientSelect = $(clientSelect);
+    $clientSelect.select2({
+        width: '240px',
+        minimumResultsForSearch: 0,
+        dropdownParent: $clientSelect.parent()
+    });
+    $clientSelect.on('select2:open', function() {
+        setTimeout(function() {
+            var search = document.querySelector('.select2-container--open .select2-search__field');
+            if (search) search.focus();
+        }, 50);
+    });
+});
+</script>
 <script>
 (function() {
-    var dd = document.getElementById('productDropdown');
-    var toggle = document.getElementById('productDropdownToggle');
-    if (!dd || !toggle) return;
+    function initCheckboxDropdown(ddId, toggleId) {
+        var dd = document.getElementById(ddId);
+        var toggle = document.getElementById(toggleId);
+        if (!dd || !toggle) return;
 
-    function updateLabel() {
-        var checked = dd.querySelectorAll('input[type="checkbox"]:checked');
-        if (checked.length === 0) {
-            toggle.textContent = 'ყველა';
-        } else {
-            var names = [];
-            checked.forEach(function(cb) { names.push(cb.parentElement.textContent.trim()); });
-            toggle.textContent = names.join(', ');
+        function updateLabel() {
+            var checked = dd.querySelectorAll('input[type="checkbox"]:checked');
+            if (checked.length === 0) {
+                toggle.textContent = 'ყველა';
+            } else {
+                var names = [];
+                checked.forEach(function(cb) { names.push(cb.parentElement.textContent.trim()); });
+                toggle.textContent = names.join(', ');
+            }
         }
+
+        toggle.addEventListener('click', function(e) {
+            e.stopPropagation();
+            document.querySelectorAll('.checkbox-dropdown.open').forEach(function(openDd) {
+                if (openDd !== dd) openDd.classList.remove('open');
+            });
+            dd.classList.toggle('open');
+        });
+
+        dd.querySelector('.checkbox-dropdown-menu').addEventListener('click', function(e) {
+            e.stopPropagation();
+        });
+
+        dd.querySelectorAll('input[type="checkbox"]').forEach(function(cb) {
+            cb.addEventListener('change', updateLabel);
+        });
+
+        updateLabel();
     }
 
-    toggle.addEventListener('click', function(e) {
-        e.stopPropagation();
-        dd.classList.toggle('open');
-    });
-
-    dd.querySelector('.checkbox-dropdown-menu').addEventListener('click', function(e) {
-        e.stopPropagation();
-    });
-
-    dd.querySelectorAll('input[type="checkbox"]').forEach(function(cb) {
-        cb.addEventListener('change', updateLabel);
-    });
+    initCheckboxDropdown('productDropdown', 'productDropdownToggle');
+    initCheckboxDropdown('serviceDropdown', 'serviceDropdownToggle');
 
     document.addEventListener('click', function() {
-        dd.classList.remove('open');
+        document.querySelectorAll('.checkbox-dropdown.open').forEach(function(dd) {
+            dd.classList.remove('open');
+        });
     });
-
-    updateLabel();
 })();
 </script>
 
@@ -752,6 +1022,32 @@
         iframe.src = '';
     }
 
+    function showOrderComment(btn, textOverride) {
+        var text = (typeof textOverride === 'string') ? textOverride : ((btn && btn.getAttribute('data-comment')) || '');
+        var textEl = document.getElementById('orderCommentModalText');
+        var modalEl = document.getElementById('orderCommentModal');
+        if (!textEl || !modalEl || typeof bootstrap === 'undefined') return;
+
+        textEl.textContent = text;
+
+        if (modalEl.parentElement !== document.body) {
+            document.body.appendChild(modalEl);
+        }
+
+        var modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+
+        function liftModalAboveOverlay() {
+            modalEl.style.zIndex = '10050';
+            var backdrops = document.querySelectorAll('.modal-backdrop');
+            if (backdrops.length) {
+                backdrops[backdrops.length - 1].style.zIndex = '10040';
+            }
+        }
+
+        modalEl.addEventListener('shown.bs.modal', liftModalAboveOverlay, { once: true });
+        modal.show();
+    }
+
     document.getElementById('orderPreviewClose').addEventListener('click', closePreview);
 
     document.getElementById('orderPreviewOverlay').addEventListener('click', function(e) {
@@ -760,13 +1056,36 @@
 
     var _pieceCtxMenu = document.getElementById('pieceCtxMenu');
     var _pieceCtxTag = null;
+    var _orderCtxMenu = document.getElementById('orderCtxMenu');
+    var _orderCtxCard = null;
+
+    function closeCtxMenus() {
+        _pieceCtxMenu.classList.remove('open');
+        _orderCtxMenu.classList.remove('open');
+    }
+
+    function toggleOrderMenu(e, dotsBtn) {
+        e.stopPropagation();
+        var card = dotsBtn.closest('.order-card');
+        var wasOpen = _orderCtxMenu.classList.contains('open') && _orderCtxCard === card;
+
+        closeCtxMenus();
+
+        if (!wasOpen) {
+            _orderCtxCard = card;
+            var rect = dotsBtn.getBoundingClientRect();
+            _orderCtxMenu.style.top = (rect.bottom + 4) + 'px';
+            _orderCtxMenu.style.left = Math.max(8, rect.right - 130) + 'px';
+            _orderCtxMenu.classList.add('open');
+        }
+    }
 
     function togglePieceMenu(e, dotsBtn) {
         e.stopPropagation();
         var tag = dotsBtn.closest('.size-tag');
         var wasOpen = _pieceCtxMenu.classList.contains('open') && _pieceCtxTag === tag;
 
-        _pieceCtxMenu.classList.remove('open');
+        closeCtxMenus();
 
         if (!wasOpen) {
             _pieceCtxTag = tag;
@@ -778,7 +1097,104 @@
     }
 
     document.addEventListener('click', function() {
-        _pieceCtxMenu.classList.remove('open');
+        closeCtxMenus();
+    });
+
+    function reloadTeamPageIfStatusUpdated(success, errorMessage) {
+        if (success) {
+            window.location.reload();
+            return;
+        }
+        if (errorMessage) {
+            alert(errorMessage);
+        }
+    }
+
+    document.getElementById('orderCtxMenuFinished').addEventListener('click', function(e) {
+        e.stopPropagation();
+        if (!_orderCtxCard) return;
+
+        var orderId = _orderCtxCard.getAttribute('data-order-id');
+        closeCtxMenus();
+        finishOrder(orderId, e.currentTarget);
+    });
+
+    document.getElementById('pieceCtxMenuCut').addEventListener('click', function(e) {
+        e.stopPropagation();
+        if (!_pieceCtxTag) return;
+
+        var tag = _pieceCtxTag;
+        var pieceIds = tag.getAttribute('data-piece-ids').split(',');
+        var token = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') ||
+                    document.querySelector('input[name="_token"]')?.value;
+
+        closeCtxMenus();
+
+        var done = 0;
+        var failed = false;
+        pieceIds.forEach(function(id) {
+            var formData = new FormData();
+            formData.append('_token', token);
+            fetch('{{ route("team.pieces.cut", ":id") }}'.replace(':id', id), {
+                method: 'POST',
+                headers: {
+                    'Accept': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRF-TOKEN': token
+                },
+                body: formData
+            })
+            .then(function(res) { return res.json(); })
+            .then(function(data) {
+                if (!data.success) failed = true;
+            })
+            .catch(function() { failed = true; })
+            .finally(function() {
+                done++;
+                if (done === pieceIds.length) {
+                    reloadTeamPageIfStatusUpdated(!failed, 'მოიჭრა – მოთხოვნა ვერ შესრულდა.');
+                }
+            });
+        });
+    });
+
+    document.getElementById('pieceCtxMenuProcessed').addEventListener('click', function(e) {
+        e.stopPropagation();
+        if (!_pieceCtxTag) return;
+
+        var tag = _pieceCtxTag;
+        var pieceIds = tag.getAttribute('data-piece-ids').split(',');
+        var token = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') ||
+                    document.querySelector('input[name="_token"]')?.value;
+
+        closeCtxMenus();
+
+        var done = 0;
+        var failed = false;
+        pieceIds.forEach(function(id) {
+            var formData = new FormData();
+            formData.append('_token', token);
+            fetch('{{ route("team.pieces.processed", ":id") }}'.replace(':id', id), {
+                method: 'POST',
+                headers: {
+                    'Accept': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRF-TOKEN': token
+                },
+                body: formData
+            })
+            .then(function(res) { return res.json(); })
+            .then(function(data) {
+                if (!data.success) failed = true;
+            })
+            .catch(function() { failed = true; })
+            .finally(function() {
+                done++;
+                if (done === pieceIds.length) {
+                    reloadTeamPageIfStatusUpdated(!failed, 'დამუშავდა – მოთხოვნა ვერ შესრულდა.');
+                }
+            });
+        });
     });
 
     document.getElementById('pieceCtxMenuReady').addEventListener('click', function(e) {
@@ -790,12 +1206,10 @@
         var token = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') ||
                     document.querySelector('input[name="_token"]')?.value;
 
-        _pieceCtxMenu.classList.remove('open');
-
-        var dotsBtn = tag.querySelector('.piece-dots-btn');
-        if (dotsBtn) { dotsBtn.style.opacity = '0.3'; dotsBtn.style.pointerEvents = 'none'; }
+        closeCtxMenus();
 
         var done = 0;
+        var failed = false;
         pieceIds.forEach(function(id) {
             fetch('{{ route("team.pieces.ready", ":id") }}'.replace(':id', id), {
                 method: 'POST',
@@ -805,45 +1219,151 @@
                     'X-CSRF-TOKEN': token,
                     'X-Requested-With': 'XMLHttpRequest'
                 }
-            }).then(function() {
+            })
+            .then(function(res) { return res.json(); })
+            .then(function(data) {
+                if (!data.success) failed = true;
+            })
+            .catch(function() { failed = true; })
+            .finally(function() {
                 done++;
                 if (done === pieceIds.length) {
-                    tag.classList.add('ready');
-                    if (dotsBtn) dotsBtn.remove();
+                    reloadTeamPageIfStatusUpdated(!failed, 'მზადაა – მოთხოვნა ვერ შესრულდა.');
                 }
             });
         });
     });
+
+    document.getElementById('pieceCtxMenuFinished').addEventListener('click', function(e) {
+        e.stopPropagation();
+        if (!_pieceCtxTag) return;
+
+        var tag = _pieceCtxTag;
+        var pieceIds = tag.getAttribute('data-piece-ids').split(',');
+        var token = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') ||
+                    document.querySelector('input[name="_token"]')?.value;
+
+        closeCtxMenus();
+
+        var done = 0;
+        var failed = false;
+        pieceIds.forEach(function(id) {
+            fetch('{{ route("team.pieces.finished", ":id") }}'.replace(':id', id), {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                    'X-CSRF-TOKEN': token,
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            })
+            .then(function(res) { return res.json(); })
+            .then(function(data) {
+                if (!data.success) failed = true;
+            })
+            .catch(function() { failed = true; })
+            .finally(function() {
+                done++;
+                if (done === pieceIds.length) {
+                    reloadTeamPageIfStatusUpdated(!failed, 'გატანილია – მოთხოვნა ვერ შესრულდა.');
+                }
+            });
+        });
+    });
+
+    (function() {
+        var modalEl = document.getElementById('brokenGlassModal');
+        var descriptionEl = document.getElementById('brokenGlassDescription');
+        var submitBtn = document.getElementById('brokenGlassModalSubmit');
+        var currentTag = null;
+
+        if (!modalEl || typeof bootstrap === 'undefined') return;
+
+        document.body.appendChild(modalEl);
+        var modal = new bootstrap.Modal(modalEl);
+
+        document.getElementById('pieceCtxMenuBroken').addEventListener('click', function(e) {
+            e.stopPropagation();
+            if (!_pieceCtxTag) return;
+
+            currentTag = _pieceCtxTag;
+            descriptionEl.value = '';
+            closeCtxMenus();
+            modal.show();
+        });
+
+        submitBtn.addEventListener('click', function() {
+            if (!currentTag) return;
+
+            var tag = currentTag;
+            var pieceIds = tag.getAttribute('data-piece-ids').split(',');
+            var token = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') ||
+                        document.querySelector('input[name="_token"]')?.value;
+            if (!token) {
+                alert('CSRF token not found.');
+                return;
+            }
+
+            submitBtn.disabled = true;
+            var description = descriptionEl.value || '';
+            var done = 0;
+            var failed = false;
+
+            pieceIds.forEach(function(id) {
+                var formData = new FormData();
+                formData.append('_token', token);
+                formData.append('description', description);
+                fetch('{{ route("team.pieces.broken", ":id") }}'.replace(':id', id), {
+                    method: 'POST',
+                    headers: {
+                        'Accept': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'X-CSRF-TOKEN': token
+                    },
+                    body: formData
+                })
+                .then(function(res) { return res.json(); })
+                .then(function(data) {
+                    if (!data.success) failed = true;
+                })
+                .catch(function() { failed = true; })
+                .finally(function() {
+                    done++;
+                    if (done === pieceIds.length) {
+                        modal.hide();
+                        submitBtn.disabled = false;
+                        reloadTeamPageIfStatusUpdated(!failed, 'გატყდა – მოთხოვნა ვერ შესრულდა.');
+                        currentTag = null;
+                    }
+                });
+            });
+        });
+    })();
     
-    function finishOrder(orderId) {
-        // Confirm action
-        if (!confirm('Are you sure you want to mark this order as finished?')) {
+    function finishOrder(orderId, triggerEl) {
+        if (!confirm('დარწმუნებული ხართ რომ შეკვეთა გატანილია?')) {
             return;
         }
-        
-        // Disable the button to prevent double-clicks
-        const button = event.target;
-        const originalText = button.textContent;
-        button.disabled = true;
-        button.textContent = 'Processing...';
-        
-        // Get CSRF token
-        const token = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || 
+
+        var button = triggerEl || (typeof event !== 'undefined' ? event.target : null);
+        if (button && button.tagName === 'BUTTON') {
+            button.disabled = true;
+            button.textContent = 'Processing...';
+        }
+
+        const token = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') ||
                      document.querySelector('input[name="_token"]')?.value;
-        
-        // Use form submission to handle redirect properly
+
         const form = document.createElement('form');
         form.method = 'POST';
         form.action = '{{ route("team.orders.finish", ":id") }}'.replace(':id', orderId);
-        
-        // Add CSRF token
+
         const csrfInput = document.createElement('input');
         csrfInput.type = 'hidden';
         csrfInput.name = '_token';
         csrfInput.value = token;
         form.appendChild(csrfInput);
-        
-        // Submit form - this will handle the redirect and flash message properly
+
         document.body.appendChild(form);
         form.submit();
     }
@@ -965,7 +1485,7 @@
 
                 $row.sortable({
                     items: '.order-card[data-order-id]',
-                    cancel: 'a,button,input,textarea,select,option,.order-actions',
+                    cancel: 'a,button,input,textarea,select,option,.order-actions,.order-dots-btn,.piece-dots-btn,.piece-ctx-menu',
                     delay: 150,
                     distance: 10,
                     tolerance: 'pointer',

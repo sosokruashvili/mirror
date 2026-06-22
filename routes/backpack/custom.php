@@ -16,10 +16,12 @@ Route::group([
     ),
     'namespace' => 'App\Http\Controllers\Admin',
 ], function () { // custom admin routes
+    Route::get('dashboard/orders-area-chart', 'DashboardController@getOrdersAreaChart')->name('dashboard.ordersAreaChart');
     Route::crud('order', 'OrderCrudController');
     Route::post('order/bulk-delete', 'OrderCrudController@bulkDelete')->name('order.bulkDelete');
     Route::post('order/calculate-service-price', 'OrderCrudController@calculate_order_service_price')->name('order.calculateServicePrice');
     Route::post('order/{id}/confirm', 'OrderCrudController@confirm')->name('order.confirm');
+    Route::post('order/{id}/finish', 'OrderCrudController@finish')->name('order.finish');
     Route::crud('user', 'UserCrudController');
     Route::crud('client', 'ClientCrudController');
     Route::post('client/create-ajax', 'ClientCrudController@createAjax')->name('client.createAjax');
@@ -48,7 +50,9 @@ Route::group([
     Route::post('team/orders/{id}/unarchive', 'TeamOrderController@unarchive')->name('team.orders.unarchive');
     Route::post('team/pieces/{id}/ready', 'TeamOrderController@markPieceReady')->name('team.pieces.ready');
     Route::post('team/pieces/{id}/cut', 'TeamOrderController@markPieceCut')->name('team.pieces.cut');
+    Route::post('team/pieces/{id}/processed', 'TeamOrderController@markPieceProcessed')->name('team.pieces.processed');
     Route::post('team/pieces/{id}/broken', 'TeamOrderController@markPieceBroken')->name('team.pieces.broken');
+    Route::post('team/pieces/{id}/finished', 'TeamOrderController@markPieceFinished')->name('team.pieces.finished');
 }); // this should be the absolute last line of this file
 
 /**

@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use Backpack\CRUD\app\Http\Controllers\CrudController;
 use Backpack\CRUD\app\Library\CrudPanel\CrudPanelFacade as CRUD;
+use Backpack\CRUD\app\Library\Widget;
 
 /**
  * Class PieceCrudController
@@ -37,6 +38,11 @@ class PieceCrudController extends CrudController
      */
     protected function setupListOperation()
     {
+        $this->crud->addClause('with', [
+            'order.products',
+            'brokenGlasses' => fn ($query) => $query->orderBy('id'),
+        ]);
+
         CRUD::addColumn([
             'name' => 'id',
             'label' => 'ID',
@@ -55,6 +61,25 @@ class PieceCrudController extends CrudController
         ]);
 
         CRUD::addColumn([
+            'name' => 'product_title',
+            'label' => 'Product',
+            'type' => 'text',
+            'orderable' => false,
+            'searchLogic' => function ($query, $column, $searchTerm) {
+                $query->orWhereHas('order.products', function ($q) use ($searchTerm) {
+                    $q->where('title', 'like', '%' . $searchTerm . '%');
+                });
+            },
+            'value' => function ($entry) {
+                if (!$entry->order) {
+                    return '';
+                }
+
+                return $entry->order->products->pluck('title')->implode(' x ');
+            },
+        ]);
+
+        CRUD::addColumn([
             'name' => 'order.product_type',
             'label' => 'Order Product Type',
             'type' => 'text',
@@ -67,6 +92,39 @@ class PieceCrudController extends CrudController
             'value' => function ($entry) {
                 return status_badge($entry->status);
             }
+        ]);
+
+        CRUD::addColumn([
+            'name' => 'broken_display',
+            'label' => 'Broken',
+            'type' => 'custom_html',
+            'escaped' => false,
+            'orderable' => false,
+            'searchLogic' => false,
+            'value' => function ($entry) {
+                $records = $entry->brokenGlasses ?? collect();
+                $recordCount = $records->count();
+                $totalCount = max($recordCount, (int) ($entry->broken ?? 0));
+
+                if ($totalCount === 0) {
+                    return '';
+                }
+
+                $html = '<span class="piece-broken-icons">';
+
+                foreach ($records as $record) {
+                    $description = htmlspecialchars($record->description ?? '', ENT_QUOTES, 'UTF-8');
+                    $html .= '<span role="button" tabindex="0" class="badge bg-danger me-1 piece-broken-x-btn" data-description="' . $description . '" title="View description"><i class="la la-times"></i></span>';
+                }
+
+                for ($i = 0; $i < $totalCount - $recordCount; $i++) {
+                    $html .= '<span role="button" tabindex="0" class="badge bg-danger me-1 piece-broken-x-btn" data-description="" title="View description"><i class="la la-times"></i></span>';
+                }
+
+                $html .= '</span>';
+
+                return $html;
+            },
         ]);
 
         CRUD::addColumn([
@@ -114,6 +172,13 @@ class PieceCrudController extends CrudController
         }, function($value) {
             $this->crud->addClause('where', 'order_id', $value);
         });
+
+        Widget::add([
+            'type' => 'view',
+            'view' => 'vendor.backpack.crud.widgets.piece_broken_modal',
+        ])->to('after_content');
+
+        Widget::add()->type('script')->content('assets/js/piece-broken-list.js');
     }
 
 

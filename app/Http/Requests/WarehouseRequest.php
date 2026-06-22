@@ -25,7 +25,9 @@ class WarehouseRequest extends FormRequest
     public function rules()
     {
         return [
-            // 'name' => 'required|min:5|max:255'
+            'product_id' => 'required|exists:products,id',
+            'quantity' => 'nullable|integer|min:0',
+            'area' => 'nullable|numeric|min:0',
         ];
     }
 

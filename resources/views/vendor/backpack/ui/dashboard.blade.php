@@ -24,9 +24,9 @@
                     <div class="d-flex align-items-center">
                         <div class="subheader">Total Orders</div>
                     </div>
-                    <div class="h1 mb-3">{{ \App\Models\Order::count() }}</div>
+                    <div class="h1 mb-3">{{ \App\Models\Order::where('status', '!=', 'draft')->count() }}</div>
                     <div class="d-flex mb-2">
-                        <div>All orders in system</div>
+                        <div>Confirmed orders (excluding drafts)</div>
                     </div>
                 </div>
             </div>
@@ -54,13 +54,18 @@
                     <div class="d-flex align-items-center">
                         <div class="subheader">Total Pieces</div>
                     </div>
-                    <div class="h1 mb-3">{{ \App\Models\Piece::count() }}</div>
+                    <div class="h1 mb-3">{{ \App\Models\Piece::where('status', '!=', 'draft')->count() }}</div>
                     <div class="d-flex mb-2">
-                        <div>All pieces in production</div>
+                        <div>Production pieces (excluding drafts)</div>
                     </div>
                 </div>
             </div>
         </div>
+    </div>
+
+    {{-- Orders Area Chart Widget --}}
+    <div class="row mt-4">
+        @include('vendor.backpack.ui.widgets.orders_area_chart')
     </div>
 
     {{-- Second Row --}}

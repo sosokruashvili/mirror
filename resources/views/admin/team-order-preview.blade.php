@@ -159,6 +159,38 @@
 			border-radius: 8px;
 			padding: 15px;
 			margin-bottom: 25px;
+			display: flex;
+			flex-wrap: wrap;
+			align-items: center;
+			gap: 12px;
+		}
+
+		.order-info-section .order-info-meta {
+			display: flex;
+			flex-wrap: wrap;
+			align-items: center;
+			gap: 12px;
+			flex: 1 1 auto;
+		}
+
+		.btn-order-comment {
+			margin-left: auto;
+			background-color: #ffc107;
+			border-color: #ffc107;
+			color: #212529;
+			font-size: 13px;
+			font-weight: 600;
+			padding: 6px 14px;
+		}
+
+		.btn-order-comment:hover {
+			background-color: #e0a800;
+			border-color: #d39e00;
+			color: #212529;
+		}
+
+		#orderCommentModal {
+			z-index: 10050 !important;
 		}
 		
 		.order-info-row {
@@ -190,10 +222,27 @@
 			padding: 40px;
 			color: #999;
 		}
-		.order-info-value {
-			font-size: 18px;
-			font-weight: bold;
-		}
+	.order-info-value {
+		font-size: 18px;
+		font-weight: bold;
+	}
+
+	.piece-actions {
+		justify-content: flex-end;
+	}
+	.piece-actions .btn {
+		font-size: 13px;
+		padding: 6px 14px;
+		white-space: nowrap;
+	}
+
+	body.in-iframe .piece-actions {
+		justify-content: center;
+	}
+	body.in-iframe .piece-actions .btn {
+		font-size: 12px;
+		padding: 5px 12px;
+	}
     </style>
 @endpush
 
@@ -248,13 +297,20 @@
 	@endif
 	
 	{{-- Order Information --}}
-	<div class="order-info-section d-flex flex-wrap align-items-center gap-3">
-		<span class="order-info-value">#{{ $order->id }}</span>
-		<span class="order-info-value">{!! status_badge($order->status) !!}</span>
-		<span class="order-info-value">{{ $order->client->name ?? 'N/A' }}</span>
-		<span class="order-info-value">{{ order_type_ge($order->order_type ?? '') }}</span>
-		<span class="order-info-value">{{ product_type_ge($order->product_type ?? '') }}</span>
-		<span class="order-info-value">{{ number_format($order->price_gel ?? $order->calculateTotalPrice(), 2) }} ₾</span>
+	<div class="order-info-section">
+		<div class="order-info-meta">
+			<span class="order-info-value">#{{ $order->id }}</span>
+			<span class="order-info-value">{!! status_badge($order->status) !!}</span>
+			<span class="order-info-value">{{ $order->client->name ?? 'N/A' }}</span>
+			<span class="order-info-value">{{ order_type_ge($order->order_type ?? '') }}</span>
+			<span class="order-info-value">{{ product_type_ge($order->product_type ?? '') }}</span>
+			<span class="order-info-value">{{ number_format($order->price_gel ?? $order->calculateTotalPrice(), 2) }} ₾</span>
+		</div>
+		@if($order->comment)
+		<button type="button" class="btn btn-order-comment" data-comment="{{ e($order->comment) }}" onclick="showOrderComment(this)">
+			<i class="la la-sticky-note"></i> შენიშვნა
+		</button>
+		@endif
 	</div>
 	
 	{{-- Pieces Grid --}}
@@ -360,21 +416,21 @@
 								@endif
 							</div>
 							
-							<div class="d-flex justify-content-end gap-2 mt-3 pt-3 border-top">
+							<div class="piece-actions d-flex flex-wrap gap-1 mt-3 pt-3 border-top">
 								@if($piece->status !== 'cut' && $piece->status !== 'ready')
-								<button type="button" class="btn btn-warning btn-lg btn-piece-cut" data-piece-id="{{ $piece->id }}" data-url="{{ route('team.pieces.cut', $piece->id) }}">
+								<button type="button" class="btn btn-warning btn-sm btn-piece-cut" data-piece-id="{{ $piece->id }}" data-url="{{ route('team.pieces.cut', $piece->id) }}">
 									<i class="la la-cut"></i>&nbsp;მოიჭრა
 								</button>
 								@endif
 								@if($piece->status !== 'ready')
 								<form method="POST" action="{{ route('team.pieces.ready', $piece->id) }}" class="d-inline" onsubmit="return confirm('დარწმუნებული ხართ რომ ეს ნაჭერი მზადაა?');">
 									@csrf
-									<button type="submit" class="btn btn-success btn-lg">
+									<button type="submit" class="btn btn-success btn-sm">
 										<i class="la la-check"></i>&nbsp;მზადაა
 									</button>
 								</form>
 								@endif
-								<button type="button" class="btn btn-danger btn-lg btn-piece-broken" data-piece-id="{{ $piece->id }}" data-url="{{ route('team.pieces.broken', $piece->id) }}" data-broken="{{ $piece->broken_glasses_count ?? 0 }}">
+								<button type="button" class="btn btn-danger btn-sm btn-piece-broken" data-piece-id="{{ $piece->id }}" data-url="{{ route('team.pieces.broken', $piece->id) }}" data-broken="{{ $piece->broken_glasses_count ?? 0 }}">
 									<i class="la la-times"></i>&nbsp;გატყდა
 								</button>
 							</div>
@@ -451,6 +507,24 @@
 	</div>
 </div>
 
+{{-- Order comment modal --}}
+<div class="modal fade" id="orderCommentModal" tabindex="-1" aria-labelledby="orderCommentModalLabel" aria-hidden="true" data-bs-backdrop="true" data-bs-keyboard="true">
+	<div class="modal-dialog modal-dialog-centered">
+		<div class="modal-content">
+			<div class="modal-header">
+				<h5 class="modal-title" id="orderCommentModalLabel">შენიშვნა</h5>
+				<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+			</div>
+			<div class="modal-body">
+				<p id="orderCommentModalText" class="mb-0" style="white-space: pre-wrap;"></p>
+			</div>
+			<div class="modal-footer">
+				<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">დახურვა</button>
+			</div>
+		</div>
+	</div>
+</div>
+
 {{-- Broken glass description modal --}}
 <div class="modal fade" id="brokenGlassModal" tabindex="-1" aria-labelledby="brokenGlassModalLabel" aria-hidden="true" data-bs-backdrop="true" data-bs-keyboard="true">
 	<div class="modal-dialog modal-dialog-centered modal-sm">
@@ -480,6 +554,38 @@
 <script>
 if (window.self !== window.top) {
 	document.body.classList.add('in-iframe');
+}
+
+function showOrderComment(btn) {
+	var text = btn.getAttribute('data-comment') || '';
+
+	if (window.self !== window.top && window.parent && typeof window.parent.showOrderComment === 'function') {
+		window.parent.showOrderComment(null, text);
+		return;
+	}
+
+	var textEl = document.getElementById('orderCommentModalText');
+	var modalEl = document.getElementById('orderCommentModal');
+	if (!textEl || !modalEl || typeof bootstrap === 'undefined') return;
+
+	textEl.textContent = text;
+
+	if (modalEl.parentElement !== document.body) {
+		document.body.appendChild(modalEl);
+	}
+
+	var modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+
+	function liftModalAboveOverlay() {
+		modalEl.style.zIndex = '10050';
+		var backdrops = document.querySelectorAll('.modal-backdrop');
+		if (backdrops.length) {
+			backdrops[backdrops.length - 1].style.zIndex = '10040';
+		}
+	}
+
+	modalEl.addEventListener('shown.bs.modal', liftModalAboveOverlay, { once: true });
+	modal.show();
 }
 </script>
 <script>
@@ -514,7 +620,7 @@ if (window.self !== window.top) {
 						items.forEach(function(item) {
 							var label = item.querySelector('.piece-detail-label');
 							if (label && label.textContent.trim() === 'სტატუსი:') {
-								item.innerHTML = '<span class="piece-detail-label">სტატუსი:</span> <span class="badge" style="background-color:#ffc107;color:#fff;">cut</span>';
+								item.innerHTML = '<span class="piece-detail-label">სტატუსი:</span> <span class="badge text-bg-warning text-dark">cut</span>';
 							}
 						});
 					}

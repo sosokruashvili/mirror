@@ -26,22 +26,6 @@ class Piece extends Model
     ];
 
     /**
-     * Boot the model.
-     */
-    protected static function boot()
-    {
-        parent::boot();
-
-        // After a piece is updated, check if all pieces of the order are ready
-        static::updated(function ($piece) {
-            // Only check if status was changed
-            if ($piece->wasChanged('status') && $piece->order) {
-                $piece->order->updateStatusIfAllPiecesReady();
-            }
-        });
-    }
-
-    /**
      * The order that owns the piece.
      */
     public function order()
@@ -65,9 +49,38 @@ class Piece extends Model
         return $this->hasMany(BrokenGlass::class);
     }
 
+    /**
+     * Area of a single sheet of this piece (m²), ignoring quantity.
+     */
+    public function getUnitArea()
+    {
+        return $this->width / 100 * $this->height / 100;
+    }
+
     public function getArea()
     {
-        return $this->width/100 * $this->height/100 * $this->quantity;
+        return $this->getUnitArea() * $this->quantity;
+    }
+
+    /**
+     * Number of times this piece has been broken.
+     */
+    public function getBrokenCount(): int
+    {
+        $recordCount = $this->relationLoaded('brokenGlasses')
+            ? $this->brokenGlasses->count()
+            : $this->brokenGlasses()->count();
+
+        return max($recordCount, (int) ($this->broken ?? 0));
+    }
+
+    /**
+     * Total area (m²) consumed from the warehouse for this piece, including
+     * an extra sheet for every broken record.
+     */
+    public function getExpenseArea()
+    {
+        return $this->getUnitArea() * ($this->quantity + $this->getBrokenCount());
     }
 
     public function servicesShortnames()

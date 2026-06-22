@@ -14,7 +14,6 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Carbon;
 use App\Models\CustomPrice;
 use App\Models\Payment;
-
 /**
  * Class OrderCrudController
  * @package App\Http\Controllers\Admin
@@ -41,7 +40,9 @@ class OrderCrudController extends CrudController
         
         // Enable export buttons
         $this->crud->enableExportButtons();
-        Widget::add()->type('script')->content('assets/js/orders.js');
+        // orders.js is loaded directly in the create/edit views with a cache-busting
+        // version string (see order/create.blade.php and order/edit.blade.php) so that
+        // browsers always pick up the latest version instead of a stale cached copy.
         // Add JavaScript to reload page on filter change (so widgets update)
         Widget::add()->type('script')->content('assets/js/payment-filters-reload.js');
     }
@@ -141,14 +142,20 @@ class OrderCrudController extends CrudController
         $this->crud->removeButton('update');
         $this->crud->removeButton('delete');
         
-        // Add custom update button that only shows for draft orders
+        // Add custom update button that only shows for draft/new orders
         $this->crud->addButton('line', 'update', 'view', 'crud::buttons.update_order', 'end');
         
-        // Add custom delete button that only shows for draft orders
+        // Add custom delete button that only shows for draft/new orders
         $this->crud->addButton('line', 'delete', 'view', 'crud::buttons.delete_order', 'end');
 
         // Invoice button (opens in new tab)
         $this->crud->addButton('line', 'invoice', 'view', 'crud::buttons.invoice', 'end');
+
+        // Pieces button (filtered by order id)
+        $this->crud->addButton('line', 'pieces', 'view', 'crud::buttons.pieces', 'end');
+
+        // Finish button (only show when status is ready)
+        $this->crud->addButton('line', 'finish', 'view', 'crud::buttons.finish_order', 'end');
         
         // Add filters
         $this->addOrderFilters();
@@ -481,6 +488,17 @@ class OrderCrudController extends CrudController
         ]);
 
         CRUD::addField([
+            'name' => 'expenses',
+            'label' => 'Expenses (m²)',
+            'type' => 'number',
+            'attributes' => [
+                'step' => '0.01',
+                'min' => '0',
+            ],
+            'hint' => 'Auto-calculated from piece width, height and quantity. You can override it manually if it does not match the real expense.',
+        ]);
+
+        CRUD::addField([
             'name'       => 'services',
             'label'      => 'Services',
             'type'       => 'repeatable',
@@ -615,6 +633,11 @@ class OrderCrudController extends CrudController
                     'name' => 'tape_length',
                     'label' => 'Tape Length (m)',
                     'type' => 'number',
+                    'decimal_places' => 2,
+                    'attributes' => [
+                        'step' => '0.01',
+                        'min' => '0',
+                    ],
                     'wrapper' => [
                         'class' => 'form-group col-md-1 extra extra-tape-length price-calc d-none'
                     ]
@@ -722,6 +745,16 @@ class OrderCrudController extends CrudController
             'hint' => 'Allowed types: PDF, PNG, JPEG, JPG',
         ]);
 
+        CRUD::addField([
+            'name' => 'comment',
+            'label' => 'Comment',
+            'type' => 'textarea',
+            'attributes' => [
+                'rows' => 3,
+                'placeholder' => 'Optional notes for the production team...',
+            ],
+        ]);
+
         
     }
 
@@ -739,6 +772,10 @@ class OrderCrudController extends CrudController
         $this->setupCreateOperation();
         
         $entry = $this->crud->getCurrentEntry();
+
+        if ($entry && !in_array($entry->status, ['draft', 'new'], true)) {
+            $this->crud->denyAccess('update');
+        }
         
         // Make product_type readonly on edit page
         $this->crud->modifyField('product_type', [
@@ -772,6 +809,14 @@ class OrderCrudController extends CrudController
                     'quantity' => $piece->quantity,
                 ];
             })->toArray()
+        ]);
+
+        $this->crud->modifyField('expenses', [
+            'attributes' => [
+                'step' => '0.01',
+                'min' => '0',
+            ],
+            'hint' => 'Auto-calculated from pieces. You can override it manually if it does not match the real expense.',
         ]);
         
         // Populate services data for editing with ALL pivot fields
@@ -820,9 +865,9 @@ class OrderCrudController extends CrudController
         // Invoice button (opens in new tab)
         $this->crud->addButton('line', 'invoice', 'view', 'crud::buttons.invoice', 'end');
         
-        // Conditionally show edit/delete buttons only when status is draft
+        // Conditionally show edit/delete buttons only when status is draft or new
         $entry = $this->crud->getCurrentEntry();
-        if ($entry && $entry->status !== 'draft') {
+        if ($entry && !in_array($entry->status, ['draft', 'new'], true)) {
             $this->crud->denyAccess('update');
             $this->crud->denyAccess('delete');
         }
@@ -863,6 +908,13 @@ class OrderCrudController extends CrudController
                     return '<span class="badge text-bg-danger">No</span>';
                 }
             }
+        ]);
+
+        CRUD::addColumn([
+            'name' => 'comment',
+            'label' => 'Comment',
+            'type' => 'text',
+            'limit' => 1000,
         ]);
 
         CRUD::addColumn([
@@ -1019,6 +1071,7 @@ class OrderCrudController extends CrudController
                     'author' => backpack_user()->id,
                     'paid' => isset($fields['paid']) ? (bool)$fields['paid'] : false,
                     'atachment' => $fields['atachment'] ?? null,
+                    'comment' => $fields['comment'] ?? null,
                 ]
             );
 
@@ -1054,6 +1107,7 @@ class OrderCrudController extends CrudController
                         'width' => $piece['width'] ?? 0,
                         'height' => $piece['height'] ?? 0,
                         'quantity' => $piece['quantity'] ?? 1,
+                        'status' => $order->status === 'draft' ? 'draft' : 'new',
                     ]);
                     // Map temporary ID to real ID (using index as key)
                     $tempId = 'temp_' . $pieceIndex;
@@ -1111,6 +1165,14 @@ class OrderCrudController extends CrudController
             $order->refresh();
             $order->load(['services', 'products', 'pieces']);
 
+            // Use a manually entered expense if provided, otherwise auto-calculate
+            // from pieces (draft pieces are excluded by calculateExpenses()).
+            $submittedExpenses = $fields['expenses'] ?? null;
+            $order->expenses = ($submittedExpenses !== null && $submittedExpenses !== '')
+                ? $submittedExpenses
+                : $order->calculateExpenses();
+            $order->save();
+
             $order->calculateOrderPrice();
             return $this->crud->performSaveAction($order->getKey());
         });
@@ -1125,6 +1187,10 @@ class OrderCrudController extends CrudController
             $fields = request()->all();
             $order = $this->crud->getCurrentEntry();
 
+            if (!in_array($order->status, ['draft', 'new'], true)) {
+                abort(403, 'Only draft or new orders can be edited.');
+            }
+
             // Update order basic fields
             $order->update([
                 'order_type' => $fields['order_type'],
@@ -1133,6 +1199,8 @@ class OrderCrudController extends CrudController
                 'currency_rate' => $fields['currency_rate'],
                 'paid' => isset($fields['paid']) ? (bool)$fields['paid'] : false,
                 'atachment' => $fields['atachment'] ?? null,
+                'comment' => $fields['comment'] ?? null,
+                'expenses' => $fields['expenses'] ?? null,
             ]);
 
             // Attach products (one pivot row per line so identical products can appear multiple times)
@@ -1166,6 +1234,7 @@ class OrderCrudController extends CrudController
                         'width' => $piece['width'] ?? 0,
                         'height' => $piece['height'] ?? 0,
                         'quantity' => $piece['quantity'] ?? 1,
+                        'status' => $order->status === 'draft' ? 'draft' : 'new',
                     ]);
                     // Map both temporary ids (temp_#) and existing ids to the freshly created piece id
                     $tempId = 'temp_' . $pieceIndex;
@@ -1236,6 +1305,21 @@ class OrderCrudController extends CrudController
 
             return $this->crud->performSaveAction($order->getKey());
         });
+    }
+
+    /**
+     * Delete a single order (draft or new only).
+     */
+    public function destroy($id)
+    {
+        $this->crud->hasAccessOrFail('delete');
+
+        $order = Order::findOrFail($id);
+        if (!in_array($order->status, ['draft', 'new'], true)) {
+            return response('Only draft or new orders can be deleted.', 403);
+        }
+
+        return (string) (int) $this->crud->delete($id);
     }
 
     /**
@@ -1370,6 +1454,40 @@ class OrderCrudController extends CrudController
     }
 
     /**
+     * Finish a ready order and all of its pieces.
+     *
+     * @param int $id
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function finish($id)
+    {
+        $order = $this->crud->getEntry($id);
+
+        if (!$order) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Order not found',
+            ], 404);
+        }
+
+        if ($order->status !== 'ready') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Only ready orders can be finished',
+            ], 400);
+        }
+
+        DB::transaction(function () use ($order) {
+            $order->update(['status' => 'finished']);
+        });
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Order finished successfully',
+        ]);
+    }
+
+    /**
      * Add widgets for order statistics (count and total price).
      * 
      * @return void
@@ -1386,6 +1504,8 @@ class OrderCrudController extends CrudController
         
         if (request()->has('status') && request()->get('status')) {
             $query->where('status', request()->get('status'));
+        } else {
+            $query->where('status', '!=', 'draft');
         }
         
         if (request()->has('client_id') && request()->get('client_id')) {
@@ -1435,14 +1555,17 @@ class OrderCrudController extends CrudController
         // Calculate orders count
         $ordersCount = $orders->count();
         
-        // Add both cards side by side - pass data to view
+        // Add stats cards - pass data to view
         Widget::add([
             'type' => 'view',
             'view' => 'vendor.backpack.crud.widgets.order_stats',
             'wrapper' => ['class' => 'col-12'],
             'ordersCount' => $ordersCount,
             'totalPriceGel' => $orders->sum(function($order) {
-                return $order->price_gel;
+                return $order->calculateTotalPriceExcludingDraftPieces();
+            }),
+            'totalExpenses' => $orders->sum(function($order) {
+                return $order->calculateExpenses();
             }),
         ])->to('before_content');
     }

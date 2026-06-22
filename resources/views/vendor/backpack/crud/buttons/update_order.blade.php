@@ -1,4 +1,4 @@
-@if ($crud->hasAccess('update', $entry) && $entry->status === 'draft')
+@if ($crud->hasAccess('update', $entry) && in_array($entry->status, ['draft', 'new'], true))
 	@if (!$crud->model->translationEnabled())
 
 	{{-- Single edit button --}}

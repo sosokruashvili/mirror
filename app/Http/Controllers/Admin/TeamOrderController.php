@@ -28,13 +28,34 @@ class TeamOrderController extends Controller
             $productFilter = $productFilter === 'all' ? [] : [$productFilter];
         }
         $productFilter = array_filter($productFilter);
+        $serviceFilter = $request->query('service', []);
+        if (!is_array($serviceFilter)) {
+            $serviceFilter = $serviceFilter === 'all' ? [] : [$serviceFilter];
+        }
+        $serviceFilter = array_filter($serviceFilter);
         $clientFilter = $request->query('client', 'all');
 
         $products = \App\Models\Product::orderBy('title')->get();
         $clients = \App\Models\Client::orderBy('name')->get();
 
+        $teamOrderScope = function ($q) use ($showArchived) {
+            $q->whereNotIn('status', ['draft', 'finished']);
+            if ($showArchived) {
+                $q->whereNotNull('archived_at');
+            } else {
+                $q->whereNull('archived_at');
+            }
+        };
+
+        $services = \App\Models\Service::whereHas('orders', $teamOrderScope)
+            ->orderBy('title')
+            ->get()
+            ->unique(fn ($service) => $service->shortname ?: $service->title)
+            ->sortBy(fn ($service) => $service->shortname ?: $service->title)
+            ->values();
+
         $ordersQuery = Order::with(['client', 'products', 'services', 'pieces'])
-            ->whereNotIn('status', ['draft', 'ready', 'finished'])
+            ->whereNotIn('status', ['draft', 'finished'])
             ->orderBy('created_at', 'desc');
 
         if ($showArchived) {
@@ -46,6 +67,21 @@ class TeamOrderController extends Controller
         if (!empty($productFilter)) {
             $ordersQuery->whereHas('products', function ($q) use ($productFilter) {
                 $q->whereIn('products.id', $productFilter);
+            });
+        }
+
+        if (!empty($serviceFilter)) {
+            $ordersQuery->whereHas('services', function ($q) use ($serviceFilter) {
+                $q->where(function ($q) use ($serviceFilter) {
+                    foreach ($serviceFilter as $label) {
+                        $q->orWhere('services.shortname', $label)
+                            ->orWhere(function ($q) use ($label) {
+                                $q->where(function ($q) {
+                                    $q->whereNull('services.shortname')->orWhere('services.shortname', '');
+                                })->where('services.title', $label);
+                            });
+                    }
+                });
             });
         }
 
@@ -73,7 +109,7 @@ class TeamOrderController extends Controller
 
         $orders = $ordersQuery->get();
 
-        return view('admin.team-orders', compact('orders', 'showArchived', 'products', 'productFilter', 'clients', 'clientFilter', 'dateFrom', 'dateTo'));
+        return view('admin.team-orders', compact('orders', 'showArchived', 'products', 'productFilter', 'services', 'serviceFilter', 'clients', 'clientFilter', 'dateFrom', 'dateTo'));
     }
 
     /**
@@ -169,12 +205,6 @@ class TeamOrderController extends Controller
             
             $piece->status = 'ready';
             $piece->save();
-            
-            $order->updateStatusIfAllPiecesReady();
-            if(!$order->allPiecesReady()) {
-                $order->status = 'working';
-                $order->save();
-            }
 
             if ($request->ajax() || $request->wantsJson()) {
                 return response()->json(['success' => true, 'piece_id' => $piece->id]);
@@ -223,6 +253,66 @@ class TeamOrderController extends Controller
     }
 
     /**
+     * Mark a piece as processed by updating its status to 'processed'.
+     *
+     * @param  int  $id
+     * @return \Illuminate\Http\JsonResponse|\Illuminate\Http\RedirectResponse
+     */
+    public function markPieceProcessed(Request $request, $id)
+    {
+        try {
+            $piece = Piece::findOrFail($id);
+
+            $piece->status = 'processed';
+            $piece->save();
+
+            if ($request->ajax() || $request->wantsJson()) {
+                return response()->json(['success' => true, 'piece_id' => $piece->id]);
+            }
+
+            Alert::success('Piece #' . $piece->id . ' has been marked as processed.')->flash();
+            return redirect()->back();
+        } catch (\Exception $e) {
+            if ($request->ajax() || $request->wantsJson()) {
+                return response()->json(['success' => false, 'message' => $e->getMessage()], 422);
+            }
+
+            Alert::error('Failed to mark piece as processed: ' . $e->getMessage())->flash();
+            return redirect()->back();
+        }
+    }
+
+    /**
+     * Mark a piece as finished (picked up / გატანილია).
+     *
+     * @param  int  $id
+     * @return \Illuminate\Http\JsonResponse|\Illuminate\Http\RedirectResponse
+     */
+    public function markPieceFinished(Request $request, $id)
+    {
+        try {
+            $piece = Piece::findOrFail($id);
+
+            $piece->status = 'finished';
+            $piece->save();
+
+            if ($request->ajax() || $request->wantsJson()) {
+                return response()->json(['success' => true, 'piece_id' => $piece->id]);
+            }
+
+            Alert::success('Piece #' . $piece->id . ' has been marked as finished.')->flash();
+            return redirect()->back();
+        } catch (\Exception $e) {
+            if ($request->ajax() || $request->wantsJson()) {
+                return response()->json(['success' => false, 'message' => $e->getMessage()], 422);
+            }
+
+            Alert::error('Failed to mark piece as finished: ' . $e->getMessage())->flash();
+            return redirect()->back();
+        }
+    }
+
+    /**
      * Add a broken glass record for a piece (AJAX). Count is taken from broken_glasses table.
      *
      * @param  int  $id  Piece ID
@@ -237,6 +327,13 @@ class TeamOrderController extends Controller
                 'description' => $request->input('description'),
             ]);
             $count = $piece->brokenGlasses()->count();
+
+            // A broken sheet consumes an extra piece worth of material. Recalculate
+            // the order's expenses (m²); draft pieces are excluded automatically.
+            if ($order = $piece->order) {
+                $order->expenses = $order->calculateExpenses();
+                $order->save();
+            }
 
             return response()->json(['success' => true, 'broken' => $count]);
         } catch (\Exception $e) {

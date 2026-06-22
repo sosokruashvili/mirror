@@ -11,12 +11,13 @@ class Warehouse extends Model
 
     protected $fillable = [
         'product_id',
-        'unit_of_measure',
-        'value',
+        'quantity',
+        'area',
     ];
 
     protected $casts = [
-        'value' => 'decimal:3',
+        'quantity' => 'integer',
+        'area' => 'decimal:3',
     ];
 
     /**

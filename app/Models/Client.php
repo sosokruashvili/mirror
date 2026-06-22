@@ -28,6 +28,19 @@ class Client extends Model
         'client_type' => 'boolean'
     ];
 
+    protected static function boot()
+    {
+        parent::boot();
+
+        static::saving(function ($client) {
+            foreach (['personal_id', 'legal_id', 'email'] as $field) {
+                if ($client->{$field} === '') {
+                    $client->{$field} = null;
+                }
+            }
+        });
+    }
+
     /**
      * Get the display name with ID for select options.
      * Shows name followed by legal_id or personal_id (whichever is not empty).

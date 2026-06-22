@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Services\OrderPieceStatusSync;
 use Backpack\CRUD\app\Models\Traits\CrudTrait;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -30,12 +31,37 @@ class Order extends Model
         'author',
         'paid',
         'atachment',
+        'comment',
+        'expenses',
     ];
     // protected $hidden = [];
     
     protected $casts = [
         'paid' => 'boolean',
+        'expenses' => 'decimal:2',
     ];
+
+    /**
+     * Boot the model.
+     */
+    protected static function boot()
+    {
+        parent::boot();
+
+        static::updated(function (Order $order) {
+            if (!$order->wasChanged('status')) {
+                return;
+            }
+
+            if ($order->getOriginal('status') === 'draft' && $order->status === 'new') {
+                $order->confirmDraftPieces();
+            }
+
+            if ($order->status === 'finished') {
+                $order->finishAllPieces();
+            }
+        });
+    }
 
     /*
     |--------------------------------------------------------------------------
@@ -124,6 +150,48 @@ class Order extends Model
         }
     }
 
+    public function calculateExpenses(): float
+    {
+        if (!$this->relationLoaded('pieces')) {
+            $this->load('pieces');
+        }
+
+        // Draft pieces are not yet committed to production, so they don't consume
+        // any warehouse material and must be excluded from the expense.
+        return round(
+            $this->pieces
+                ->reject(fn ($piece) => $piece->status === 'draft')
+                ->sum(fn ($piece) => $piece->getExpenseArea()),
+            2
+        );
+    }
+
+    /**
+     * Total order price (GEL), excluding draft pieces.
+     */
+    public function calculateTotalPriceExcludingDraftPieces(): float
+    {
+        if (!$this->relationLoaded('services')) {
+            $this->load('services');
+        }
+        if (!$this->relationLoaded('products')) {
+            $this->load('products');
+        }
+        if (!$this->relationLoaded('pieces')) {
+            $this->load('pieces');
+        }
+
+        $totalPriceGel = $this->services->sum('pivot.price_gel');
+
+        foreach ($this->products as $product) {
+            foreach ($this->pieces->reject(fn ($piece) => $piece->status === 'draft') as $piece) {
+                $totalPriceGel += $piece->getArea() * $product->price * $this->currency_rate;
+            }
+        }
+
+        return $totalPriceGel;
+    }
+
     public function calculateOrderPrice() {
         $priceGel = $this->calculateTotalPrice();
         $this->price_gel = $priceGel;
@@ -169,38 +237,46 @@ class Order extends Model
     }
 
     /**
-     * Check if all pieces of this order are ready.
-     * 
-     * @return bool
+     * Promote all draft pieces to new when the order is confirmed.
      */
-    public function allPiecesReady()
+    public function confirmDraftPieces(): void
     {
-        $pieces = $this->pieces;
-        
-        // If there are no pieces, return false
-        if ($pieces->isEmpty()) {
-            return false;
-        }
-        
-        // Check if all pieces have status 'ready'
-        return $pieces->every(function ($piece) {
-            return $piece->status === 'ready';
+        OrderPieceStatusSync::withoutPieceToOrderSync(function () {
+            $draftPieces = $this->pieces()->where('status', 'draft')->get();
+
+            if ($draftPieces->isEmpty()) {
+                return;
+            }
+
+            foreach ($draftPieces as $piece) {
+                $piece->status = 'new';
+                $piece->saveQuietly();
+            }
+
+            $this->expenses = $this->calculateExpenses();
+            $this->saveQuietly();
         });
     }
 
     /**
-     * Update order status to 'ready' if all pieces are ready.
-     * 
-     * @return bool True if status was updated, false otherwise
+     * Mark all pieces as finished when the order is finished.
      */
-    public function updateStatusIfAllPiecesReady()
+    public function finishAllPieces(): void
     {
-        if ($this->allPiecesReady() && $this->status !== 'ready') {
-            $this->status = 'ready';
-            $this->save();
-            return true;
-        }
-        return false;
+        OrderPieceStatusSync::withoutPieceToOrderSync(function () {
+            if (!$this->relationLoaded('pieces')) {
+                $this->load('pieces');
+            }
+
+            foreach ($this->pieces as $piece) {
+                if ($piece->status === 'finished') {
+                    continue;
+                }
+
+                $piece->status = 'finished';
+                $piece->saveQuietly();
+            }
+        });
     }
 
     /*

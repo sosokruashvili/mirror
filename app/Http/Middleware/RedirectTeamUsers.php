@@ -17,7 +17,9 @@ class RedirectTeamUsers
         'team.orders.finish',
         'team.pieces.ready',
         'team.pieces.cut',
+        'team.pieces.processed',
         'team.pieces.broken',
+        'team.pieces.finished',
         'backpack.auth.logout',
         'backpack.auth.login',
     ];

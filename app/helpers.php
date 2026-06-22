@@ -22,16 +22,17 @@ if (!function_exists('status_badge')) {
             'working' => 'text-bg-warning',
             'done' => 'text-bg-success',
             'finished' => 'text-bg-success',
-            'cut' => 'bg-warning text-dark',
-            'ready' => 'text-bg-success text-white',
+            'cut' => 'text-bg-warning text-dark',
+            'processed' => 'text-bg-warning',
+            'ready' => 'text-bg-primary',
             'broken' => 'text-bg-danger',
         ];
         
         // Default to secondary if status not found
         $badgeClass = $badgeClasses[$status] ?? 'text-bg-secondary';
         
-        if ($status === 'cut') {
-            return '<span class="badge px-2 py-2 fs-4" style="background-color:#ffc107;color:#fff;">' . htmlspecialchars($displayText, ENT_QUOTES, 'UTF-8') . '</span>';
+        if ($status === 'processed') {
+            return '<span class="badge text-white px-2 py-2 fs-4" style="background-color:#fd7e14;">' . htmlspecialchars($displayText, ENT_QUOTES, 'UTF-8') . '</span>';
         }
         
         // Add padding and font size classes to make badge bigger

@@ -267,6 +267,8 @@
         font-size: 13px;
         font-weight: 600;
         max-width: 100%;
+        cursor: pointer;
+        -webkit-tap-highlight-color: transparent;
     }
     
     .size-tag.ready {
@@ -770,14 +772,14 @@
                                 @if(count($uniqueSizes) > 0)
                                     <div class="size-tags">
                                         @foreach($uniqueSizes as $size)
-                                            <span class="size-tag {{ $size['all_finished'] ? 'finished' : ($size['all_ready'] ? 'ready' : ($size['all_processed'] ? 'processed' : ($size['all_cut'] ? 'cut' : ''))) }}" data-piece-ids="{{ implode(',', $size['piece_ids']) }}">
+                                            <span class="size-tag {{ $size['all_finished'] ? 'finished' : ($size['all_ready'] ? 'ready' : ($size['all_processed'] ? 'processed' : ($size['all_cut'] ? 'cut' : ''))) }}" data-piece-ids="{{ implode(',', $size['piece_ids']) }}" onclick="togglePieceMenu(event, this)">
                                                 {{ $size['width'] }} × {{ $size['height'] }} cm (×{{ $size['quantity'] }})
                                                 @if(count($size['service_shortnames']) > 0)
                                                     @foreach($size['service_shortnames'] as $shortname)
                                                         <span class="service-shortname-tag">{{ $shortname }}</span>
                                                     @endforeach
                                                 @endif
-                                                <span class="piece-dots-btn" onclick="togglePieceMenu(event, this)">⋮</span>
+                                                <span class="piece-dots-btn" aria-hidden="true">⋮</span>
                                             </span>
                                         @endforeach
                                     </div>
@@ -1080,16 +1082,19 @@ jQuery(function($) {
         }
     }
 
-    function togglePieceMenu(e, dotsBtn) {
+    function togglePieceMenu(e, el) {
         e.stopPropagation();
-        var tag = dotsBtn.closest('.size-tag');
+        var tag = el.classList.contains('size-tag') ? el : el.closest('.size-tag');
+        if (!tag) return;
+
         var wasOpen = _pieceCtxMenu.classList.contains('open') && _pieceCtxTag === tag;
 
         closeCtxMenus();
 
         if (!wasOpen) {
             _pieceCtxTag = tag;
-            var rect = dotsBtn.getBoundingClientRect();
+            var anchor = tag.querySelector('.piece-dots-btn') || tag;
+            var rect = anchor.getBoundingClientRect();
             _pieceCtxMenu.style.top = (rect.bottom + 4) + 'px';
             _pieceCtxMenu.style.left = rect.left + 'px';
             _pieceCtxMenu.classList.add('open');
@@ -1485,7 +1490,7 @@ jQuery(function($) {
 
                 $row.sortable({
                     items: '.order-card[data-order-id]',
-                    cancel: 'a,button,input,textarea,select,option,.order-actions,.order-dots-btn,.piece-dots-btn,.piece-ctx-menu',
+                    cancel: 'a,button,input,textarea,select,option,.order-actions,.order-dots-btn,.piece-dots-btn,.size-tag,.size-tags,.piece-ctx-menu',
                     delay: 150,
                     distance: 10,
                     tolerance: 'pointer',

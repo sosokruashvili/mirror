@@ -828,6 +828,22 @@ class OrderCrudController extends CrudController
             'hint' => 'Auto-calculated from pieces. You can override it manually if it does not match the real expense.',
         ]);
         
+        // Show the saved order price (GEL) in a highlighted row near the end of the edit
+        // form. Value comes straight from the stored price_gel column (read-only summary).
+        CRUD::addField([
+            'name' => 'order_price_summary',
+            'type' => 'custom_html',
+            'value' => '
+                <div class="card border-primary shadow-sm mb-2" style="border-width:2px;">
+                    <div class="card-body py-3">
+                        <div class="text-muted text-uppercase small mb-1">Price (GEL)</div>
+                        <div class="fw-bold text-primary" style="font-size:1.6rem;">'
+                            . number_format((float) ($entry->price_gel ?? 0), 2) . ' ₾</div>
+                    </div>
+                </div>',
+        ]);
+        $this->crud->afterField('comment');
+
         // Populate services data for editing with ALL pivot fields
         $this->crud->modifyField('services', [
             'value' => $entry->services->map(function($service) {

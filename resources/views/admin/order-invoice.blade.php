@@ -212,7 +212,7 @@
             <thead>
                 <tr>
                     <th>აღწერა</th>
-                    <th class="text-right">ფასი (₾)</th>
+                    <th class="text-right">ფასი ($)</th>
                 </tr>
             </thead>
             <tbody>

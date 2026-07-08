@@ -49,6 +49,7 @@ class ClientBalanceCrudController extends CrudController
             'name' => 'id',
             'label' => 'ID',
             'type' => 'number',
+            'searchLogic' => false,
         ]);
 
         CRUD::addColumn([
@@ -56,6 +57,10 @@ class ClientBalanceCrudController extends CrudController
             'label' => 'Client',
             'type' => 'text',
             'limit' => 9999,
+            // Global search should only match the real clients.name column
+            'searchLogic' => function ($query, $column, $searchTerm) {
+                $query->orWhere('name', 'like', '%' . $searchTerm . '%');
+            },
         ]);
 
         CRUD::addColumn([
@@ -63,6 +68,7 @@ class ClientBalanceCrudController extends CrudController
             'label' => 'Type',
             'type' => 'boolean',
             'options' => [0 => 'Individual', 1 => 'Legal'],
+            'searchLogic' => false,
             'wrapper' => [
                 'element' => 'span',
                 'class' => function ($crud, $column, $entry, $related_key) {
@@ -75,12 +81,14 @@ class ClientBalanceCrudController extends CrudController
             'name' => 'phone_number',
             'label' => 'Phone',
             'type' => 'phone',
+            'searchLogic' => false,
         ]);
 
         CRUD::addColumn([
             'name' => 'email',
             'label' => 'Email',
             'type' => 'email',
+            'searchLogic' => false,
         ]);
 
         // Payments total (only paid payments)
@@ -90,6 +98,7 @@ class ClientBalanceCrudController extends CrudController
             'type' => 'number',
             'decimals' => 0,
             'suffix' => ' ₾',
+            'searchLogic' => false,
             'value' => function ($entry) {
                 return $entry->payments()->where('status', 'Paid')->sum('amount_gel') ?? 0;
             },
@@ -102,6 +111,7 @@ class ClientBalanceCrudController extends CrudController
             'type' => 'number',
             'decimals' => 0,
             'suffix' => ' ₾',
+            'searchLogic' => false,
             'value' => function ($entry) {
                 return $entry->orders()->where('status', '!=', 'draft')->get()->sum(function($order) {
                     return $order->price_gel;
@@ -116,6 +126,7 @@ class ClientBalanceCrudController extends CrudController
             'type' => 'number',
             'decimals' => 0,
             'suffix' => ' ₾',
+            'searchLogic' => false,
             'value' => function ($entry) {
                 return $entry->calculateBalance();
             },

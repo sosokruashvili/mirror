@@ -39,6 +39,7 @@ Route::group([
     Route::get('order/get-orders-by-client/{clientId}', 'OrderCrudController@getOrdersByClient')->name('order.getOrdersByClient');
     Route::get('order/{id}/invoice', 'OrderCrudController@invoice')->name('order.invoice');
     Route::crud('warehouse', 'WarehouseCrudController');
+    Route::crud('warehouse-expense', 'WarehouseExpenseCrudController');
     Route::crud('client-balance', 'ClientBalanceCrudController');
     Route::get('client-balance/get-balance-stats', 'ClientBalanceCrudController@getBalanceStats')->name('client-balance.getBalanceStats');
     Route::crud('custom-price', 'CustomPriceCrudController');

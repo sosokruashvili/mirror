@@ -439,281 +439,24 @@ class OrderCrudController extends CrudController
             'hint' => 'Add products to this order (filtered by Order Product Type)',
         ]);
 
+        // Nested Pieces → Services UI. Each piece card owns its own services list.
+        // Rendered by resources/views/vendor/backpack/crud/fields/pieces_services.blade.php
+        // and driven by public/assets/js/order-pieces-services.js. It submits the same flat
+        // pieces[]/services[] payload that store()/update() below already understand.
         CRUD::addField([
-            'name'       => 'pieces',
-            'label'      => 'Pieces',
-            'type'       => 'repeatable',
-            'init_rows'  => 1,
-            'min_rows'   => 1,
-            'fields'     => [
-                [
-                    'name'  => 'id',
-                    'type'  => 'hidden',
-                    'wrapper' => [
-                        'class' => 'd-none',
-                    ],
-                ],
-                [
-                    'name'      => 'width',
-                    'label'     => 'Width (cm)',
-                    'type'      => 'number',
-                    'showAsterisk' => true,
-                    'attributes' => [
-                        'step' => '0.01',
-                        'min' => '0',
-                        'required' => true,
-                    ],
-                    'wrapper' => [
-                        'class' => 'form-group col-md-4'
-                    ],
-                ],
-                [
-                    'name'      => 'height',
-                    'label'     => 'Height (cm)',
-                    'type'      => 'number',
-                    'attributes' => [
-                        'step' => '0.01',
-                        'min' => '0',
-                        'required' => true,
-                    ],
-                    'wrapper' => [
-                        'class' => 'form-group col-md-4'
-                    ],
-                ],
-                [
-                    'name'      => 'quantity',
-                    'label'     => 'Quantity',
-                    'type'      => 'number',
-                    'attributes' => [
-                        'min' => '1',
-                        'required' => true,
-                    ],
-                    'wrapper' => [
-                        'class' => 'form-group col-md-4'
-                    ],
-                ],
-            ],
-            'hint' => 'Add pieces to this order',
+            'name'  => 'pieces_services',
+            'label' => 'Pieces',
+            'type'  => 'pieces_services',
+            'hint'  => 'Add pieces to this order. Each piece can have its own services.',
         ]);
 
-        CRUD::addField([
-            'name'       => 'services',
-            'label'      => 'Services',
-            'type'       => 'repeatable',
-            'init_rows'  => 0,
-            'min_rows'   => 0,
-            'new_item_label' => 'Add Service',
-            'fields'     => [
-                [
-                    'name' => 'piece_id_saved',
-                    'type' => 'hidden',
-                    'wrapper' => [
-                        'class' => 'd-none',
-                    ],
-                ],
-                [
-                    'name'    => 'service_id',
-                    'label'   => 'Service',
-                    'type'    => 'select2',
-                    'entity' => 'service',
-                    'attribute' => 'title',
-                    'model' => \App\Models\Service::class,
-                    'allows_null' => true,
-                    'default' => null,
-                    'placeholder' => 'Select a service',
-                    'minimum_input_length' => 0,
-                    'options' => (function($query) { return $query->orderBy('id')->get(); }),
-                    'wrapper' => [
-                        'class' => 'form-group col-md-3'
-                    ],
-                ],
-                [
-                    'name'    => 'piece_id',
-                    'label'   => 'Piece',
-                    'type'    => 'select2_from_array',
-                    'options' => [],
-                    'allows_null' => true,
-                    'default' => null,
-                    'placeholder' => 'Select a piece',
-                    'wrapper' => [
-                        'class' => 'form-group col-md-2 js-repeatable-piece'
-                    ],
-                ],
-                [
-                    'name' => 'quantity', 
-                    'label' => 'Quantity', 
-                    'type' => 'number', 
-                    'wrapper' => [
-                        'class' => 'form-group col-md-1 extra extra-qty price-calc d-none'
-                    ]
-                ],
-                [
-                    'name' => 'perimeter',
-                    'label' => 'Perimeter (m)',
-                    'type' => 'number',
-                    'decimal_places' => 2,
-                    'attributes' => [
-                        'step' => '0.01',
-                        'min' => '0',
-                    ],
-                    'wrapper' => [
-                        'class' => 'form-group col-md-2 extra extra-perimeter price-calc d-none'
-                    ]
-                ],
-                [
-                    'name'    => 'color',
-                    'label'   => 'Color',
-                    'type'    => 'select_from_array',
-                    'options' => [
-                        'ოქროსფერი' => 'ოქროსფერი',
-                        'ვერცხლისფერი' => 'ვერცხლისფერი',
-                        'წითელი' => 'წითელი',
-                        'თეთრი' => 'თეთრი',
-                        'შავი' => 'შავი',
-                        'ლურჯი' => 'ლურჯი',
-                        'მწვანე' => 'მწვანე',
-                        'ნაცრისფერი' => 'ნაცრისფერი',
-                    ],
-                    'allows_null' => true,
-                    'wrapper' => [
-                        'class' => 'form-group col-md-2 extra extra-color price-calc d-none'
-                    ],
-                ],
-                [
-                    'name' => 'light_type', 
-                    'label' => 'Light Type', 
-                    'type' => 'select_from_array', 
-                    'options' => [
-                        'cool'      => 'ცივი',
-                        'warm'      => 'თბილი',
-                        'neutral'   => 'ნეიტრალური',
-                    ],
-                    'allows_null' => true,
-                    'wrapper' => ['class' => 'form-group col-md-1 extra extra-light-type price-calc d-none']
-                ],
-                [
-                    'name' => 'distance',
-                    'label' => 'Delivery Distance (km)',
-                    'type' => 'number',
-                    'attributes' => [
-                        'step' => '1',
-                        'min' => '0',
-                    ],
-                    'wrapper' => [
-                        'class' => 'form-group col-md-2 extra extra-distance price-calc d-none'
-                    ],
-                ],
-                [
-                    'name' => 'length_cm',
-                    'label' => 'Length (cm)',
-                    'type' => 'number',
-                    'attributes' => [
-                        'step' => '1',
-                        'min' => '0',
-                    ],
-                    'wrapper' => [
-                        'class' => 'form-group col-md-2 extra extra-length-cm price-calc d-none'
-                    ],
-                ],
-                [
-                    'name' => 'area',
-                    'label' => 'Area (m²)',
-                    'type' => 'number',
-                    'attributes' => [
-                        'step' => '0.01',
-                        'min' => '0',
-                    ],
-                    'wrapper' => [
-                        'class' => 'form-group col-md-2 extra extra-area price-calc d-none'
-                    ]
-                ],
-                [
-                    'name' => 'tape_length',
-                    'label' => 'Tape Length (m)',
-                    'type' => 'number',
-                    'decimal_places' => 2,
-                    'attributes' => [
-                        'step' => '0.01',
-                        'min' => '0',
-                    ],
-                    'wrapper' => [
-                        'class' => 'form-group col-md-1 extra extra-tape-length price-calc d-none'
-                    ]
-                ],
-                
-                [
-                    'name' => 'sensor_quantity1',
-                    'label' => 'Sensor Quantity',
-                    'type' => 'number',
-                    'attributes' => [
-                        'min' => '0',
-                        'max' => '2',
-                    ],
-                    'wrapper' => [
-                        'class' => 'form-group col-md-1 extra extra-sensor-quantity price-calc d-none'
-                    ]
-                ],
-                [
-                    'name' => 'sensor_type',
-                    'label' => 'Sensor Type',
-                    'type' => 'select_from_array',
-                    'options' => [
-                        'touch' => 'Touch',
-                        'ir' => 'IR',
-                    ],
-                    'allows_null' => true,
-                    'wrapper' => [
-                        'class' => 'form-group col-md-1 extra extra-sensor-type price-calc d-none'
-                    ]
-                ],
-                
-                
-                [
-                    'name' => 'foam_length',
-                    'label' => 'Foam Length (m)',
-                    'type' => 'number',
-                    'wrapper' => [
-                        'class' => 'form-group col-md-1 extra extra-foam-length price-calc d-none'
-                    ]
-                ],
-                
-                [
-                    'name' => 'price_gel',
-                    'label' => 'Price (GEL)',
-                    'type' => 'number',
-                    'attributes' => [
-                        'step' => '0.01',
-                    ],
-                    'wrapper' => [
-                        'class' => 'form-group col-md-2 extra extra-price d-none'
-                    ]
-                ],
-                [
-                    'name' => 'calculate_price_btn',
-                    'type' => 'custom_html',
-                    'value' => '<button type="button" class="btn btn-primary calculate-price-btn" style="margin-top: 30px;">Calculate Price</button>',
-                    'wrapper' => [
-                        'class' => 'form-group col-md-2 d-none extra-calculate-price-btn'
-                    ]
-                ],
-               
-            ]
-        ]);
-
+        // Hidden on create: new orders always start as draft. Made a visible select on edit
+        // (see setupUpdateOperation).
         CRUD::addField([
             'name' => 'status',
-            'label' => 'Status',
-            'type' => 'select_from_array',
-            'options' => [
-                'draft' => 'Draft',
-                'new' => 'New',
-                'working' => 'Working',
-                'done' => 'Done',
-                'ready' => 'Ready',
-                'finished' => 'Finished',
-            ],
-            'allows_null' => false,
+            'type' => 'hidden',
             'default' => 'draft',
+            'value' => 'draft',
         ]);
 
         CRUD::addField([
@@ -796,7 +539,23 @@ class OrderCrudController extends CrudController
             ],
             'hint' => 'Order Product Type cannot be changed after creation',
         ]);
-        
+
+        // Status is hidden on create (always draft); make it a visible, editable select on edit.
+        $this->crud->modifyField('status', [
+            'label' => 'Status',
+            'type' => 'select_from_array',
+            'options' => [
+                'draft' => 'Draft',
+                'new' => 'New',
+                'working' => 'Working',
+                'done' => 'Done',
+                'ready' => 'Ready',
+                'finished' => 'Finished',
+            ],
+            'allows_null' => false,
+            'default' => 'draft',
+        ]);
+
         // Populate products data for editing
         $this->crud->modifyField('products', [
             'value' => $entry->products->map(function($product) {
@@ -808,18 +567,8 @@ class OrderCrudController extends CrudController
             })->toArray()
         ]);
         
-        // Populate pieces data for editing (including existing IDs so JS can map services correctly)
-        $this->crud->modifyField('pieces', [
-            'value' => $entry->pieces->map(function($piece) {
-                return [
-                    'id' => $piece->id,
-                    'width' => $piece->width,
-                    'height' => $piece->height,
-                    'quantity' => $piece->quantity,
-                ];
-            })->toArray()
-        ]);
-
+        // Pieces & services are hydrated directly from the entry inside the
+        // pieces_services custom field view.
         $this->crud->modifyField('expenses', [
             'attributes' => [
                 'step' => '0.01',
@@ -843,34 +592,6 @@ class OrderCrudController extends CrudController
                 </div>',
         ]);
         $this->crud->afterField('comment');
-
-        // Populate services data for editing with ALL pivot fields
-        $this->crud->modifyField('services', [
-            'value' => $entry->services->map(function($service) {
-                $pivot = $service->pivot;
-                return [
-                    'service_id' => $service->id,
-                    'piece_id_saved' => $pivot->piece_id ?? null,
-                    'piece_id' => $pivot->piece_id ?? null,
-                    'quantity' => $pivot->quantity ?? null,
-                    'description' => $pivot->description ?? null,
-                    'color' => $pivot->color ?? null,
-                    'light_type' => $pivot->light_type ?? null,
-                    'price_gel' => $pivot->price_gel ?? null,
-                    'distance' => $pivot->distance ?? null,
-                    'length_cm' => $pivot->length_cm ?? null,
-                    'perimeter' => $pivot->perimeter ?? null,
-                    'area' => $pivot->area ?? null,
-                    'antifog_type' => $pivot->antifog_type ?? null,
-                    'foam_length' => $pivot->foam_length ?? null,
-                    'tape_length' => $pivot->tape_length ?? null,
-                    'sensor_type' => $pivot->sensor_type ?? null,
-                    'sensor_quantity1' => $pivot->sensor_quantity1 ?? null,
-                ];
-            })->toArray()
-        ]);
-        
-        
     }
 
 

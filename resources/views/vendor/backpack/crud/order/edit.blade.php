@@ -90,5 +90,6 @@
     <script src="{{ asset('assets/js/client-registration-modal.js') }}"></script>
     <script src="{{ asset('assets/js/payment-add-modal.js') }}?v={{ filemtime(public_path('assets/js/payment-add-modal.js')) }}"></script>
     <script src="{{ asset('assets/js/orders.js') }}?v={{ filemtime(public_path('assets/js/orders.js')) }}"></script>
+    <script src="{{ asset('assets/js/order-pieces-services.js') }}?v={{ filemtime(public_path('assets/js/order-pieces-services.js')) }}"></script>
 @endpush
 @endsection

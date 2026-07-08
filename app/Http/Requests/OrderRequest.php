@@ -28,9 +28,11 @@ class OrderRequest extends FormRequest
             'order_type' => 'required|in:retail,wholesale',
             'client_id' => 'required|exists:clients,id',
             'status' => 'required|in:draft,new,working,done,finished',
-            'products' => 'required|array|min:1',
+            // Service-only orders have no products either.
+            'products' => 'required_unless:product_type,service|array',
             'products.*.product_id' => 'required|exists:products,id',
-            'pieces' => 'required|array|min:1',
+            // Service-only orders have no pieces (services attach at the order level).
+            'pieces' => 'required_unless:product_type,service|array',
             'pieces.*.width' => 'required|numeric|min:0',
             'pieces.*.height' => 'required|numeric|min:0',
             'pieces.*.quantity' => 'required|integer|min:1',

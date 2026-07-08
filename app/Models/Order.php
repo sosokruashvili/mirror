@@ -150,6 +150,19 @@ class Order extends Model
         }
     }
 
+    /**
+     * Total amount (GEL) of payments directly linked to this order (via payments.order_id).
+     * Sums every linked payment regardless of status (Paid/Pending).
+     */
+    public function calculatePaidAmount(): float
+    {
+        if (!$this->relationLoaded('payments')) {
+            $this->load('payments');
+        }
+
+        return (float) $this->payments->sum('amount_gel');
+    }
+
     public function calculateExpenses(): float
     {
         if (!$this->relationLoaded('pieces')) {

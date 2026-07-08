@@ -130,6 +130,15 @@ class OrderCrudController extends CrudController
         ]);
 
         CRUD::addColumn([
+            'name' => 'paid_amount',
+            'label' => 'Paid Amount',
+            'type' => 'custom_html',
+            'value' => function ($entry) {
+                return number_format($entry->calculatePaidAmount(), 2) . ' ₾';
+            },
+        ]);
+
+        CRUD::addColumn([
             'name' => 'created_at',
             'label' => 'Created At',
             'type' => 'datetime',
@@ -488,17 +497,6 @@ class OrderCrudController extends CrudController
         ]);
 
         CRUD::addField([
-            'name' => 'expenses',
-            'label' => 'Expenses (m²)',
-            'type' => 'number',
-            'attributes' => [
-                'step' => '0.01',
-                'min' => '0',
-            ],
-            'hint' => 'Auto-calculated from piece width, height and quantity. You can override it manually if it does not match the real expense.',
-        ]);
-
-        CRUD::addField([
             'name'       => 'services',
             'label'      => 'Services',
             'type'       => 'repeatable',
@@ -746,6 +744,17 @@ class OrderCrudController extends CrudController
         ]);
 
         CRUD::addField([
+            'name' => 'expenses',
+            'label' => 'Expenses (m²)',
+            'type' => 'number',
+            'attributes' => [
+                'step' => '0.01',
+                'min' => '0',
+            ],
+            'hint' => 'Auto-calculated from piece width, height and quantity. You can override it manually if it does not match the real expense.',
+        ]);
+
+        CRUD::addField([
             'name' => 'comment',
             'label' => 'Comment',
             'type' => 'textarea',
@@ -976,6 +985,17 @@ class OrderCrudController extends CrudController
         ]);
 
         CRUD::addColumn([
+            'name' => 'paid_amount',
+            'label' => 'Paid Amount',
+            'type' => 'custom_html',
+            'value' => function ($entry) {
+                $amount = number_format($entry->calculatePaidAmount(), 2) . ' ₾';
+                $url = url(config('backpack.base.route_prefix') . '/payment?order_id=' . $entry->id);
+                return $amount . ' <a href="' . $url . '" target="_blank" class="ms-1" title="View payment">Payment <i class="la la-external-link"></i></a>';
+            },
+        ]);
+
+        CRUD::addColumn([
             'name' => 'pieces',
             'label' => 'Pieces',
             'type' => 'custom_html',
@@ -1174,6 +1194,17 @@ class OrderCrudController extends CrudController
             $order->save();
 
             $order->calculateOrderPrice();
+
+            // Link payments that were created from the modal on this create page. The order did
+            // not exist when those payments were made, so the JS stored their ids and we now
+            // attach them to the freshly created order. Only claim still-unlinked payments.
+            $createdPaymentIds = array_filter((array) ($fields['created_payment_ids'] ?? []));
+            if (!empty($createdPaymentIds)) {
+                Payment::whereIn('id', $createdPaymentIds)
+                    ->whereNull('order_id')
+                    ->update(['order_id' => $order->id]);
+            }
+
             return $this->crud->performSaveAction($order->getKey());
         });
     }

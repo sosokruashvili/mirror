@@ -42,6 +42,8 @@ Route::group([
     Route::crud('client-balance', 'ClientBalanceCrudController');
     Route::get('client-balance/get-balance-stats', 'ClientBalanceCrudController@getBalanceStats')->name('client-balance.getBalanceStats');
     Route::crud('custom-price', 'CustomPriceCrudController');
+    Route::crud('cashier', 'CashierCrudController');
+    Route::crud('cashier-expense', 'CashierExpenseCrudController');
     
     // Team order processing page
     Route::get('team/orders', 'TeamOrderController@index')->name('team.orders');

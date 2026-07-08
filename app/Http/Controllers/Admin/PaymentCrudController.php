@@ -93,6 +93,21 @@ class PaymentCrudController extends CrudController
         ]);
 
         // Add Filters
+        // Apply order_id from URL so links from the order preview work immediately
+        if (request()->has('order_id') && request()->get('order_id') !== '') {
+            $this->crud->addClause('where', 'order_id', request()->get('order_id'));
+        }
+
+        CRUD::addFilter([
+            'name' => 'order_id',
+            'type' => 'select2',
+            'label' => 'Order'
+        ], function() {
+            return \App\Models\Order::all()->pluck('id', 'id')->toArray();
+        }, function($value) {
+            $this->crud->addClause('where', 'order_id', $value);
+        });
+
         CRUD::addFilter([
             'name' => 'client_id',
             'type' => 'select2',
@@ -330,6 +345,10 @@ class PaymentCrudController extends CrudController
      */
     protected function applyPaymentFilters($query)
     {
+        if (request()->has('order_id') && request()->get('order_id') !== '') {
+            $query->where('order_id', request()->get('order_id'));
+        }
+
         if (request()->has('client_id') && request()->get('client_id') !== '') {
             $query->where('client_id', request()->get('client_id'));
         }
@@ -490,6 +509,7 @@ class PaymentCrudController extends CrudController
 
         $validated = $request->validate([
             'client_id' => 'required|exists:clients,id',
+            'order_id' => 'nullable|integer|exists:orders,id',
             'amount_gel' => 'required|numeric|min:0',
             'currency_rate' => 'required|numeric|min:0',
             'method' => 'required|in:Cash,Transfer,Terminal,PM Transfer',
@@ -497,6 +517,9 @@ class PaymentCrudController extends CrudController
             'payment_date' => 'required|date',
             'file' => 'nullable|file|max:10240',
         ]);
+
+        // Empty strings are converted to null by Laravel; guard just in case.
+        $validated['order_id'] = $validated['order_id'] ?? null;
 
         try {
             if ($request->hasFile('file')) {

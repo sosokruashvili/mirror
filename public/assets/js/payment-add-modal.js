@@ -156,6 +156,22 @@ document.addEventListener('DOMContentLoaded', function() {
         })
         .then(data => {
             if (data.success) {
+                // On the create page the order does not exist yet, so the payment cannot be
+                // linked at creation time. Remember the new payment id in a hidden field on the
+                // order form; OrderCrudController::store() attaches it to the order once saved.
+                const orderIdField = form.querySelector('input[name="order_id"]');
+                const alreadyLinked = orderIdField && orderIdField.value;
+                if (!alreadyLinked && data.payment && data.payment.id) {
+                    const orderForm = document.querySelector('form[action*="/order"]');
+                    if (orderForm) {
+                        const hidden = document.createElement('input');
+                        hidden.type = 'hidden';
+                        hidden.name = 'created_payment_ids[]';
+                        hidden.value = data.payment.id;
+                        orderForm.appendChild(hidden);
+                    }
+                }
+
                 modal.hide();
                 if (typeof new Noty !== 'undefined') {
                     new Noty({ type: 'success', text: 'Payment created successfully' }).show();

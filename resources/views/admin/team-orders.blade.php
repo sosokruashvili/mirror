@@ -78,15 +78,7 @@
         container-type: inline-size;
     }
 
-    .order-card .order-tile {
-        cursor: grab;
-        user-select: none;
-        -webkit-user-select: none;
-        -webkit-user-drag: none;
-        touch-action: pan-y;
-    }
     .order-card.dragging .order-tile {
-        cursor: grabbing;
         box-shadow: 0 10px 24px rgba(0,0,0,0.25);
     }
     .order-card-placeholder {
@@ -100,24 +92,39 @@
         border-bottom: 1px solid #f0f0f0;
         padding-bottom: 8px;
         margin-bottom: 10px;
-        margin-top: -10px;
         position: relative;
-        padding-right: 28px;
+        padding-right: 36px;
+    }
+    .order-header-no-actions {
+        padding-right: 0;
+    }
+
+    .order-drag-handle {
+        cursor: grab;
+        touch-action: none;
+        user-select: none;
+        -webkit-user-select: none;
+    }
+    .order-card.dragging .order-drag-handle {
+        cursor: grabbing;
     }
 
     .order-dots-btn {
         position: absolute;
-        top: 10px;
+        top: 0;
         right: 0;
         background: none;
         border: none;
         color: #666;
         cursor: pointer;
         font-size: 18px;
-        padding: 2px 4px;
+        padding: 4px 6px;
+        min-width: 28px;
+        min-height: 28px;
         line-height: 1;
         opacity: 0.7;
         z-index: 2;
+        touch-action: manipulation;
     }
     .order-dots-btn:hover {
         opacity: 1;
@@ -169,6 +176,7 @@
         flex-wrap: wrap;
         gap: 6px;
         margin-top: 8px;
+        touch-action: manipulation;
     }
     .order-actions .btn-archive {
         margin-left: auto;
@@ -197,9 +205,11 @@
     }
     
     .order-actions .btn {
-        padding: 4px 10px;
-        font-size: 12px;
+        padding: 10px 14px;
+        font-size: 13px;
         white-space: nowrap;
+        min-height: 44px;
+        touch-action: manipulation;
     }
     
     .created-at {
@@ -262,13 +272,18 @@
         gap: 2px;
         background-color: #6081b3;
         color: #fff;
-        padding: 4px 10px;
+        padding: 8px 12px;
+        min-height: 40px;
         border-radius: 12px;
         font-size: 13px;
         font-weight: 600;
         max-width: 100%;
         cursor: pointer;
+        touch-action: manipulation;
         -webkit-tap-highlight-color: transparent;
+    }
+    .size-tag.size-tag-readonly {
+        cursor: default;
     }
     
     .size-tag.ready {
@@ -293,6 +308,18 @@
 
     .size-tag.broken {
         box-shadow: 0 0 0 2px #dc3545;
+    }
+
+    .piece-broken-label {
+        display: inline-block;
+        margin-left: 4px;
+        font-size: 11px;
+        font-weight: 700;
+        color: #5c1212;
+        background-color: rgba(255, 255, 255, 0.92);
+        padding: 1px 5px;
+        border-radius: 3px;
+        white-space: nowrap;
     }
 
     .service-shortname-tag {
@@ -354,13 +381,15 @@
         align-items: center;
         gap: 8px;
         width: 100%;
-        padding: 8px 14px;
+        padding: 12px 14px;
+        min-height: 44px;
         background: none;
         border: none;
         text-align: left;
         font-size: 13px;
         font-weight: 600;
         cursor: pointer;
+        touch-action: manipulation;
     }
     .piece-ctx-menu-item i {
         width: 16px;
@@ -681,19 +710,24 @@
     </div>
     <div class="row">
         <div class="col-12">
-            <div class="orders-grid">
+            <div class="orders-grid{{ $showArchived ? ' orders-grid-archived' : '' }}">
                 <div class="row" id="ordersGridRow" data-dnd-storage-key="{{ $dragStorageKey }}">
                 @forelse($orders as $order)
                     <div class="col-md-3 col-sm-6 col-12 order-card" style="margin-bottom: 10px;" data-order-id="{{ $order->id }}">
                         <div class="order-tile">
-                            <div class="order-header">
+                            <div class="order-header{{ $showArchived ? ' order-header-no-actions' : '' }}">
+                                @if(!$showArchived)
                                 <button type="button" class="order-dots-btn" onclick="toggleOrderMenu(event, this)" title="მოქმედებები">⋮</button>
+                                <div class="order-drag-handle">
+                                @endif
                                 <div class="row">
                                     <div class="col-md-2 order-id">#{{ $order->id }}</div>
                                     <div class="col-md-3 order-status">{!! status_badge($order->status) !!}</div>
                                     <div class="col-md-7 created-at">{{ $order->created_at->format('Y-m-d H:i') }}</div>
                                 </div>
-                                
+                                @if(!$showArchived)
+                                </div>
+                                @endif
                             </div>
                             
                             <div class="order-details">
@@ -733,6 +767,7 @@
                                                 'quantity' => 0,
                                                 'piece_ids' => [],
                                                 'service_shortnames' => [],
+                                                'broken_count' => 0,
                                                 'all_ready' => true,
                                                 'all_finished' => true,
                                                 'all_processed' => true,
@@ -741,6 +776,7 @@
                                         }
                                         $sizeGroups[$key]['quantity'] += $piece->quantity ?? 1;
                                         $sizeGroups[$key]['piece_ids'][] = $piece->id;
+                                        $sizeGroups[$key]['broken_count'] += $piece->getBrokenCount();
                                         if ($piece->status !== 'ready' && $piece->status !== 'finished') {
                                             $sizeGroups[$key]['all_ready'] = false;
                                         }
@@ -772,14 +808,19 @@
                                 @if(count($uniqueSizes) > 0)
                                     <div class="size-tags">
                                         @foreach($uniqueSizes as $size)
-                                            <span class="size-tag {{ $size['all_finished'] ? 'finished' : ($size['all_ready'] ? 'ready' : ($size['all_processed'] ? 'processed' : ($size['all_cut'] ? 'cut' : ''))) }}" data-piece-ids="{{ implode(',', $size['piece_ids']) }}" onclick="togglePieceMenu(event, this)">
+                                            <span class="size-tag {{ $size['all_finished'] ? 'finished' : ($size['all_ready'] ? 'ready' : ($size['all_processed'] ? 'processed' : ($size['all_cut'] ? 'cut' : ''))) }}{{ ($size['broken_count'] ?? 0) > 0 ? ' broken' : '' }}{{ $showArchived ? ' size-tag-readonly' : '' }}" data-piece-ids="{{ implode(',', $size['piece_ids']) }}"@if(!$showArchived) onclick="togglePieceMenu(event, this)"@endif>
                                                 {{ $size['width'] }} × {{ $size['height'] }} cm (×{{ $size['quantity'] }})
+                                                @if(($size['broken_count'] ?? 0) > 0)
+                                                    <span class="piece-broken-label">[გატყდა: {{ $size['broken_count'] }}]</span>
+                                                @endif
                                                 @if(count($size['service_shortnames']) > 0)
                                                     @foreach($size['service_shortnames'] as $shortname)
                                                         <span class="service-shortname-tag">{{ $shortname }}</span>
                                                     @endforeach
                                                 @endif
+                                                @if(!$showArchived)
                                                 <span class="piece-dots-btn" aria-hidden="true">⋮</span>
+                                                @endif
                                             </span>
                                         @endforeach
                                     </div>
@@ -789,10 +830,18 @@
                             </div>
                             
                             <div class="order-actions">
-                                <button class="btn btn-primary" onclick="previewOrder('{{ url(config("backpack.base.route_prefix") . "/order/" . $order->id . "/show") }}', {{ $order->pieces->count() }})">
+                                @if($showArchived)
+                                <button type="button" class="btn btn-primary" onclick="previewOrder('{{ url(config("backpack.base.route_prefix") . "/order/" . $order->id . "/show") }}', {{ $order->pieces->count() }})">
                                     ნახვა
                                 </button>
-                                <button class="btn btn-success" onclick="finishOrder({{ $order->id }})">
+                                <button type="button" class="btn btn-danger btn-archive" onclick="unarchiveOrder({{ $order->id }})">
+                                    დეარქივაცია
+                                </button>
+                                @else
+                                <button type="button" class="btn btn-primary" onclick="previewOrder('{{ url(config("backpack.base.route_prefix") . "/order/" . $order->id . "/show") }}', {{ $order->pieces->count() }})">
+                                    ნახვა
+                                </button>
+                                <button type="button" class="btn btn-success" onclick="finishOrder({{ $order->id }})">
                                     გატანილია
                                 </button>
                                 @if($order->atachment)
@@ -800,15 +849,11 @@
                                     <i class="la la-file-download"></i>
                                 </a>
                                 @endif
-                                @if($showArchived)
-                                <button class="btn btn-danger btn-archive" onclick="unarchiveOrder({{ $order->id }})">
-                                    დეარქივაცია
-                                </button>
-                                @endif
                                 @if($order->comment)
                                 <button type="button" class="btn btn-order-comment" data-comment="{{ e($order->comment) }}" onclick="showOrderComment(this)">
                                     <i class="la la-sticky-note"></i> შენიშვნა
                                 </button>
+                                @endif
                                 @endif
                             </div>
                         </div>
@@ -828,6 +873,7 @@
 </div>
 
 {{-- Shared piece context menu --}}
+@if(!$showArchived)
 <div id="pieceCtxMenu" class="piece-ctx-menu">
     <button type="button" class="piece-ctx-menu-item item-cut" id="pieceCtxMenuCut"><i class="la la-cut"></i> მოიჭრა</button>
     <button type="button" class="piece-ctx-menu-item item-processed" id="pieceCtxMenuProcessed"><i class="la la-cog"></i> დამუშავდა</button>
@@ -835,6 +881,7 @@
     <button type="button" class="piece-ctx-menu-item item-broken" id="pieceCtxMenuBroken"><i class="la la-times"></i> გატყდა</button>
     <button type="button" class="piece-ctx-menu-item item-finished" id="pieceCtxMenuFinished"><i class="la la-sign-out-alt"></i> გატანილია</button>
 </div>
+@endif
 
 {{-- Order comment modal --}}
 <div class="modal fade" id="orderCommentModal" tabindex="-1" aria-labelledby="orderCommentModalLabel" aria-hidden="true" data-bs-backdrop="true" data-bs-keyboard="true">
@@ -855,6 +902,7 @@
 </div>
 
 {{-- Broken glass description modal --}}
+@if(!$showArchived)
 <div class="modal fade" id="brokenGlassModal" tabindex="-1" aria-labelledby="brokenGlassModalLabel" aria-hidden="true" data-bs-backdrop="true" data-bs-keyboard="true">
     <div class="modal-dialog modal-dialog-centered modal-sm">
         <div class="modal-content">
@@ -877,11 +925,14 @@
         </div>
     </div>
 </div>
+@endif
 
 {{-- Order card context menu --}}
+@if(!$showArchived)
 <div id="orderCtxMenu" class="piece-ctx-menu">
     <button type="button" class="piece-ctx-menu-item item-finished" id="orderCtxMenuFinished"><i class="la la-sign-out-alt"></i> გატანილია</button>
 </div>
+@endif
 
 @if(!$showArchived)
 <a href="{{ route('team.orders', array_merge(['view' => 'archived'], $toggleQuery)) }}" id="archiveDropZone" class="archive-drop-zone" title="არქივი">
@@ -1056,6 +1107,7 @@ jQuery(function($) {
         if (e.target === this) closePreview();
     });
 
+@if(!$showArchived)
     var _pieceCtxMenu = document.getElementById('pieceCtxMenu');
     var _pieceCtxTag = null;
     var _orderCtxMenu = document.getElementById('orderCtxMenu');
@@ -1344,7 +1396,8 @@ jQuery(function($) {
             });
         });
     })();
-    
+
+@endif
     function finishOrder(orderId, triggerEl) {
         if (!confirm('დარწმუნებული ხართ რომ შეკვეთა გატანილია?')) {
             return;
@@ -1479,6 +1532,7 @@ jQuery(function($) {
 
         loadOrder();
 
+@if(!$showArchived)
         if (window.jQuery && typeof jQuery.fn.sortable === 'function') {
             jQuery(function($) {
                 var $row = $(row);
@@ -1490,9 +1544,10 @@ jQuery(function($) {
 
                 $row.sortable({
                     items: '.order-card[data-order-id]',
+                    handle: '.order-drag-handle',
                     cancel: 'a,button,input,textarea,select,option,.order-actions,.order-dots-btn,.piece-dots-btn,.size-tag,.size-tags,.piece-ctx-menu',
                     delay: 150,
-                    distance: 10,
+                    distance: 8,
                     tolerance: 'pointer',
                     helper: 'clone',
                     opacity: 1,
@@ -1509,7 +1564,7 @@ jQuery(function($) {
                     }
                 });
 
-                $row.disableSelection();
+                $row.find('.order-drag-handle').disableSelection();
 
                 if ($dropZone.length && typeof $.fn.droppable === 'function') {
                     $dropZone.droppable({
@@ -1577,6 +1632,7 @@ jQuery(function($) {
                 }
             });
         }
+@endif
     })();
 </script>
 @endpush

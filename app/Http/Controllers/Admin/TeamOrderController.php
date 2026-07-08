@@ -13,6 +13,26 @@ use Prologue\Alerts\Facades\Alert;
 class TeamOrderController extends Controller
 {
     /**
+     * @return \Illuminate\Http\JsonResponse|\Illuminate\Http\RedirectResponse|null
+     */
+    private function rejectIfArchived(Order $order, Request $request)
+    {
+        if ($order->archived_at === null) {
+            return null;
+        }
+
+        $message = 'Archived orders cannot be updated.';
+
+        if ($request->ajax() || $request->wantsJson()) {
+            return response()->json(['success' => false, 'message' => $message], 403);
+        }
+
+        Alert::error($message)->flash();
+
+        return redirect()->route('team.orders', ['view' => 'archived']);
+    }
+
+    /**
      * Display the team order processing page.
      *
      * @return \Illuminate\View\View
@@ -54,7 +74,12 @@ class TeamOrderController extends Controller
             ->sortBy(fn ($service) => $service->shortname ?: $service->title)
             ->values();
 
-        $ordersQuery = Order::with(['client', 'products', 'services', 'pieces'])
+        $ordersQuery = Order::with([
+            'client',
+            'products',
+            'services',
+            'pieces' => fn ($q) => $q->withCount('brokenGlasses'),
+        ])
             ->whereNotIn('status', ['draft', 'finished'])
             ->orderBy('created_at', 'desc');
 
@@ -172,10 +197,14 @@ class TeamOrderController extends Controller
      * @param  int  $id
      * @return \Illuminate\Http\RedirectResponse
      */
-    public function finish($id)
+    public function finish(Request $request, $id)
     {
         try {
             $order = Order::findOrFail($id);
+
+            if ($response = $this->rejectIfArchived($order, $request)) {
+                return $response;
+            }
             
             // Update order status to finished
             $order->status = 'finished';
@@ -202,6 +231,10 @@ class TeamOrderController extends Controller
         try {
             $piece = Piece::findOrFail($id);
             $order = $piece->order;
+
+            if ($order && ($response = $this->rejectIfArchived($order, $request))) {
+                return $response;
+            }
             
             $piece->status = 'ready';
             $piece->save();
@@ -233,6 +266,12 @@ class TeamOrderController extends Controller
         try {
             $piece = Piece::findOrFail($id);
 
+            if ($order = $piece->order) {
+                if ($response = $this->rejectIfArchived($order, $request)) {
+                    return $response;
+                }
+            }
+
             $piece->status = 'cut';
             $piece->save();
 
@@ -262,6 +301,12 @@ class TeamOrderController extends Controller
     {
         try {
             $piece = Piece::findOrFail($id);
+
+            if ($order = $piece->order) {
+                if ($response = $this->rejectIfArchived($order, $request)) {
+                    return $response;
+                }
+            }
 
             $piece->status = 'processed';
             $piece->save();
@@ -293,6 +338,12 @@ class TeamOrderController extends Controller
         try {
             $piece = Piece::findOrFail($id);
 
+            if ($order = $piece->order) {
+                if ($response = $this->rejectIfArchived($order, $request)) {
+                    return $response;
+                }
+            }
+
             $piece->status = 'finished';
             $piece->save();
 
@@ -322,16 +373,30 @@ class TeamOrderController extends Controller
     {
         try {
             $piece = Piece::findOrFail($id);
+
+            if ($order = $piece->order) {
+                if ($response = $this->rejectIfArchived($order, $request)) {
+                    return $response;
+                }
+            }
+
             BrokenGlass::create([
                 'piece_id' => $piece->id,
                 'description' => $request->input('description'),
             ]);
+
+            $piece->status = 'new';
+            $piece->save();
+
             $count = $piece->brokenGlasses()->count();
 
             // A broken sheet consumes an extra piece worth of material. Recalculate
             // the order's expenses (m²); draft pieces are excluded automatically.
             if ($order = $piece->order) {
                 $order->expenses = $order->calculateExpenses();
+                if (!in_array($order->status, ['draft', 'finished'], true)) {
+                    $order->status = 'working';
+                }
                 $order->save();
             }
 

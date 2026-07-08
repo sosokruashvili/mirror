@@ -13,6 +13,10 @@
 
 
     <x-backpack::menu-item title="Payments" icon="la la-money-bill-wave" :link="backpack_url('payment')" />
+    <x-backpack::menu-dropdown title="Cashier" icon="la la-cash-register">
+        <x-backpack::menu-dropdown-item title="Balance" icon="la la-wallet" :link="backpack_url('cashier')" />
+        <x-backpack::menu-dropdown-item title="Expenses" icon="la la-receipt" :link="backpack_url('cashier-expense')" />
+    </x-backpack::menu-dropdown>
     <x-backpack::menu-item title="Custom Prices" icon="la la-tag" :link="backpack_url('custom-price')" />
     <x-backpack::menu-dropdown title="Settings" icon="la la-cog">
         <x-backpack::menu-dropdown-item title="Users" icon="la la-user" :link="backpack_url('user')" />

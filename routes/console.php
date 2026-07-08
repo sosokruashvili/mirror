@@ -16,6 +16,7 @@ app()->booted(function () {
         \App\Models\Currency::setRate();
     })->dailyAt('20:00');
 
+    app(Schedule::class)->command('cashier:snapshot-daily')->dailyAt('23:58');
 });
 
 

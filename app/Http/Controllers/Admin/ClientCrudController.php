@@ -315,18 +315,22 @@ class ClientCrudController extends CrudController
     protected function setupUpdateOperation()
     {
         $this->setupCreateOperation();
-        
-        $entry = $this->crud->getCurrentEntry();
-        if ($entry) {
+
+        $entryId = $this->crud->getCurrentEntryId();
+        if ($entryId) {
             $this->crud->modifyField('personal_id', [
-                'validationRules' => 'required_if:client_type,0|nullable|string|max:255|unique:clients,personal_id,' . $entry->id,
+                'validationRules' => 'required_if:client_type,0|nullable|string|max:255|unique:clients,personal_id,' . $entryId,
             ]);
             $this->crud->modifyField('email', [
-                'validationRules' => 'nullable|email|unique:clients,email,' . $entry->id,
+                'validationRules' => 'nullable|email|unique:clients,email,' . $entryId,
             ]);
             $this->crud->modifyField('phone_number', [
-                'validationRules' => 'required|unique:clients,phone_number,' . $entry->id,
+                'validationRules' => 'required|unique:clients,phone_number,' . $entryId,
             ]);
+
+            // Field rules are cached when first added in setupCreateOperation; rebuild after modifying.
+            $this->crud->unsetValidation();
+            $this->crud->setValidation();
         }
     }
 

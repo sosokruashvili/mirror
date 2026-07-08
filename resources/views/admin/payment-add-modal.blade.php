@@ -11,6 +11,9 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <form id="paymentAddForm" data-action="{{ url(config('backpack.base.route_prefix', 'admin') . '/payment/create-ajax') }}" data-balance-url="{{ url(config('backpack.base.route_prefix', 'admin') . '/payment/get-client-balance') }}" enctype="multipart/form-data">
+                {{-- Set on the edit page (order already exists). On the create page it stays empty
+                     and the payment is linked to the order right after it is saved. --}}
+                <input type="hidden" name="order_id" id="paymentAddOrderId" value="{{ isset($entry) && $entry ? $entry->getKey() : '' }}">
                 <div class="modal-body">
                     <div class="row">
                         <div class="col-md-6 mb-3">

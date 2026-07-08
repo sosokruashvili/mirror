@@ -16,6 +16,7 @@ class Payment extends Model
     
     protected $fillable = [
         'client_id',
+        'order_id',
         'amount_gel',
         'currency_rate',
         'method',
@@ -54,6 +55,14 @@ class Payment extends Model
     public function client()
     {
         return $this->belongsTo(Client::class);
+    }
+
+    /**
+     * Get the order this payment is directly related to (optional).
+     */
+    public function order()
+    {
+        return $this->belongsTo(Order::class);
     }
 
     /**

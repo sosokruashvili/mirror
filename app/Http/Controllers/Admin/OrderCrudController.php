@@ -460,18 +460,18 @@ class OrderCrudController extends CrudController
         ]);
 
         CRUD::addField([
+            'name' => 'paid',
+            'label' => 'Paid',
+            'type' => 'checkbox',
+            'default' => false,
+        ]);
+
+        CRUD::addField([
             'name' => 'add_payment_button',
             'type' => 'custom_html',
             'value' => '<button type="button" id="addPaymentBtn" class="btn btn-sm btn-outline-primary">
                 <i class="la la-plus"></i> Add Payment
             </button>',
-        ]);
-
-        CRUD::addField([
-            'name' => 'paid',
-            'label' => 'Paid',
-            'type' => 'checkbox',
-            'default' => false,
         ]);
 
         CRUD::addField([

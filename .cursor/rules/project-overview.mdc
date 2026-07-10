@@ -1,0 +1,17 @@
+---
+description: Core project context and conventions for the Mirror Gallery app
+alwaysApply: true
+---
+
+# Mirror Gallery
+
+Laravel 12 admin application for a glass/mirror workshop (orders, pieces, production stages, payments, warehouse).
+
+## Stack
+
+- PHP 8.2+, Laravel 12, PostgreSQL (`pgsql`)
+- Backpack CRUD v6 + Backpack Pro, Tabler theme — all admin UI lives in Backpack
+- Admin panel controllers: `app/Http/Controllers/Admin/*CrudController.php`
+- Routes: `routes/backpack/` for admin, `routes/web.php` for public
+- Frontend assets via Vite; Backpack assets via Basset
+

@@ -1,0 +1,15 @@
+---
+description: Backpack CRUD controller conventions
+globs: app/Http/Controllers/Admin/**/*.php
+alwaysApply: false
+---
+
+# Backpack CRUD Conventions
+
+- Follow the existing pattern of neighboring `*CrudController.php` files: `setup()` for model/route/entity names, `setupListOperation()`, `setupCreateOperation()`, `setupUpdateOperation()`.
+- Validation lives in `app/Http/Requests/*Request.php`, wired via `CRUD::setValidation()`.
+- Models used in Backpack must use the `CrudTrait`.
+- Prefer Backpack column/field types (`select`, `relationship`, `number`, etc.) over custom views; check Backpack v6 docs for available types.
+- Labels and text shown in the admin panel should use translation keys (`lang/en`, `lang/ka`), not hardcoded strings.
+- New admin pages need a route in `routes/backpack/custom.php` and a sidebar menu item in `resources/views/vendor/backpack/ui/inc/menu_items.blade.php`.
+- Custom buttons, columns, and fields are overridden in `resources/views/vendor/backpack/crud/` (see `buttons/`, `columns/`, `fields/`).

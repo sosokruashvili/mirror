@@ -822,9 +822,6 @@
                                 <button type="button" class="btn btn-primary" onclick="previewOrder('{{ url(config("backpack.base.route_prefix") . "/order/" . $order->id . "/show") }}', {{ $order->pieces->count() }})">
                                     ნახვა
                                 </button>
-                                <button type="button" class="btn btn-success" onclick="finishOrder({{ $order->id }})">
-                                    გატანილია
-                                </button>
                                 @if($order->atachment)
                                 <a href="{{ asset('storage/' . $order->atachment) }}" target="_blank" class="btn" style="background-color: #e67e22; border-color: #e67e22; color: #fff;">
                                     <i class="la la-file-download"></i>

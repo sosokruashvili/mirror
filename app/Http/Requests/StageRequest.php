@@ -3,15 +3,16 @@
 namespace App\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
-class ServiceRequest extends FormRequest
+class StageRequest extends FormRequest
 {
     /**
      * Determine if the user is authorized to make this request.
      */
     public function authorize(): bool
     {
-        return true;
+        return backpack_auth()->check();
     }
 
     /**
@@ -21,13 +22,18 @@ class ServiceRequest extends FormRequest
      */
     public function rules(): array
     {
+        $id = $this->get('id');
+
         return [
+            'name' => [
+                'required',
+                'string',
+                'max:255',
+                Rule::unique('stages', 'name')->ignore($id),
+            ],
             'title' => 'required|string|max:255',
-            'stage_id' => 'nullable|integer|exists:stages,id',
-            'description' => 'nullable|string',
-            'unit' => 'required|string|max:100',
-            'price' => 'nullable|numeric|min:0',
-            'price_gel' => 'nullable|numeric|min:0',
+            'color' => 'required|string|max:9',
+            'position' => 'nullable|integer|min:0',
         ];
     }
 }

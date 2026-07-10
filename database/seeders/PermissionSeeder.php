@@ -17,8 +17,8 @@ class PermissionSeeder extends Seeder
             'cutting' => 'Cutting (მოჭრა)',
             'processing' => 'Processing (დამუშავება)',
             'cutting-drilling' => 'Cutting/Drilling (ჭრა/ხვრეტა)',
-            'assembly' => 'Assembly (აწყობა)',
             'tempering' => 'Tempering (წრთობა)',
+            'assembly' => 'Assembly (აწყობა)',
             'curing' => 'Curing (დამატოვება)',
             'finishing' => 'Finishing (გამზადება)',
         ];

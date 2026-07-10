@@ -65,49 +65,33 @@ if (!function_exists('product_type_ge')) {
 
 if (!function_exists('piece_stages')) {
     /**
-     * Ordered list of production stages a piece goes through.
+     * Ordered list of production stages a piece goes through, keyed by
+     * name (slug) => title (Georgian label).
      *
-     * Keyed by slug => Georgian label. The first six slugs intentionally match
-     * the production permissions (cutting, processing, …, curing) so a user's
-     * capability lines up with the stage they handle; the final stage is
-     * 'completion' (დასრულება).
+     * Stages are managed via the Stage CRUD and ordered by their `position`
+     * column. The `name` slug is what gets stored on `pieces.stage`; the final
+     * stage 'completion' (დასრულება) still drives the order "ready" status.
      *
      * @return array<string, string>
      */
     function piece_stages(): array
     {
-        return [
-            'cutting' => 'მოჭრა',
-            'processing' => 'დამუშავება',
-            'cutting-drilling' => 'ჭრა/ხვრეტა',
-            'assembly' => 'აწყობა',
-            'tempering' => 'წრთობა',
-            'curing' => 'დამატოვება',
-            'completion' => 'დასრულება',
-        ];
+        return \App\Models\Stage::ordered()->pluck('title', 'name')->all();
     }
 }
 
 if (!function_exists('piece_stage_colors')) {
     /**
-     * Brand color for each production stage, keyed by slug => hex.
+     * Badge color for each production stage, keyed by name (slug) => hex.
      *
-     * Progression: cool -> warm -> green (completion). Used to tint stage
-     * labels in the team page piece context menu and stage badges.
+     * Used to tint stage labels in the team page piece context menu and stage
+     * badges. Managed via the Stage CRUD (color picker).
      *
      * @return array<string, string>
      */
     function piece_stage_colors(): array
     {
-        return [
-            'cutting' => '#FACC15',
-            'processing' => '#0EA5E9',
-            'cutting-drilling' => '#6366F1',
-            'assembly' => '#F59E0B',
-            'tempering' => '#EF4444',
-            'curing' => '#7E22CE',
-            'completion' => '#10B981',
-        ];
+        return \App\Models\Stage::ordered()->pluck('color', 'name')->all();
     }
 }
 
@@ -128,12 +112,41 @@ if (!function_exists('piece_stage_color')) {
     }
 }
 
+if (!function_exists('stage_contrast_text_color')) {
+    /**
+     * Readable text color (dark or white) for a given background hex color,
+     * chosen by the background's perceived luminance.
+     *
+     * @param string|null $hex Background color, e.g. "#F59E0B".
+     * @return string '#212529' for light backgrounds, '#ffffff' for dark ones.
+     */
+    function stage_contrast_text_color(?string $hex): string
+    {
+        $hex = ltrim((string) $hex, '#');
+
+        if (strlen($hex) === 3) {
+            $hex = $hex[0] . $hex[0] . $hex[1] . $hex[1] . $hex[2] . $hex[2];
+        }
+
+        if (strlen($hex) !== 6 || !ctype_xdigit($hex)) {
+            return '#ffffff';
+        }
+
+        $r = hexdec(substr($hex, 0, 2));
+        $g = hexdec(substr($hex, 2, 2));
+        $b = hexdec(substr($hex, 4, 2));
+
+        // Perceived luminance (ITU-R BT.601). Light backgrounds get dark text.
+        $luminance = (0.299 * $r) + (0.587 * $g) + (0.114 * $b);
+
+        return $luminance > 150 ? '#212529' : '#ffffff';
+    }
+}
+
 if (!function_exists('piece_stage_text_color')) {
     /**
      * Readable text color to place on top of a stage's background color.
-     *
-     * Light stage backgrounds (e.g. amber "assembly") get dark text; the rest
-     * use white.
+     * Derived from the stage's own color so admin-picked colors stay readable.
      *
      * @param string|null $stage
      * @return string Empty string when the stage is not set/known.
@@ -144,9 +157,13 @@ if (!function_exists('piece_stage_text_color')) {
             return '';
         }
 
-        $darkTextStages = ['cutting', 'assembly'];
+        $color = piece_stage_color($stage);
 
-        return in_array($stage, $darkTextStages, true) ? '#212529' : '#ffffff';
+        if ($color === '') {
+            return '';
+        }
+
+        return stage_contrast_text_color($color);
     }
 }
 

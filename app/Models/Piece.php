@@ -42,6 +42,15 @@ class Piece extends Model
     }
 
     /**
+     * The production stage this piece is at (matched by the `name` slug stored
+     * in `pieces.stage`).
+     */
+    public function stageModel()
+    {
+        return $this->belongsTo(Stage::class, 'stage', 'name');
+    }
+
+    /**
      * Broken glass records for this piece (with optional description).
      */
     public function brokenGlasses()

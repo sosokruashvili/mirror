@@ -7,6 +7,7 @@
 
     <x-backpack::menu-item title="Products" icon="la la-box" :link="backpack_url('product')" />
     <x-backpack::menu-item title="Services" icon="la la-cogs" :link="backpack_url('service')" />
+    <x-backpack::menu-item title="Stages" icon="la la-layer-group" :link="backpack_url('stage')" />
     <x-backpack::menu-dropdown title="Warehouse" icon="la la-warehouse">
         <x-backpack::menu-dropdown-item title="Stock" icon="la la-boxes" :link="backpack_url('warehouse')" />
         <x-backpack::menu-dropdown-item title="Expenses" icon="la la-receipt" :link="backpack_url('warehouse-expense')" />

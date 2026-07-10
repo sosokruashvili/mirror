@@ -19,6 +19,7 @@ class Service extends Model
         'title',
         'shortname',
         'slug',
+        'stage_id',
         'description',
         'unit',
         'price',
@@ -46,6 +47,14 @@ class Service extends Model
         return $this->belongsToMany(Order::class)
             ->withPivot('quantity', 'description')
             ->withTimestamps();
+    }
+
+    /**
+     * The production stage this service belongs to.
+     */
+    public function stage()
+    {
+        return $this->belongsTo(Stage::class);
     }
 
     public function getPriceGel()

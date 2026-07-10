@@ -69,6 +69,13 @@ class ServiceCrudController extends CrudController
         ]);
 
         CRUD::addColumn([
+            'name' => 'stage',
+            'label' => 'Stage',
+            'type' => 'relationship',
+            'attribute' => 'title',
+        ]);
+
+        CRUD::addColumn([
             'name' => 'description',
             'label' => 'Description',
             'type' => 'text',
@@ -109,6 +116,17 @@ class ServiceCrudController extends CrudController
         ]);
 
         $this->addStandardFilters();
+
+        // Filter services by production stage.
+        CRUD::addFilter([
+            'type'  => 'select2',
+            'name'  => 'stage_id',
+            'label' => 'Stage',
+        ], function () {
+            return \App\Models\Stage::orderBy('position')->orderBy('id')->pluck('title', 'id')->toArray();
+        }, function ($value) {
+            CRUD::addClause('where', 'stage_id', $value);
+        });
 
         // Add filter for order_id if present in URL
         if (request()->has('order_id')) {
@@ -163,6 +181,16 @@ class ServiceCrudController extends CrudController
             'label' => 'Slug',
             'type' => 'text',
             'hint' => 'URL-friendly version of the title',
+        ]);
+
+        CRUD::addField([
+            'name' => 'stage',
+            'label' => 'Stage',
+            'type' => 'relationship',
+            'attribute' => 'title',
+            'placeholder' => '-',
+            'allows_null' => true,
+            'hint' => 'Which production stage this service belongs to.',
         ]);
 
         CRUD::addField([
@@ -311,6 +339,13 @@ class ServiceCrudController extends CrudController
             'name' => 'slug',
             'label' => 'Slug',
             'type' => 'text',
+        ]);
+
+        CRUD::addColumn([
+            'name' => 'stage',
+            'label' => 'Stage',
+            'type' => 'relationship',
+            'attribute' => 'title',
         ]);
 
         CRUD::addColumn([

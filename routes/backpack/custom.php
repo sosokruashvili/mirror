@@ -32,6 +32,7 @@ Route::group([
     Route::crud('piece', 'PieceCrudController');
     Route::crud('service', 'ServiceCrudController');
     Route::get('service/get-extra-fields/{id}', 'ServiceCrudController@getExtraFields')->name('service.getExtraFields');
+    Route::crud('stage', 'StageCrudController');
     Route::get('product/get-products-filtered/{product_type}', 'ProductCrudController@getProductsFiltered')->name('products.getProductsFiltered');
     Route::get('product/get-price/{id}', 'ProductCrudController@getProductPrice')->name('product.getPrice');
     Route::crud('payment', 'PaymentCrudController');

@@ -22,10 +22,12 @@ Route::group([
     Route::post('order/calculate-service-price', 'OrderCrudController@calculate_order_service_price')->name('order.calculateServicePrice');
     Route::post('order/{id}/confirm', 'OrderCrudController@confirm')->name('order.confirm');
     Route::post('order/{id}/finish', 'OrderCrudController@finish')->name('order.finish');
+    Route::post('order/piece/{id}/stage', 'OrderCrudController@updatePieceStage')->name('order.piece.updateStage');
     Route::crud('user', 'UserCrudController');
     Route::crud('client', 'ClientCrudController');
     Route::post('client/create-ajax', 'ClientCrudController@createAjax')->name('client.createAjax');
     Route::crud('role', 'RoleCrudController');
+    Route::crud('permission', 'PermissionCrudController');
     Route::crud('product', 'ProductCrudController');
     Route::crud('piece', 'PieceCrudController');
     Route::crud('service', 'ServiceCrudController');
@@ -51,11 +53,8 @@ Route::group([
     Route::post('team/orders/{id}/finish', 'TeamOrderController@finish')->name('team.orders.finish');
     Route::post('team/orders/{id}/archive', 'TeamOrderController@archive')->name('team.orders.archive');
     Route::post('team/orders/{id}/unarchive', 'TeamOrderController@unarchive')->name('team.orders.unarchive');
-    Route::post('team/pieces/{id}/ready', 'TeamOrderController@markPieceReady')->name('team.pieces.ready');
-    Route::post('team/pieces/{id}/cut', 'TeamOrderController@markPieceCut')->name('team.pieces.cut');
-    Route::post('team/pieces/{id}/processed', 'TeamOrderController@markPieceProcessed')->name('team.pieces.processed');
     Route::post('team/pieces/{id}/broken', 'TeamOrderController@markPieceBroken')->name('team.pieces.broken');
-    Route::post('team/pieces/{id}/finished', 'TeamOrderController@markPieceFinished')->name('team.pieces.finished');
+    Route::post('team/pieces/{id}/stage', 'TeamOrderController@updatePieceStage')->name('team.pieces.stage');
 }); // this should be the absolute last line of this file
 
 /**

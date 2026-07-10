@@ -2,16 +2,16 @@
 
 namespace App\Http\Controllers\Admin;
 
-use App\Http\Requests\RoleRequest;
+use App\Http\Requests\PermissionRequest;
 use Backpack\CRUD\app\Http\Controllers\CrudController;
 use Backpack\CRUD\app\Library\CrudPanel\CrudPanelFacade as CRUD;
 
 /**
- * Class RoleCrudController
+ * Class PermissionCrudController
  * @package App\Http\Controllers\Admin
  * @property-read \Backpack\CRUD\app\Library\CrudPanel\CrudPanel $crud
  */
-class RoleCrudController extends CrudController
+class PermissionCrudController extends CrudController
 {
     use \Backpack\CRUD\app\Http\Controllers\Operations\ListOperation;
     use \Backpack\CRUD\app\Http\Controllers\Operations\CreateOperation;
@@ -21,19 +21,19 @@ class RoleCrudController extends CrudController
 
     /**
      * Configure the CrudPanel object. Apply settings to all operations.
-     * 
+     *
      * @return void
      */
     public function setup()
     {
-        CRUD::setModel(\App\Models\Role::class);
-        CRUD::setRoute(config('backpack.base.route_prefix') . '/role');
-        CRUD::setEntityNameStrings('role', 'roles');
+        CRUD::setModel(\App\Models\Permission::class);
+        CRUD::setRoute(config('backpack.base.route_prefix') . '/permission');
+        CRUD::setEntityNameStrings('permission', 'permissions');
     }
 
     /**
      * Define what happens when the List operation is loaded.
-     * 
+     *
      * @see  https://backpackforlaravel.com/docs/crud-operation-list-entries
      * @return void
      */
@@ -46,71 +46,49 @@ class RoleCrudController extends CrudController
         ]);
 
         CRUD::addColumn([
-            'name' => 'slug',
-            'label' => 'Slug',
-            'type' => 'text',
-        ]);
-
-        CRUD::addColumn([
             'name' => 'description',
             'label' => 'Description',
             'type' => 'text',
         ]);
 
         CRUD::addColumn([
-            'name' => 'permissions',
-            'label' => 'Permissions',
+            'name' => 'roles',
+            'label' => 'Used by Roles',
             'type' => 'select_multiple',
-            'entity' => 'permissions',
-            'attribute' => 'label',
-            'model' => \App\Models\Permission::class,
+            'entity' => 'roles',
+            'attribute' => 'name',
+            'model' => \App\Models\Role::class,
         ]);
     }
 
     /**
      * Define what happens when the Create operation is loaded.
-     * 
+     *
      * @see https://backpackforlaravel.com/docs/crud-operation-create
      * @return void
      */
     protected function setupCreateOperation()
     {
-        CRUD::setValidation(RoleRequest::class);
+        CRUD::setValidation(PermissionRequest::class);
 
         CRUD::addField([
             'name' => 'name',
             'label' => 'Name',
             'type' => 'text',
-        ]);
-
-        CRUD::addField([
-            'name' => 'slug',
-            'label' => 'Slug',
-            'type' => 'text',
-            'hint' => 'Unique identifier used in code, e.g. "team"',
+            'hint' => 'Unique identifier used in code, e.g. "cutting"',
         ]);
 
         CRUD::addField([
             'name' => 'description',
             'label' => 'Description',
-            'type' => 'textarea',
-        ]);
-
-        CRUD::addField([
-            'name' => 'permissions',
-            'label' => 'Permissions (capabilities)',
-            'type' => 'checklist',
-            'entity' => 'permissions',
-            'attribute' => 'label',
-            'model' => \App\Models\Permission::class,
-            'pivot' => true,
-            'number_of_columns' => 2,
+            'type' => 'text',
+            'hint' => 'Human-friendly label shown in the admin panel',
         ]);
     }
 
     /**
      * Define what happens when the Update operation is loaded.
-     * 
+     *
      * @see https://backpackforlaravel.com/docs/crud-operation-update
      * @return void
      */

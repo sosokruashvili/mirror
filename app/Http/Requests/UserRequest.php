@@ -18,6 +18,23 @@ class UserRequest extends FormRequest
     }
 
     /**
+     * The `checklist` field submits its selected values as a JSON-encoded
+     * string in a single hidden input, so decode it into an array before
+     * the `array` validation rule and the relationship saving run.
+     *
+     * @return void
+     */
+    protected function prepareForValidation()
+    {
+        if (is_string($this->permissions)) {
+            $decoded = json_decode($this->permissions, true);
+            $this->merge([
+                'permissions' => is_array($decoded) ? $decoded : [],
+            ]);
+        }
+    }
+
+    /**
      * Get the validation rules that apply to the request.
      *
      * @return array
@@ -33,6 +50,8 @@ class UserRequest extends FormRequest
             'password' => $this->isMethod('post') ? 'required|string|min:8' : 'nullable|string|min:8',
             'roles' => 'nullable|array',
             'roles.*' => 'exists:roles,id',
+            'permissions' => 'nullable|array',
+            'permissions.*' => 'exists:permissions,id',
         ];
     }
 

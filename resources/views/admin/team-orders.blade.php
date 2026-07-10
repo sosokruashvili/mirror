@@ -285,26 +285,6 @@
     .size-tag.size-tag-readonly {
         cursor: default;
     }
-    
-    .size-tag.ready {
-        background-color: #0d6efd;
-    }
-
-    .size-tag.finished {
-        background-color: #198754;
-    }
-
-    .size-tag.cut:not(.ready):not(.processed):not(.finished) {
-        background-color: #ffc107;
-        color: #212529;
-    }
-    .size-tag.cut .piece-dots-btn {
-        color: #212529;
-    }
-
-    .size-tag.processed:not(.ready):not(.finished) {
-        background-color: #fd7e14;
-    }
 
     .size-tag.broken {
         box-shadow: 0 0 0 2px #dc3545;
@@ -333,25 +313,10 @@
         white-space: nowrap;
         border: 1px solid rgba(255, 255, 255, 0.2);
     }
-    .size-tag.ready .service-shortname-tag {
-        background-color: #0a58ca;
-    }
-    .size-tag.finished .service-shortname-tag {
-        background-color: #146c43;
-    }
-    .size-tag.cut .service-shortname-tag {
-        background-color: #e0a800;
-        color: #212529;
-        border-color: rgba(33, 37, 41, 0.2);
-    }
-    .size-tag.processed .service-shortname-tag {
-        background-color: #ca6510;
-    }
-
     .piece-dots-btn {
         background: none;
         border: none;
-        color: #fff;
+        color: inherit;
         cursor: pointer;
         font-size: 16px;
         padding: 0 4px;
@@ -370,8 +335,9 @@
         border-radius: 6px;
         box-shadow: 0 4px 12px rgba(0,0,0,0.2);
         z-index: 9000;
-        min-width: 150px;
-        overflow: hidden;
+        min-width: 160px;
+        max-height: 80vh;
+        overflow-y: auto;
     }
     .piece-ctx-menu.open {
         display: block;
@@ -412,11 +378,32 @@
     .piece-ctx-menu-item.item-finished {
         color: #198754;
     }
+    .piece-ctx-menu-item.item-stage {
+        color: #2c3e50;
+    }
+    .piece-ctx-menu-item.item-stage.active {
+        background: #e7f1ff;
+        color: #0d6efd;
+    }
+    .piece-ctx-menu-item.item-stage-clear {
+        color: #97a0af;
+    }
     .piece-ctx-menu-item:hover {
         background: #f0f4f8;
     }
     .piece-ctx-menu-item + .piece-ctx-menu-item {
         border-top: 1px solid #f0f0f0;
+    }
+    .piece-ctx-menu-label {
+        padding: 8px 14px 4px;
+        font-size: 11px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        color: #97a0af;
+        border-top: 2px solid #e9edf2;
+        margin-top: 2px;
+        background: #f7f9fb;
     }
 
     .size-tags-empty {
@@ -768,27 +755,15 @@
                                                 'piece_ids' => [],
                                                 'service_shortnames' => [],
                                                 'broken_count' => 0,
-                                                'all_ready' => true,
-                                                'all_finished' => true,
-                                                'all_processed' => true,
-                                                'all_cut' => true,
+                                                'stage' => $piece->stage,
+                                                'stage_mixed' => false,
                                             ];
+                                        } elseif ($sizeGroups[$key]['stage'] !== $piece->stage) {
+                                            $sizeGroups[$key]['stage_mixed'] = true;
                                         }
                                         $sizeGroups[$key]['quantity'] += $piece->quantity ?? 1;
                                         $sizeGroups[$key]['piece_ids'][] = $piece->id;
                                         $sizeGroups[$key]['broken_count'] += $piece->getBrokenCount();
-                                        if ($piece->status !== 'ready' && $piece->status !== 'finished') {
-                                            $sizeGroups[$key]['all_ready'] = false;
-                                        }
-                                        if ($piece->status !== 'finished') {
-                                            $sizeGroups[$key]['all_finished'] = false;
-                                        }
-                                        if (!in_array($piece->status, ['processed', 'ready', 'finished'], true)) {
-                                            $sizeGroups[$key]['all_processed'] = false;
-                                        }
-                                        if (!in_array($piece->status, ['cut', 'processed', 'ready', 'finished'], true)) {
-                                            $sizeGroups[$key]['all_cut'] = false;
-                                        }
                                         
                                         // Get services associated with this piece
                                         $pieceServices = $order->services->filter(function($service) use ($piece) {
@@ -808,7 +783,13 @@
                                 @if(count($uniqueSizes) > 0)
                                     <div class="size-tags">
                                         @foreach($uniqueSizes as $size)
-                                            <span class="size-tag {{ $size['all_finished'] ? 'finished' : ($size['all_ready'] ? 'ready' : ($size['all_processed'] ? 'processed' : ($size['all_cut'] ? 'cut' : ''))) }}{{ ($size['broken_count'] ?? 0) > 0 ? ' broken' : '' }}{{ $showArchived ? ' size-tag-readonly' : '' }}" data-piece-ids="{{ implode(',', $size['piece_ids']) }}"@if(!$showArchived) onclick="togglePieceMenu(event, this)"@endif>
+                                            @php
+                                                $groupStage = (!$size['stage_mixed'] && $size['stage']) ? $size['stage'] : null;
+                                                $stageStyle = $groupStage
+                                                    ? 'background-color: ' . piece_stage_color($groupStage) . '; color: ' . piece_stage_text_color($groupStage) . ';'
+                                                    : 'background-color: ' . piece_draft_color() . '; color: #ffffff;';
+                                            @endphp
+                                            <span class="size-tag{{ ($size['broken_count'] ?? 0) > 0 ? ' broken' : '' }}{{ $groupStage ? ' has-stage' : '' }}{{ $showArchived ? ' size-tag-readonly' : '' }}" data-piece-ids="{{ implode(',', $size['piece_ids']) }}" data-piece-stage="{{ $groupStage ?? '' }}" style="{{ $stageStyle }}"@if(!$showArchived) onclick="togglePieceMenu(event, this)"@endif>
                                                 {{ $size['width'] }} × {{ $size['height'] }} cm (×{{ $size['quantity'] }})
                                                 @if(($size['broken_count'] ?? 0) > 0)
                                                     <span class="piece-broken-label">[გატყდა: {{ $size['broken_count'] }}]</span>
@@ -875,11 +856,10 @@
 {{-- Shared piece context menu --}}
 @if(!$showArchived)
 <div id="pieceCtxMenu" class="piece-ctx-menu">
-    <button type="button" class="piece-ctx-menu-item item-cut" id="pieceCtxMenuCut"><i class="la la-cut"></i> მოიჭრა</button>
-    <button type="button" class="piece-ctx-menu-item item-processed" id="pieceCtxMenuProcessed"><i class="la la-cog"></i> დამუშავდა</button>
-    <button type="button" class="piece-ctx-menu-item item-ready" id="pieceCtxMenuReady"><i class="la la-check"></i> მზადაა</button>
-    <button type="button" class="piece-ctx-menu-item item-broken" id="pieceCtxMenuBroken"><i class="la la-times"></i> გატყდა</button>
-    <button type="button" class="piece-ctx-menu-item item-finished" id="pieceCtxMenuFinished"><i class="la la-sign-out-alt"></i> გატანილია</button>
+    @foreach(piece_stages() as $stageSlug => $stageLabel)
+        <button type="button" class="piece-ctx-menu-item item-stage" data-stage="{{ $stageSlug }}" style="color: {{ piece_stage_color($stageSlug) }};"><i class="la la-layer-group"></i> {{ $stageLabel }}</button>
+    @endforeach
+    <button type="button" class="piece-ctx-menu-item item-stage item-stage-clear" data-stage=""><i class="la la-eraser"></i> ეტაპის მოხსნა</button>
 </div>
 @endif
 
@@ -900,32 +880,6 @@
         </div>
     </div>
 </div>
-
-{{-- Broken glass description modal --}}
-@if(!$showArchived)
-<div class="modal fade" id="brokenGlassModal" tabindex="-1" aria-labelledby="brokenGlassModalLabel" aria-hidden="true" data-bs-backdrop="true" data-bs-keyboard="true">
-    <div class="modal-dialog modal-dialog-centered modal-sm">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="brokenGlassModalLabel">გატყდა – აღწერა</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body">
-                <div class="mb-2">
-                    <label for="brokenGlassDescription" class="form-label">აღწერა (არასავალდებულო)</label>
-                    <textarea id="brokenGlassDescription" class="form-control" rows="3" placeholder="დამატებითი ინფორმაცია..."></textarea>
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">გაუქმება</button>
-                <button type="button" class="btn btn-danger" id="brokenGlassModalSubmit">
-                    <i class="la la-check"></i> შენახვა
-                </button>
-            </div>
-        </div>
-    </div>
-</div>
-@endif
 
 {{-- Order card context menu --}}
 @if(!$showArchived)
@@ -1145,6 +1099,14 @@ jQuery(function($) {
 
         if (!wasOpen) {
             _pieceCtxTag = tag;
+
+            // Highlight the group's current stage (if all pieces share one).
+            var currentStage = tag.getAttribute('data-piece-stage') || '';
+            _pieceCtxMenu.querySelectorAll('.item-stage').forEach(function(item) {
+                var slug = item.getAttribute('data-stage') || '';
+                item.classList.toggle('active', slug !== '' && slug === currentStage);
+            });
+
             var anchor = tag.querySelector('.piece-dots-btn') || tag;
             var rect = anchor.getBoundingClientRect();
             _pieceCtxMenu.style.top = (rect.bottom + 4) + 'px';
@@ -1176,201 +1138,27 @@ jQuery(function($) {
         finishOrder(orderId, e.currentTarget);
     });
 
-    document.getElementById('pieceCtxMenuCut').addEventListener('click', function(e) {
-        e.stopPropagation();
-        if (!_pieceCtxTag) return;
-
-        var tag = _pieceCtxTag;
-        var pieceIds = tag.getAttribute('data-piece-ids').split(',');
-        var token = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') ||
-                    document.querySelector('input[name="_token"]')?.value;
-
-        closeCtxMenus();
-
-        var done = 0;
-        var failed = false;
-        pieceIds.forEach(function(id) {
-            var formData = new FormData();
-            formData.append('_token', token);
-            fetch('{{ route("team.pieces.cut", ":id") }}'.replace(':id', id), {
-                method: 'POST',
-                headers: {
-                    'Accept': 'application/json',
-                    'X-Requested-With': 'XMLHttpRequest',
-                    'X-CSRF-TOKEN': token
-                },
-                body: formData
-            })
-            .then(function(res) { return res.json(); })
-            .then(function(data) {
-                if (!data.success) failed = true;
-            })
-            .catch(function() { failed = true; })
-            .finally(function() {
-                done++;
-                if (done === pieceIds.length) {
-                    reloadTeamPageIfStatusUpdated(!failed, 'მოიჭრა – მოთხოვნა ვერ შესრულდა.');
-                }
-            });
-        });
-    });
-
-    document.getElementById('pieceCtxMenuProcessed').addEventListener('click', function(e) {
-        e.stopPropagation();
-        if (!_pieceCtxTag) return;
-
-        var tag = _pieceCtxTag;
-        var pieceIds = tag.getAttribute('data-piece-ids').split(',');
-        var token = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') ||
-                    document.querySelector('input[name="_token"]')?.value;
-
-        closeCtxMenus();
-
-        var done = 0;
-        var failed = false;
-        pieceIds.forEach(function(id) {
-            var formData = new FormData();
-            formData.append('_token', token);
-            fetch('{{ route("team.pieces.processed", ":id") }}'.replace(':id', id), {
-                method: 'POST',
-                headers: {
-                    'Accept': 'application/json',
-                    'X-Requested-With': 'XMLHttpRequest',
-                    'X-CSRF-TOKEN': token
-                },
-                body: formData
-            })
-            .then(function(res) { return res.json(); })
-            .then(function(data) {
-                if (!data.success) failed = true;
-            })
-            .catch(function() { failed = true; })
-            .finally(function() {
-                done++;
-                if (done === pieceIds.length) {
-                    reloadTeamPageIfStatusUpdated(!failed, 'დამუშავდა – მოთხოვნა ვერ შესრულდა.');
-                }
-            });
-        });
-    });
-
-    document.getElementById('pieceCtxMenuReady').addEventListener('click', function(e) {
-        e.stopPropagation();
-        if (!_pieceCtxTag) return;
-
-        var tag = _pieceCtxTag;
-        var pieceIds = tag.getAttribute('data-piece-ids').split(',');
-        var token = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') ||
-                    document.querySelector('input[name="_token"]')?.value;
-
-        closeCtxMenus();
-
-        var done = 0;
-        var failed = false;
-        pieceIds.forEach(function(id) {
-            fetch('{{ route("team.pieces.ready", ":id") }}'.replace(':id', id), {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Accept': 'application/json',
-                    'X-CSRF-TOKEN': token,
-                    'X-Requested-With': 'XMLHttpRequest'
-                }
-            })
-            .then(function(res) { return res.json(); })
-            .then(function(data) {
-                if (!data.success) failed = true;
-            })
-            .catch(function() { failed = true; })
-            .finally(function() {
-                done++;
-                if (done === pieceIds.length) {
-                    reloadTeamPageIfStatusUpdated(!failed, 'მზადაა – მოთხოვნა ვერ შესრულდა.');
-                }
-            });
-        });
-    });
-
-    document.getElementById('pieceCtxMenuFinished').addEventListener('click', function(e) {
-        e.stopPropagation();
-        if (!_pieceCtxTag) return;
-
-        var tag = _pieceCtxTag;
-        var pieceIds = tag.getAttribute('data-piece-ids').split(',');
-        var token = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') ||
-                    document.querySelector('input[name="_token"]')?.value;
-
-        closeCtxMenus();
-
-        var done = 0;
-        var failed = false;
-        pieceIds.forEach(function(id) {
-            fetch('{{ route("team.pieces.finished", ":id") }}'.replace(':id', id), {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Accept': 'application/json',
-                    'X-CSRF-TOKEN': token,
-                    'X-Requested-With': 'XMLHttpRequest'
-                }
-            })
-            .then(function(res) { return res.json(); })
-            .then(function(data) {
-                if (!data.success) failed = true;
-            })
-            .catch(function() { failed = true; })
-            .finally(function() {
-                done++;
-                if (done === pieceIds.length) {
-                    reloadTeamPageIfStatusUpdated(!failed, 'გატანილია – მოთხოვნა ვერ შესრულდა.');
-                }
-            });
-        });
-    });
-
-    (function() {
-        var modalEl = document.getElementById('brokenGlassModal');
-        var descriptionEl = document.getElementById('brokenGlassDescription');
-        var submitBtn = document.getElementById('brokenGlassModalSubmit');
-        var currentTag = null;
-
-        if (!modalEl || typeof bootstrap === 'undefined') return;
-
-        document.body.appendChild(modalEl);
-        var modal = new bootstrap.Modal(modalEl);
-
-        document.getElementById('pieceCtxMenuBroken').addEventListener('click', function(e) {
+    // Stage selection: apply the chosen stage to every piece in the clicked size group.
+    _pieceCtxMenu.querySelectorAll('.item-stage').forEach(function(stageBtn) {
+        stageBtn.addEventListener('click', function(e) {
             e.stopPropagation();
             if (!_pieceCtxTag) return;
 
-            currentTag = _pieceCtxTag;
-            descriptionEl.value = '';
-            closeCtxMenus();
-            modal.show();
-        });
-
-        submitBtn.addEventListener('click', function() {
-            if (!currentTag) return;
-
-            var tag = currentTag;
+            var tag = _pieceCtxTag;
             var pieceIds = tag.getAttribute('data-piece-ids').split(',');
+            var stage = stageBtn.getAttribute('data-stage') || '';
             var token = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') ||
                         document.querySelector('input[name="_token"]')?.value;
-            if (!token) {
-                alert('CSRF token not found.');
-                return;
-            }
 
-            submitBtn.disabled = true;
-            var description = descriptionEl.value || '';
+            closeCtxMenus();
+
             var done = 0;
             var failed = false;
-
             pieceIds.forEach(function(id) {
                 var formData = new FormData();
                 formData.append('_token', token);
-                formData.append('description', description);
-                fetch('{{ route("team.pieces.broken", ":id") }}'.replace(':id', id), {
+                formData.append('stage', stage);
+                fetch('{{ route("team.pieces.stage", ":id") }}'.replace(':id', id), {
                     method: 'POST',
                     headers: {
                         'Accept': 'application/json',
@@ -1387,15 +1175,12 @@ jQuery(function($) {
                 .finally(function() {
                     done++;
                     if (done === pieceIds.length) {
-                        modal.hide();
-                        submitBtn.disabled = false;
-                        reloadTeamPageIfStatusUpdated(!failed, 'გატყდა – მოთხოვნა ვერ შესრულდა.');
-                        currentTag = null;
+                        reloadTeamPageIfStatusUpdated(!failed, 'ეტაპი – მოთხოვნა ვერ შესრულდა.');
                     }
                 });
             });
         });
-    })();
+    });
 
 @endif
     function finishOrder(orderId, triggerEl) {

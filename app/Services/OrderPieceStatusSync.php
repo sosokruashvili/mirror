@@ -29,7 +29,8 @@ class OrderPieceStatusSync
     }
 
     /**
-     * Production pieces exclude draft entries that are not yet confirmed.
+     * Production pieces of a (non-draft) order. Draft orders never sync, so all
+     * pieces of the order are considered production pieces here.
      */
     public static function productionPieces(Order $order)
     {
@@ -37,11 +38,19 @@ class OrderPieceStatusSync
             $order->load('pieces');
         }
 
-        return $order->pieces->reject(fn ($piece) => $piece->status === 'draft');
+        return $order->pieces;
     }
 
     /**
-     * Derive the order status that matches the current piece statuses.
+     * Derive the order status that matches the current piece production stages.
+     *
+     * Stage-driven rules:
+     *  - every piece at the final stage ('completion') → order 'ready'
+     *  - any piece with a stage set (production started) → order 'working'
+     *  - otherwise no rule applies (order status left untouched)
+     *
+     * 'finished' is never derived here — it's set explicitly when an order is
+     * handed out (გატანილია).
      *
      * @return string|null Target status, or null when no rule applies.
      */
@@ -53,22 +62,11 @@ class OrderPieceStatusSync
             return null;
         }
 
-        if ($pieces->every(fn ($piece) => $piece->status === 'finished')) {
-            return 'finished';
-        }
-
-        if ($pieces->every(fn ($piece) => $piece->status === 'ready')) {
+        if ($pieces->every(fn ($piece) => $piece->stage === 'completion')) {
             return 'ready';
         }
 
-        if ($pieces->contains(fn ($piece) => in_array($piece->status, ['cut', 'processed'], true))) {
-            return 'working';
-        }
-
-        if (
-            $pieces->contains(fn ($piece) => $piece->status === 'ready')
-            && $pieces->contains(fn ($piece) => $piece->status === 'new')
-        ) {
+        if ($pieces->contains(fn ($piece) => !empty($piece->stage))) {
             return 'working';
         }
 
@@ -76,11 +74,13 @@ class OrderPieceStatusSync
     }
 
     /**
-     * Update order status from related piece statuses when a rule matches.
+     * Update order status from related piece stages when a rule matches.
      */
     public static function syncOrderStatusFromPieces(Order $order, bool $dryRun = false): bool
     {
-        if ($order->status === 'draft') {
+        // Draft orders aren't in production yet; finished orders are handed out
+        // and must not be downgraded by stage changes.
+        if (in_array($order->status, ['draft', 'finished'], true)) {
             return false;
         }
 
@@ -125,7 +125,7 @@ class OrderPieceStatusSync
                 $stats['processed']++;
 
                 $fromStatus = $order->status;
-                $targetStatus = $order->status === 'draft'
+                $targetStatus = in_array($order->status, ['draft', 'finished'], true)
                     ? null
                     : self::determineOrderStatus($order);
 

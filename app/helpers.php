@@ -63,6 +63,121 @@ if (!function_exists('product_type_ge')) {
     }
 }
 
+if (!function_exists('piece_stages')) {
+    /**
+     * Ordered list of production stages a piece goes through.
+     *
+     * Keyed by slug => Georgian label. The first six slugs intentionally match
+     * the production permissions (cutting, processing, …, curing) so a user's
+     * capability lines up with the stage they handle; the final stage is
+     * 'completion' (დასრულება).
+     *
+     * @return array<string, string>
+     */
+    function piece_stages(): array
+    {
+        return [
+            'cutting' => 'მოჭრა',
+            'processing' => 'დამუშავება',
+            'cutting-drilling' => 'ჭრა/ხვრეტა',
+            'assembly' => 'აწყობა',
+            'tempering' => 'წრთობა',
+            'curing' => 'დამატოვება',
+            'completion' => 'დასრულება',
+        ];
+    }
+}
+
+if (!function_exists('piece_stage_colors')) {
+    /**
+     * Brand color for each production stage, keyed by slug => hex.
+     *
+     * Progression: cool -> warm -> green (completion). Used to tint stage
+     * labels in the team page piece context menu and stage badges.
+     *
+     * @return array<string, string>
+     */
+    function piece_stage_colors(): array
+    {
+        return [
+            'cutting' => '#FACC15',
+            'processing' => '#0EA5E9',
+            'cutting-drilling' => '#6366F1',
+            'assembly' => '#F59E0B',
+            'tempering' => '#EF4444',
+            'curing' => '#7E22CE',
+            'completion' => '#10B981',
+        ];
+    }
+}
+
+if (!function_exists('piece_stage_color')) {
+    /**
+     * Return the hex color for a single stage slug.
+     *
+     * @param string|null $stage
+     * @return string Empty string when the stage is not set/known.
+     */
+    function piece_stage_color(?string $stage): string
+    {
+        if ($stage === null || $stage === '') {
+            return '';
+        }
+
+        return piece_stage_colors()[$stage] ?? '';
+    }
+}
+
+if (!function_exists('piece_stage_text_color')) {
+    /**
+     * Readable text color to place on top of a stage's background color.
+     *
+     * Light stage backgrounds (e.g. amber "assembly") get dark text; the rest
+     * use white.
+     *
+     * @param string|null $stage
+     * @return string Empty string when the stage is not set/known.
+     */
+    function piece_stage_text_color(?string $stage): string
+    {
+        if ($stage === null || $stage === '') {
+            return '';
+        }
+
+        $darkTextStages = ['cutting', 'assembly'];
+
+        return in_array($stage, $darkTextStages, true) ? '#212529' : '#ffffff';
+    }
+}
+
+if (!function_exists('piece_draft_color')) {
+    /**
+     * Background color used for a piece/size-group with no stage set yet
+     * (i.e. still "draft"). This is the grey that `cutting` used to use.
+     */
+    function piece_draft_color(): string
+    {
+        return '#64748B';
+    }
+}
+
+if (!function_exists('piece_stage_ge')) {
+    /**
+     * Translate a piece stage slug to its Georgian label.
+     *
+     * @param string|null $stage
+     * @return string Empty string when the stage is not set.
+     */
+    function piece_stage_ge(?string $stage): string
+    {
+        if ($stage === null || $stage === '') {
+            return '';
+        }
+
+        return piece_stages()[$stage] ?? $stage;
+    }
+}
+
 if (!function_exists('order_type_ge')) {
     /**
      * Translate order type to Georgian

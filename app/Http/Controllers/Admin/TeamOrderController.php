@@ -78,7 +78,7 @@ class TeamOrderController extends Controller
             'client',
             'products',
             'services',
-            'pieces' => fn ($q) => $q->withCount('brokenGlasses'),
+            'pieces' => fn ($q) => $q->withCount('brokenGlasses')->orderBy('id'),
         ])
             ->whereNotIn('status', ['draft', 'finished'])
             ->orderBy('created_at', 'desc');
@@ -221,47 +221,12 @@ class TeamOrderController extends Controller
     }
 
     /**
-     * Mark a piece as ready by updating its status to 'ready'.
+     * Update the production stage of a piece (AJAX) from the team orders page.
      *
-     * @param  int  $id
-     * @return \Illuminate\Http\RedirectResponse
+     * @param  int  $id  Piece ID
+     * @return \Illuminate\Http\JsonResponse
      */
-    public function markPieceReady(Request $request, $id)
-    {
-        try {
-            $piece = Piece::findOrFail($id);
-            $order = $piece->order;
-
-            if ($order && ($response = $this->rejectIfArchived($order, $request))) {
-                return $response;
-            }
-            
-            $piece->status = 'ready';
-            $piece->save();
-
-            if ($request->ajax() || $request->wantsJson()) {
-                return response()->json(['success' => true, 'piece_id' => $piece->id]);
-            }
-            
-            Alert::success('Piece #' . $piece->id . ' has been marked as ready.')->flash();
-            return redirect()->route('order.show', $order->id);
-        } catch (\Exception $e) {
-            if ($request->ajax() || $request->wantsJson()) {
-                return response()->json(['success' => false, 'message' => $e->getMessage()], 422);
-            }
-
-            Alert::error('Failed to mark piece as ready: ' . $e->getMessage())->flash();
-            return redirect()->back();
-        }
-    }
-
-    /**
-     * Mark a piece as cut by updating its status to 'cut'.
-     *
-     * @param  int  $id
-     * @return \Illuminate\Http\JsonResponse|\Illuminate\Http\RedirectResponse
-     */
-    public function markPieceCut(Request $request, $id)
+    public function updatePieceStage(Request $request, $id)
     {
         try {
             $piece = Piece::findOrFail($id);
@@ -272,94 +237,24 @@ class TeamOrderController extends Controller
                 }
             }
 
-            $piece->status = 'cut';
+            $stage = $request->input('stage');
+            $stage = ($stage === '' || $stage === null) ? null : $stage;
+
+            if ($stage !== null && !array_key_exists($stage, piece_stages())) {
+                return response()->json(['success' => false, 'message' => 'Invalid stage'], 422);
+            }
+
+            $piece->stage = $stage;
             $piece->save();
 
-            if ($request->ajax() || $request->wantsJson()) {
-                return response()->json(['success' => true, 'piece_id' => $piece->id]);
-            }
-
-            Alert::success('Piece #' . $piece->id . ' has been marked as cut.')->flash();
-            return redirect()->back();
+            return response()->json([
+                'success' => true,
+                'piece_id' => $piece->id,
+                'stage' => $piece->stage,
+                'stage_label' => piece_stage_ge($piece->stage),
+            ]);
         } catch (\Exception $e) {
-            if ($request->ajax() || $request->wantsJson()) {
-                return response()->json(['success' => false, 'message' => $e->getMessage()], 422);
-            }
-
-            Alert::error('Failed to mark piece as cut: ' . $e->getMessage())->flash();
-            return redirect()->back();
-        }
-    }
-
-    /**
-     * Mark a piece as processed by updating its status to 'processed'.
-     *
-     * @param  int  $id
-     * @return \Illuminate\Http\JsonResponse|\Illuminate\Http\RedirectResponse
-     */
-    public function markPieceProcessed(Request $request, $id)
-    {
-        try {
-            $piece = Piece::findOrFail($id);
-
-            if ($order = $piece->order) {
-                if ($response = $this->rejectIfArchived($order, $request)) {
-                    return $response;
-                }
-            }
-
-            $piece->status = 'processed';
-            $piece->save();
-
-            if ($request->ajax() || $request->wantsJson()) {
-                return response()->json(['success' => true, 'piece_id' => $piece->id]);
-            }
-
-            Alert::success('Piece #' . $piece->id . ' has been marked as processed.')->flash();
-            return redirect()->back();
-        } catch (\Exception $e) {
-            if ($request->ajax() || $request->wantsJson()) {
-                return response()->json(['success' => false, 'message' => $e->getMessage()], 422);
-            }
-
-            Alert::error('Failed to mark piece as processed: ' . $e->getMessage())->flash();
-            return redirect()->back();
-        }
-    }
-
-    /**
-     * Mark a piece as finished (picked up / გატანილია).
-     *
-     * @param  int  $id
-     * @return \Illuminate\Http\JsonResponse|\Illuminate\Http\RedirectResponse
-     */
-    public function markPieceFinished(Request $request, $id)
-    {
-        try {
-            $piece = Piece::findOrFail($id);
-
-            if ($order = $piece->order) {
-                if ($response = $this->rejectIfArchived($order, $request)) {
-                    return $response;
-                }
-            }
-
-            $piece->status = 'finished';
-            $piece->save();
-
-            if ($request->ajax() || $request->wantsJson()) {
-                return response()->json(['success' => true, 'piece_id' => $piece->id]);
-            }
-
-            Alert::success('Piece #' . $piece->id . ' has been marked as finished.')->flash();
-            return redirect()->back();
-        } catch (\Exception $e) {
-            if ($request->ajax() || $request->wantsJson()) {
-                return response()->json(['success' => false, 'message' => $e->getMessage()], 422);
-            }
-
-            Alert::error('Failed to mark piece as finished: ' . $e->getMessage())->flash();
-            return redirect()->back();
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 422);
         }
     }
 
@@ -384,9 +279,6 @@ class TeamOrderController extends Controller
                 'piece_id' => $piece->id,
                 'description' => $request->input('description'),
             ]);
-
-            $piece->status = 'new';
-            $piece->save();
 
             $count = $piece->brokenGlasses()->count();
 

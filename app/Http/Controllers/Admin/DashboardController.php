@@ -58,7 +58,6 @@ class DashboardController
         $rows = DB::table('orders')
             ->join('pieces', 'pieces.order_id', '=', 'orders.id')
             ->where('orders.status', '!=', 'draft')
-            ->where('pieces.status', '!=', 'draft')
             ->where('orders.created_at', '>=', $periodConfig['start'])
             ->selectRaw("{$sqlGroup} as period_key, SUM({$areaExpression}) as total_area")
             ->groupByRaw('period_key')

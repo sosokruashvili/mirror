@@ -8,6 +8,7 @@ use Prologue\Alerts\Facades\Alert;
 use Backpack\CRUD\app\Library\Widget;
 use App\Models\Currency;
 use App\Models\Order;
+use App\Models\Piece;
 use App\Models\Service;
 use App\Models\Product;
 use Illuminate\Support\Facades\DB;
@@ -599,6 +600,9 @@ class OrderCrudController extends CrudController
     {
         // Add styles for order preview page
         Widget::add()->type('style')->content('assets/css/order-preview.css');
+
+        // Inline per-piece stage updater (used by the pieces column below).
+        Widget::add()->type('script')->content('assets/js/piece-stage.js');
         
         // Use team preview view for team users
         if (backpack_user() && backpack_user()->hasRole('team')) {
@@ -790,7 +794,20 @@ class OrderCrudController extends CrudController
                     $html .= '<span>Size: </span><strong>' . number_format($piece->width, 2) . ' × ' . number_format($piece->height, 2) . ' cm</strong> | ';
                     $html .= '<span>Quantity: </span><strong>' . $piece->quantity . '</strong> | ';
                     $html .= '<span>Area: </span><strong>' . number_format($piece->getArea(), 2) . ' m²</strong>';
-                    if ($piece->status) $html .= ' | <span>Status: </span><strong>' . status_badge($piece->status) . '</strong>';
+                    $html .= '</div>';
+
+                    // Per-piece production stage selector (saves inline via AJAX).
+                    $html .= '<div class="mb-2 d-print-none">';
+                    $html .= '<label class="small me-2 fw-bold">Stage (ეტაპი):</label>';
+                    $html .= '<select class="form-select form-select-sm d-inline-block" style="width:auto;" data-piece-stage-select data-piece-id="' . $piece->id . '">';
+                    $html .= '<option value="">—</option>';
+                    foreach (piece_stages() as $slug => $label) {
+                        $selected = $piece->stage === $slug ? ' selected' : '';
+                        $html .= '<option value="' . $slug . '"' . $selected . '>' . htmlspecialchars($label, ENT_QUOTES, 'UTF-8') . '</option>';
+                    }
+                    $html .= '</select>';
+                    // Non-JS / print fallback showing the saved stage label.
+                    $html .= '<span class="d-none d-print-inline">' . htmlspecialchars(piece_stage_ge($piece->stage), ENT_QUOTES, 'UTF-8') . '</span>';
                     $html .= '</div>';
                     
                     if ($pieceServices->count() > 0) {
@@ -864,7 +881,6 @@ class OrderCrudController extends CrudController
                         'width' => $piece['width'] ?? 0,
                         'height' => $piece['height'] ?? 0,
                         'quantity' => $piece['quantity'] ?? 1,
-                        'status' => $order->status === 'draft' ? 'draft' : 'new',
                     ]);
                     // Map temporary ID to real ID (using index as key)
                     $tempId = 'temp_' . $pieceIndex;
@@ -994,15 +1010,22 @@ class OrderCrudController extends CrudController
 
             // Sync pieces (hasMany - delete existing and create new) and keep a map of old/temp IDs to new IDs
             $pieceIdMap = [];
+            // The order edit form does not manage stages (that's done via the Piece CRUD and
+            // the preview page), but pieces are deleted and recreated here — so capture the
+            // existing stage per piece id first and carry it over to avoid wiping it on save.
+            $existingStages = $order->pieces()->pluck('stage', 'id')->toArray();
             if (!empty($fields['pieces'])) {
                 $order->pieces()->delete();
                 $pieceIndex = 0;
                 foreach ($fields['pieces'] as $piece) {
+                    $existingStage = (!empty($piece['id']) && array_key_exists($piece['id'], $existingStages))
+                        ? $existingStages[$piece['id']]
+                        : null;
                     $createdPiece = $order->pieces()->create([
                         'width' => $piece['width'] ?? 0,
                         'height' => $piece['height'] ?? 0,
                         'quantity' => $piece['quantity'] ?? 1,
-                        'status' => $order->status === 'draft' ? 'draft' : 'new',
+                        'stage' => $existingStage,
                     ]);
                     // Map both temporary ids (temp_#) and existing ids to the freshly created piece id
                     $tempId = 'temp_' . $pieceIndex;
@@ -1252,6 +1275,47 @@ class OrderCrudController extends CrudController
         return response()->json([
             'success' => true,
             'message' => 'Order finished successfully',
+        ]);
+    }
+
+    /**
+     * Update the production stage of a single piece (AJAX).
+     *
+     * Works regardless of the order's status so stages can be advanced during
+     * production. `stage` may be empty to clear it back to "not set".
+     *
+     * @param int $id Piece ID
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function updatePieceStage($id)
+    {
+        $piece = Piece::find($id);
+
+        if (!$piece) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Piece not found',
+            ], 404);
+        }
+
+        $stage = request()->input('stage');
+        $stage = ($stage === '' || $stage === null) ? null : $stage;
+
+        if ($stage !== null && !array_key_exists($stage, piece_stages())) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Invalid stage',
+            ], 422);
+        }
+
+        $piece->stage = $stage;
+        $piece->save();
+
+        return response()->json([
+            'success' => true,
+            'piece_id' => $piece->id,
+            'stage' => $piece->stage,
+            'stage_label' => piece_stage_ge($piece->stage),
         ]);
     }
 

@@ -15,11 +15,8 @@ class RedirectTeamUsers
     protected $allowedRoutes = [
         'team.orders',
         'team.orders.finish',
-        'team.pieces.ready',
-        'team.pieces.cut',
-        'team.pieces.processed',
         'team.pieces.broken',
-        'team.pieces.finished',
+        'team.pieces.stage',
         'backpack.auth.logout',
         'backpack.auth.login',
     ];

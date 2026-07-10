@@ -32,41 +32,6 @@ class RoleSeeder extends Seeder
                 'name' => 'Viewer',
                 'slug' => 'viewer',
                 'description' => 'Read-only access to the system'
-            ],
-            [
-                'name' => 'Cutting',
-                'slug' => 'cutting',
-                'description' => 'მოჭრა - Cutting stage'
-            ],
-            [
-                'name' => 'Processing',
-                'slug' => 'processing',
-                'description' => 'დამუშავება - Processing stage'
-            ],
-            [
-                'name' => 'Cutting/Drilling',
-                'slug' => 'cutting-drilling',
-                'description' => 'ჭრა/ხვრეტა - Cutting and drilling stage'
-            ],
-            [
-                'name' => 'Assembly',
-                'slug' => 'assembly',
-                'description' => 'აწყობა - Assembly stage'
-            ],
-            [
-                'name' => 'Tempering',
-                'slug' => 'tempering',
-                'description' => 'წრთობა - Tempering stage'
-            ],
-            [
-                'name' => 'Curing',
-                'slug' => 'curing',
-                'description' => 'დამატოვება - Curing/resting stage'
-            ],
-            [
-                'name' => 'Finishing',
-                'slug' => 'finishing',
-                'description' => 'გამზადება - Finishing stage'
             ]
         ];
 

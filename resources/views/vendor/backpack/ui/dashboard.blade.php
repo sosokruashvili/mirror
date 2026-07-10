@@ -54,7 +54,7 @@
                     <div class="d-flex align-items-center">
                         <div class="subheader">Total Pieces</div>
                     </div>
-                    <div class="h1 mb-3">{{ \App\Models\Piece::where('status', '!=', 'draft')->count() }}</div>
+                    <div class="h1 mb-3">{{ \App\Models\Piece::whereHas('order', fn($q) => $q->where('status', '!=', 'draft'))->count() }}</div>
                     <div class="d-flex mb-2">
                         <div>Production pieces (excluding drafts)</div>
                     </div>

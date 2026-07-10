@@ -325,7 +325,7 @@
 						})->sortBy('id');
 					@endphp
 					<div class="col-md-4 col-sm-6 col-12">
-						<div class="piece-tile {{ $piece->status === 'ready' ? 'border-success' : '' }} {{ ($piece->broken_glasses_count ?? 0) > 0 ? 'border-danger' : '' }}" data-piece-id="{{ $piece->id }}">
+						<div class="piece-tile {{ ($piece->broken_glasses_count ?? 0) > 0 ? 'border-danger' : '' }}" data-piece-id="{{ $piece->id }}">
 							<div class="piece-header d-flex justify-content-between">
 								<div class="piece-title">ზომა: {{ $piece->width }} x {{ $piece->height }} cm</div>
 								<div class="piece-title">X {{ $piece->quantity }}</div>
@@ -352,10 +352,10 @@
 										<span class="piece-detail-value">{{ number_format($piece->getArea(), 2) }} m²</span>
 									</div>
 								@endif
-								@if($piece->status)
+								@if($piece->stage)
 									<div class="piece-detail-item">
-										<span class="piece-detail-label">სტატუსი:</span>
-										{!! status_badge($piece->status) !!}
+										<span class="piece-detail-label">ეტაპი:</span>
+										<span class="piece-detail-value">{{ piece_stage_ge($piece->stage) }}</span>
 									</div>
 								@endif
 								@if(($piece->broken_glasses_count ?? 0) > 0)
@@ -417,19 +417,6 @@
 							</div>
 							
 							<div class="piece-actions d-flex flex-wrap gap-1 mt-3 pt-3 border-top">
-								@if($piece->status !== 'cut' && $piece->status !== 'ready')
-								<button type="button" class="btn btn-warning btn-sm btn-piece-cut" data-piece-id="{{ $piece->id }}" data-url="{{ route('team.pieces.cut', $piece->id) }}">
-									<i class="la la-cut"></i>&nbsp;მოიჭრა
-								</button>
-								@endif
-								@if($piece->status !== 'ready')
-								<form method="POST" action="{{ route('team.pieces.ready', $piece->id) }}" class="d-inline" onsubmit="return confirm('დარწმუნებული ხართ რომ ეს ნაჭერი მზადაა?');">
-									@csrf
-									<button type="submit" class="btn btn-success btn-sm">
-										<i class="la la-check"></i>&nbsp;მზადაა
-									</button>
-								</form>
-								@endif
 								<button type="button" class="btn btn-danger btn-sm btn-piece-broken" data-piece-id="{{ $piece->id }}" data-url="{{ route('team.pieces.broken', $piece->id) }}" data-broken="{{ $piece->broken_glasses_count ?? 0 }}">
 									<i class="la la-times"></i>&nbsp;გატყდა
 								</button>
@@ -587,55 +574,6 @@ function showOrderComment(btn) {
 	modalEl.addEventListener('shown.bs.modal', liftModalAboveOverlay, { once: true });
 	modal.show();
 }
-</script>
-<script>
-(function() {
-	document.querySelectorAll('.btn-piece-cut').forEach(function(btn) {
-		btn.addEventListener('click', function() {
-			var url = btn.getAttribute('data-url');
-			var tile = btn.closest('.piece-tile');
-			var token = (document.querySelector('meta[name="csrf-token"]') && document.querySelector('meta[name="csrf-token"]').getAttribute('content'))
-				|| (document.querySelector('input[name="_token"]') && document.querySelector('input[name="_token"]').value);
-			if (!token) { alert('CSRF token not found.'); return; }
-
-			btn.disabled = true;
-			var formData = new FormData();
-			formData.append('_token', token);
-			fetch(url, {
-				method: 'POST',
-				headers: {
-					'Accept': 'application/json',
-					'X-Requested-With': 'XMLHttpRequest',
-					'X-CSRF-TOKEN': token
-				},
-				body: formData
-			})
-			.then(function(res) { return res.json(); })
-			.then(function(data) {
-				if (data.success) {
-					btn.remove();
-					var detailArea = tile.querySelector('.piece-details');
-					if (detailArea) {
-						var items = detailArea.querySelectorAll('.piece-detail-item');
-						items.forEach(function(item) {
-							var label = item.querySelector('.piece-detail-label');
-							if (label && label.textContent.trim() === 'სტატუსი:') {
-								item.innerHTML = '<span class="piece-detail-label">სტატუსი:</span> <span class="badge text-bg-warning text-dark">cut</span>';
-							}
-						});
-					}
-				} else {
-					btn.disabled = false;
-					alert(data.message || 'Failed.');
-				}
-			})
-			.catch(function() {
-				btn.disabled = false;
-				alert('Request failed.');
-			});
-		});
-	});
-})();
 </script>
 <script>
 (function() {

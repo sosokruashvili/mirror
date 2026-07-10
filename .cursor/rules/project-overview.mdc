@@ -15,3 +15,17 @@ Laravel 12 admin application for a glass/mirror workshop (orders, pieces, produc
 - Routes: `routes/backpack/` for admin, `routes/web.php` for public
 - Frontend assets via Vite; Backpack assets via Basset
 
+## Roles & permissions
+
+- Roles/permissions use `spatie/laravel-permission` (guard `web`). `App\Models\Role` extends Spatie's Role and keeps legacy `slug`/`description` columns; assignments live in `model_has_roles` (the old `role_user` pivot is kept only as a backup).
+- `User::hasRole()`/`hasAnyRole()` are overridden for backwards compatibility: they match role `slug` (e.g. `team`) as well as Spatie names.
+- Production-stage capabilities are Spatie permissions seeded in `PermissionSeeder`: cutting (მოჭრა), processing (დამუშავება), cutting-drilling (ჭრა/ხვრეტა), assembly (აწყობა), tempering (წრთობა), curing (დამატოვება), finishing (გამზადება). Check them with `$user->can('cutting')` or grant via `$role->givePermissionTo(...)`.
+
+## Piece stages
+
+- A piece's production progress is tracked solely by the `pieces.stage` column. The legacy `pieces.status` column has been removed. The ordered stage list lives in the `piece_stages()` helper (slug => Georgian label); use `piece_stage_ge($slug)` for display and `$piece->stage_label`. Stage colors come from `piece_stage_colors()` / `piece_stage_color($slug)` (contrast text via `piece_stage_text_color($slug)`).
+- Stage slugs mirror the production permissions for the first six; the final stage is `completion` (დასრულება).
+- Stage is managed from the Piece CRUD (`PieceCrudController` list/edit), inline on the order preview pieces list via `public/assets/js/piece-stage.js` (POSTs to `order.piece.updateStage`), and from the team orders page piece context menu (`team-orders.blade.php` → `team.pieces.stage` → `TeamOrderController@updatePieceStage`, allowed in `RedirectTeamUsers`). On the team board the whole size-tag pill is tinted with the group's stage color. It is intentionally NOT editable on the order edit form.
+- `OrderCrudController::update()` deletes and recreates pieces, so it captures each existing piece's stage beforehand and carries it over (matched by piece id) to avoid wiping stages set elsewhere.
+- Order status is now derived from piece stages via `OrderPieceStatusSync` (all pieces at `completion` → order `ready`; any piece with a stage → order `working`); `finished` is set only when an order is handed out. A piece counts as "draft" (excluded from expenses/pricing/dashboards) purely by its order being in `draft` status. Broken-glass tracking is independent (`broken_glasses` table); marking broken no longer touches any piece workflow field.
+

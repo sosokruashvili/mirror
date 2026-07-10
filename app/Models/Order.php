@@ -2,7 +2,6 @@
 
 namespace App\Models;
 
-use App\Services\OrderPieceStatusSync;
 use Backpack\CRUD\app\Models\Traits\CrudTrait;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -53,12 +52,12 @@ class Order extends Model
                 return;
             }
 
-            if ($order->getOriginal('status') === 'draft' && $order->status === 'new') {
-                $order->confirmDraftPieces();
-            }
-
-            if ($order->status === 'finished') {
-                $order->finishAllPieces();
+            // A piece counts as "draft" (excluded from expenses/pricing) purely by
+            // its order being in draft. When the order leaves draft, its pieces
+            // become production pieces, so the expense must be recalculated.
+            if ($order->getOriginal('status') === 'draft' && $order->status !== 'draft') {
+                $order->expenses = $order->calculateExpenses();
+                $order->saveQuietly();
             }
         });
     }
@@ -169,12 +168,14 @@ class Order extends Model
             $this->load('pieces');
         }
 
-        // Draft pieces are not yet committed to production, so they don't consume
-        // any warehouse material and must be excluded from the expense.
+        // Draft orders are not yet committed to production, so their pieces don't
+        // consume any warehouse material and must be excluded from the expense.
+        if ($this->status === 'draft') {
+            return 0.0;
+        }
+
         return round(
-            $this->pieces
-                ->reject(fn ($piece) => $piece->status === 'draft')
-                ->sum(fn ($piece) => $piece->getExpenseArea()),
+            $this->pieces->sum(fn ($piece) => $piece->getExpenseArea()),
             2
         );
     }
@@ -196,9 +197,12 @@ class Order extends Model
 
         $totalPriceGel = $this->services->sum('pivot.price_gel');
 
-        foreach ($this->products as $product) {
-            foreach ($this->pieces->reject(fn ($piece) => $piece->status === 'draft') as $piece) {
-                $totalPriceGel += $piece->getArea() * $product->price * $this->currency_rate;
+        // Draft orders exclude their (draft) pieces from the price; only services count.
+        if ($this->status !== 'draft') {
+            foreach ($this->products as $product) {
+                foreach ($this->pieces as $piece) {
+                    $totalPriceGel += $piece->getArea() * $product->price * $this->currency_rate;
+                }
             }
         }
 
@@ -247,49 +251,6 @@ class Order extends Model
         $price = number_format($this->calculateTotalPrice(), 2);
         $productType = product_type_ge($this->product_type ?? '');
         return "Order #{$this->id} - {$productType} - {$price} ₾";
-    }
-
-    /**
-     * Promote all draft pieces to new when the order is confirmed.
-     */
-    public function confirmDraftPieces(): void
-    {
-        OrderPieceStatusSync::withoutPieceToOrderSync(function () {
-            $draftPieces = $this->pieces()->where('status', 'draft')->get();
-
-            if ($draftPieces->isEmpty()) {
-                return;
-            }
-
-            foreach ($draftPieces as $piece) {
-                $piece->status = 'new';
-                $piece->saveQuietly();
-            }
-
-            $this->expenses = $this->calculateExpenses();
-            $this->saveQuietly();
-        });
-    }
-
-    /**
-     * Mark all pieces as finished when the order is finished.
-     */
-    public function finishAllPieces(): void
-    {
-        OrderPieceStatusSync::withoutPieceToOrderSync(function () {
-            if (!$this->relationLoaded('pieces')) {
-                $this->load('pieces');
-            }
-
-            foreach ($this->pieces as $piece) {
-                if ($piece->status === 'finished') {
-                    continue;
-                }
-
-                $piece->status = 'finished';
-                $piece->saveQuietly();
-            }
-        });
     }
 
     /*

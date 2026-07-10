@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="ka">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>წარმოების ეტაპების ფერები · Production Stage Colors</title>
+    <style>
+        :root {
+            --bg: #0f1115;
+            --panel: #171a21;
+            --text: #e7e9ee;
+            --muted: #9aa1ad;
+            --border: #262b34;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: "Segoe UI", "Noto Sans Georgian", system-ui, -apple-system, Roboto, Arial, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.5;
+            padding: 40px 20px;
+            display: flex;
+            justify-content: center;
+        }
+        .wrap { width: 100%; max-width: 960px; }
+        header { margin-bottom: 28px; }
+        h1 { font-size: 26px; font-weight: 700; letter-spacing: -0.01em; }
+        .subtitle { color: var(--muted); font-size: 15px; margin-top: 6px; }
+        .section-label {
+            text-transform: uppercase; letter-spacing: 0.08em; font-size: 12px;
+            font-weight: 600; color: var(--muted); margin-bottom: 10px;
+        }
+        .ribbon {
+            display: flex; width: 100%; border-radius: 10px; overflow: hidden;
+            border: 1px solid var(--border); margin-bottom: 32px;
+        }
+        .ribbon .seg {
+            flex: 1; padding: 14px 6px; text-align: center;
+            display: flex; flex-direction: column; align-items: center; gap: 3px;
+        }
+        .ribbon .seg .name { font-size: 13px; font-weight: 700; }
+        .ribbon .seg .num { font-size: 10px; font-weight: 600; opacity: 0.85; }
+        hr { border: none; border-top: 1px solid var(--border); margin: 0 0 28px; }
+        h2 { font-size: 18px; font-weight: 600; margin-bottom: 16px; }
+        .grid {
+            display: grid; gap: 16px;
+            grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+        }
+        .swatch {
+            border-radius: 12px; padding: 18px; min-height: 150px;
+            display: flex; flex-direction: column; justify-content: space-between;
+            cursor: pointer; transition: transform 0.12s ease;
+        }
+        .swatch:hover { transform: translateY(-2px); }
+        .swatch .top { display: flex; justify-content: space-between; align-items: center; }
+        .swatch .stage-n { font-size: 12px; font-weight: 600; opacity: 0.95; }
+        .swatch .hex { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 12px; letter-spacing: 0.5px; }
+        .swatch .ge { font-size: 23px; font-weight: 700; line-height: 1.15; }
+        .swatch .en { font-size: 13px; font-weight: 500; }
+        footer { color: var(--muted); font-size: 13px; margin-top: 26px; }
+        .toast {
+            position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+            background: #10b981; color: #04150f; font-weight: 600; font-size: 13px;
+            padding: 8px 16px; border-radius: 8px; opacity: 0; pointer-events: none;
+            transition: opacity 0.2s ease;
+        }
+        .toast.show { opacity: 1; }
+    </style>
+</head>
+<body>
+    <div class="wrap">
+        <header>
+            <h1>წარმოების ეტაპების ფერები</h1>
+            <div class="subtitle">Production stage color scheme — თითოეული ნაწილი გადის ამ შვიდ ეტაპს, ნედლეულიდან დასრულებამდე.</div>
+        </header>
+
+        <div class="section-label">პროცესის მიმდინარეობა · Process flow</div>
+        <div class="ribbon" id="ribbon"></div>
+
+        <hr>
+
+        <h2>ეტაპები · Stages</h2>
+        <div class="grid" id="grid"></div>
+
+        <footer>ფერები გადადის ცივიდან თბილისკენ და მწვანეთი — დასრულება. დააკლიკეთ ბარათს HEX-ის დასაკოპირებლად.</footer>
+    </div>
+
+    <div class="toast" id="toast">დაკოპირდა</div>
+
+    <script>
+        const STAGES = [
+            { n: 1, ge: "მოჭრა", en: "Cutting", hex: "#FACC15", darkText: true },
+            { n: 2, ge: "დამუშავება", en: "Processing", hex: "#0EA5E9", darkText: false },
+            { n: 3, ge: "ჭრა/ხვრეტა", en: "Cutting / Drilling", hex: "#6366F1", darkText: false },
+            { n: 4, ge: "აწყობა", en: "Assembly", hex: "#F59E0B", darkText: true },
+            { n: 5, ge: "წრთობა", en: "Tempering", hex: "#EF4444", darkText: false },
+            { n: 6, ge: "დამატოვება", en: "Curing", hex: "#7E22CE", darkText: false },
+            { n: 7, ge: "დასრულება", en: "Completion", hex: "#10B981", darkText: false },
+            { n: "—", ge: "ეტაპის გარეშე", en: "No stage / Draft", hex: "#64748B", darkText: false },
+        ];
+
+        const textOn = (s) => s.darkText
+            ? { primary: "#1F2937", muted: "rgba(31,41,55,0.72)" }
+            : { primary: "#FFFFFF", muted: "rgba(255,255,255,0.82)" };
+
+        const ribbon = document.getElementById("ribbon");
+        const grid = document.getElementById("grid");
+        const toast = document.getElementById("toast");
+
+        STAGES.forEach((s, i) => {
+            const c = textOn(s);
+
+            const seg = document.createElement("div");
+            seg.className = "seg";
+            seg.style.background = s.hex;
+            if (i < STAGES.length - 1) seg.style.borderRight = "1px solid rgba(0,0,0,0.12)";
+            seg.innerHTML = `<span class="name" style="color:${c.primary}">${s.ge}</span>
+                             <span class="num" style="color:${c.muted}">${s.n}</span>`;
+            ribbon.appendChild(seg);
+
+            const card = document.createElement("div");
+            card.className = "swatch";
+            card.style.background = s.hex;
+            card.title = "დააკლიკეთ HEX-ის დასაკოპირებლად";
+            card.innerHTML = `
+                <div class="top">
+                    <span class="stage-n" style="color:${c.primary}">ეტაპი ${s.n}</span>
+                    <span class="hex" style="color:${c.muted}">${s.hex}</span>
+                </div>
+                <div>
+                    <div class="ge" style="color:${c.primary}">${s.ge}</div>
+                    <div class="en" style="color:${c.muted}">${s.en}</div>
+                </div>`;
+            card.addEventListener("click", () => {
+                navigator.clipboard?.writeText(s.hex);
+                toast.textContent = s.hex + " დაკოპირდა";
+                toast.classList.add("show");
+                setTimeout(() => toast.classList.remove("show"), 1200);
+            });
+            grid.appendChild(card);
+        });
+    </script>
+</body>
+</html>

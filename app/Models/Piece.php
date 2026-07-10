@@ -15,7 +15,7 @@ class Piece extends Model
         'product_id',
         'width',
         'height',
-        'status',
+        'stage',
         'broken',
     ];
 
@@ -86,5 +86,13 @@ class Piece extends Model
     public function servicesShortnames()
     {
         return $this->services->pluck('shortname')->unique()->implode(', ');
+    }
+
+    /**
+     * Georgian label for the piece's production stage.
+     */
+    public function getStageLabelAttribute(): string
+    {
+        return piece_stage_ge($this->stage);
     }
 }

@@ -7,13 +7,15 @@
 
     <x-backpack::menu-item title="Products" icon="la la-box" :link="backpack_url('product')" />
     <x-backpack::menu-item title="Services" icon="la la-cogs" :link="backpack_url('service')" />
-    <x-backpack::menu-item title="Stages" icon="la la-layer-group" :link="backpack_url('stage')" />
     <x-backpack::menu-dropdown title="Warehouse" icon="la la-warehouse">
         <x-backpack::menu-dropdown-item title="Stock" icon="la la-boxes" :link="backpack_url('warehouse')" />
         <x-backpack::menu-dropdown-item title="Expenses" icon="la la-receipt" :link="backpack_url('warehouse-expense')" />
     </x-backpack::menu-dropdown>
     <x-backpack::menu-item title="Orders" icon="la la-cart-plus" :link="backpack_url('order')" />
-    <x-backpack::menu-item title="Pieces" icon="la la-puzzle-piece" :link="backpack_url('piece')" />
+    <x-backpack::menu-dropdown title="Pieces" icon="la la-puzzle-piece">
+        <x-backpack::menu-dropdown-item title="Pieces" icon="la la-puzzle-piece" :link="backpack_url('piece')" />
+        <x-backpack::menu-dropdown-item title="Stages" icon="la la-layer-group" :link="backpack_url('stage')" />
+    </x-backpack::menu-dropdown>
 
 
     <x-backpack::menu-item title="Payments" icon="la la-money-bill-wave" :link="backpack_url('payment')" />

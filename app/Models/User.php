@@ -34,6 +34,7 @@ class User extends Authenticatable
         'email',
         'phone',
         'password',
+        'team_order_filters',
     ];
 
     /**
@@ -56,6 +57,7 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'team_order_filters' => 'array',
         ];
     }
 

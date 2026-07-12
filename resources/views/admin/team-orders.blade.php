@@ -15,9 +15,14 @@
     if (!is_array($serviceFilter)) {
         $serviceFilter = $serviceFilter === 'all' ? [] : [$serviceFilter];
     }
+    $stageFilter = $stageFilter ?? [];
+    if (!is_array($stageFilter)) {
+        $stageFilter = $stageFilter === 'all' ? [] : [$stageFilter];
+    }
     $clientFilter = $clientFilter ?? 'all';
     $products = $products ?? collect();
     $services = $services ?? collect();
+    $stages = $stages ?? collect();
     $clients = $clients ?? collect();
 
     $toggleQuery = array_filter([
@@ -30,6 +35,9 @@
     }
     if (!empty($serviceFilter)) {
         $toggleQuery['service'] = $serviceFilter;
+    }
+    if (!empty($stageFilter)) {
+        $toggleQuery['stage'] = $stageFilter;
     }
 @endphp
 <style>
@@ -636,6 +644,7 @@
         </a>
         @endif
         <form method="GET" action="{{ route('team.orders') }}" class="d-flex flex-wrap align-items-end gap-2" autocomplete="off">
+            <input type="hidden" name="applied" value="1" />
             @if($showArchived)
                 <input type="hidden" name="view" value="archived" />
             @endif
@@ -682,6 +691,25 @@
             </div>
 
             <div>
+                <label class="form-label mb-1 text-light">ეტაპი</label>
+                <div class="checkbox-dropdown" id="stageDropdown">
+                    <div class="checkbox-dropdown-toggle" id="stageDropdownToggle">ყველა</div>
+                    <div class="checkbox-dropdown-menu">
+                        @foreach($stages as $stage)
+                        <label>
+                            <input type="checkbox" name="stage[]" value="{{ $stage->name }}" {{ in_array($stage->name, $stageFilter) ? 'checked' : '' }}>
+                            {{ $stage->title }}
+                        </label>
+                        @endforeach
+                        <label>
+                            <input type="checkbox" name="stage[]" value="__none__" {{ in_array('__none__', $stageFilter) ? 'checked' : '' }}>
+                            ეტაპის გარეშე
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <div>
                 <label class="form-label mb-1 text-light">კლიენტი</label>
                 <select class="form-select" id="clientFilterSelect" name="client" style="width: 240px;" autocomplete="off">
                     <option value="all" {{ $clientFilter === 'all' ? 'selected' : '' }}>ყველა</option>
@@ -692,7 +720,7 @@
             </div>
 
             <button type="submit" class="btn btn-primary">Apply</button>
-            <a href="{{ $showArchived ? route('team.orders', ['view' => 'archived']) : route('team.orders') }}" class="btn btn-outline-light">Reset</a>
+            <a href="{{ route('team.orders', $showArchived ? ['view' => 'archived', 'reset' => 1] : ['reset' => 1]) }}" class="btn btn-outline-light">Reset</a>
         </form>
     </div>
     <div class="row">
@@ -967,6 +995,7 @@ jQuery(function($) {
 
     initCheckboxDropdown('productDropdown', 'productDropdownToggle');
     initCheckboxDropdown('serviceDropdown', 'serviceDropdownToggle');
+    initCheckboxDropdown('stageDropdown', 'stageDropdownToggle');
 
     document.addEventListener('click', function() {
         document.querySelectorAll('.checkbox-dropdown.open').forEach(function(dd) {

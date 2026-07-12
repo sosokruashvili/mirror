@@ -41,22 +41,61 @@ class TeamOrderController extends Controller
     {
         $view = $request->query('view');
         $showArchived = ($view === 'archived');
-        $dateFrom = $request->query('from');
-        $dateTo = $request->query('to');
-        $productFilter = $request->query('product', []);
-        if (!is_array($productFilter)) {
-            $productFilter = $productFilter === 'all' ? [] : [$productFilter];
+
+        // Reset button: clear the user's saved filters and reload unfiltered.
+        if ($request->boolean('reset')) {
+            if ($user = backpack_user()) {
+                $user->team_order_filters = null;
+                $user->save();
+            }
+
+            return redirect()->route('team.orders', $showArchived ? ['view' => 'archived'] : []);
         }
-        $productFilter = array_filter($productFilter);
-        $serviceFilter = $request->query('service', []);
-        if (!is_array($serviceFilter)) {
-            $serviceFilter = $serviceFilter === 'all' ? [] : [$serviceFilter];
+
+        // Filters come from the request when the filter form was submitted
+        // ("applied=1"); otherwise fall back to the user's saved filters so the
+        // page reopens with the last-used selection.
+        $applied = $request->has('applied');
+        $saved = [];
+        if (!$applied && ($user = backpack_user())) {
+            $saved = is_array($user->team_order_filters) ? $user->team_order_filters : [];
         }
-        $serviceFilter = array_filter($serviceFilter);
-        $clientFilter = $request->query('client', 'all');
+
+        $pick = function (string $key, $default) use ($request, $applied, $saved) {
+            return $applied ? $request->query($key, $default) : ($saved[$key] ?? $default);
+        };
+
+        $normalizeArray = function ($value): array {
+            if (!is_array($value)) {
+                $value = ($value === 'all' || $value === null || $value === '') ? [] : [$value];
+            }
+
+            return array_values(array_filter($value, fn ($v) => $v !== '' && $v !== null));
+        };
+
+        $dateFrom = $pick('from', null);
+        $dateTo = $pick('to', null);
+        $productFilter = $normalizeArray($pick('product', []));
+        $serviceFilter = $normalizeArray($pick('service', []));
+        $stageFilter = $normalizeArray($pick('stage', []));
+        $clientFilter = $pick('client', 'all');
+
+        // Persist the just-applied filters for this user.
+        if ($applied && ($user = backpack_user())) {
+            $user->team_order_filters = [
+                'from' => $dateFrom ?: null,
+                'to' => $dateTo ?: null,
+                'product' => $productFilter,
+                'service' => $serviceFilter,
+                'stage' => $stageFilter,
+                'client' => $clientFilter,
+            ];
+            $user->save();
+        }
 
         $products = \App\Models\Product::orderBy('title')->get();
         $clients = \App\Models\Client::orderBy('name')->get();
+        $stages = \App\Models\Stage::orderBy('position')->orderBy('id')->get();
 
         $teamOrderScope = function ($q) use ($showArchived) {
             $q->whereNotIn('status', ['draft', 'finished']);
@@ -110,6 +149,24 @@ class TeamOrderController extends Controller
             });
         }
 
+        if (!empty($stageFilter)) {
+            // The '__none__' sentinel matches pieces that have no stage set yet.
+            $wantsNoStage = in_array('__none__', $stageFilter, true);
+            $realStages = array_values(array_filter($stageFilter, fn ($s) => $s !== '__none__'));
+
+            $ordersQuery->whereHas('pieces', function ($q) use ($realStages, $wantsNoStage) {
+                $q->where(function ($q) use ($realStages, $wantsNoStage) {
+                    if (!empty($realStages)) {
+                        $q->whereIn('stage', $realStages);
+                    }
+
+                    if ($wantsNoStage) {
+                        $q->orWhereNull('stage')->orWhere('stage', '');
+                    }
+                });
+            });
+        }
+
         if ($clientFilter !== 'all' && $clientFilter !== '' && $clientFilter !== null) {
             $ordersQuery->where('client_id', $clientFilter);
         }
@@ -134,7 +191,7 @@ class TeamOrderController extends Controller
 
         $orders = $ordersQuery->get();
 
-        return view('admin.team-orders', compact('orders', 'showArchived', 'products', 'productFilter', 'services', 'serviceFilter', 'clients', 'clientFilter', 'dateFrom', 'dateTo'));
+        return view('admin.team-orders', compact('orders', 'showArchived', 'products', 'productFilter', 'services', 'serviceFilter', 'stages', 'stageFilter', 'clients', 'clientFilter', 'dateFrom', 'dateTo'));
     }
 
     /**

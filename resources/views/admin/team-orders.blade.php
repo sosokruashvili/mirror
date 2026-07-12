@@ -25,6 +25,14 @@
     $stages = $stages ?? collect();
     $clients = $clients ?? collect();
 
+    // Lookups for resolving a piece's relevant stages from its services.
+    // A service belongs to a stage (services.stage_id); a piece's selectable
+    // stages are the stages of its services PLUS the universal stages that
+    // apply to every piece (e.g. მოჭრა, დასრულება).
+    $stageNameById = $stages->pluck('name', 'id');
+    $stageOrderSlugs = array_keys(piece_stages());
+    $universalStageSlugs = array_keys(piece_universal_stages());
+
     $toggleQuery = array_filter([
         'from' => $dateFrom ?: null,
         'to' => $dateTo ?: null,
@@ -389,11 +397,43 @@
     .piece-ctx-menu-item.item-stage {
         color: #2c3e50;
     }
-    .piece-ctx-menu-item.item-stage.active {
-        background: #e7f1ff;
-        color: #0d6efd;
+    /* CSS checkbox drawn in the item's stage color (currentColor). */
+    .piece-ctx-menu-item .stage-check {
+        width: 18px;
+        height: 18px;
+        border: 2px solid currentColor;
+        border-radius: 4px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+        box-sizing: border-box;
+        opacity: 0.7;
+    }
+    .piece-ctx-menu-item.checked .stage-check {
+        background: currentColor;
+        opacity: 1;
+    }
+    .piece-ctx-menu-item.checked .stage-check::after {
+        content: '';
+        width: 5px;
+        height: 9px;
+        border: solid #fff;
+        border-width: 0 2px 2px 0;
+        transform: rotate(45deg);
+        margin-top: -2px;
+    }
+    .piece-ctx-menu-item.checked {
+        background: #f4f8ff;
     }
     .piece-ctx-menu-item.item-stage-clear {
+        color: #97a0af;
+    }
+    .piece-ctx-menu-empty {
+        display: none;
+        padding: 12px 14px;
+        font-size: 12px;
+        font-style: italic;
         color: #97a0af;
     }
     .piece-ctx-menu-item:hover {
@@ -412,6 +452,11 @@
         border-top: 2px solid #e9edf2;
         margin-top: 2px;
         background: #f7f9fb;
+    }
+    .piece-ctx-menu-label:first-child {
+        border-top: none;
+        margin-top: 0;
+        border-radius: 6px 6px 0 0;
     }
 
     .size-tags-empty {
@@ -782,12 +827,21 @@
                                                 'quantity' => 0,
                                                 'piece_ids' => [],
                                                 'service_shortnames' => [],
+                                                'stage_slugs' => [],
+                                                'completed_slugs' => $piece->completedStageNames(),
                                                 'broken_count' => 0,
                                                 'stage' => $piece->stage,
                                                 'stage_mixed' => false,
                                             ];
-                                        } elseif ($sizeGroups[$key]['stage'] !== $piece->stage) {
-                                            $sizeGroups[$key]['stage_mixed'] = true;
+                                        } else {
+                                            if ($sizeGroups[$key]['stage'] !== $piece->stage) {
+                                                $sizeGroups[$key]['stage_mixed'] = true;
+                                            }
+                                            // A stage checkbox is only "checked" for the group when
+                                            // every piece in it has completed that stage.
+                                            $sizeGroups[$key]['completed_slugs'] = array_values(
+                                                array_intersect($sizeGroups[$key]['completed_slugs'], $piece->completedStageNames())
+                                            );
                                         }
                                         $sizeGroups[$key]['quantity'] += $piece->quantity ?? 1;
                                         $sizeGroups[$key]['piece_ids'][] = $piece->id;
@@ -798,10 +852,16 @@
                                             return $service->pivot->piece_id == $piece->id;
                                         })->sortBy('id');
                                         
-                                        // Collect unique service shortnames for this size
+                                        // Collect unique service shortnames + the stages those
+                                        // services belong to (the piece's selectable stages).
                                         foreach($pieceServices as $service) {
                                             if ($service->shortname && !in_array($service->shortname, $sizeGroups[$key]['service_shortnames'])) {
                                                 $sizeGroups[$key]['service_shortnames'][] = $service->shortname;
+                                            }
+
+                                            $stageSlug = $stageNameById[$service->stage_id] ?? null;
+                                            if ($stageSlug && !in_array($stageSlug, $sizeGroups[$key]['stage_slugs'])) {
+                                                $sizeGroups[$key]['stage_slugs'][] = $stageSlug;
                                             }
                                         }
                                     }
@@ -816,8 +876,13 @@
                                                 $stageStyle = $groupStage
                                                     ? 'background-color: ' . piece_stage_color($groupStage) . '; color: ' . piece_stage_text_color($groupStage) . ';'
                                                     : 'background-color: ' . piece_draft_color() . '; color: #ffffff;';
+                                                // The stages this size group can move through, in canonical order:
+                                                // the universal stages plus the stages of its services.
+                                                $groupStageSlugs = array_values(array_filter($stageOrderSlugs, fn ($slug) => in_array($slug, $size['stage_slugs'], true) || in_array($slug, $universalStageSlugs, true)));
+                                                // Stages completed by every piece in the group, in canonical order.
+                                                $groupCompletedSlugs = array_values(array_filter($stageOrderSlugs, fn ($slug) => in_array($slug, $size['completed_slugs'] ?? [], true)));
                                             @endphp
-                                            <span class="size-tag{{ ($size['broken_count'] ?? 0) > 0 ? ' broken' : '' }}{{ $groupStage ? ' has-stage' : '' }}{{ $showArchived ? ' size-tag-readonly' : '' }}" data-piece-ids="{{ implode(',', $size['piece_ids']) }}" data-piece-stage="{{ $groupStage ?? '' }}" style="{{ $stageStyle }}"@if(!$showArchived) onclick="togglePieceMenu(event, this)"@endif>
+                                            <span class="size-tag{{ ($size['broken_count'] ?? 0) > 0 ? ' broken' : '' }}{{ $groupStage ? ' has-stage' : '' }}{{ $showArchived ? ' size-tag-readonly' : '' }}" data-piece-ids="{{ implode(',', $size['piece_ids']) }}" data-piece-stage="{{ $groupStage ?? '' }}" data-piece-stages="{{ implode(',', $groupStageSlugs) }}" data-piece-completed="{{ implode(',', $groupCompletedSlugs) }}" style="{{ $stageStyle }}"@if(!$showArchived) onclick="togglePieceMenu(event, this)"@endif>
                                                 {{ $size['width'] }} × {{ $size['height'] }} cm (×{{ $size['quantity'] }})
                                                 @if(($size['broken_count'] ?? 0) > 0)
                                                     <span class="piece-broken-label">[გატყდა: {{ $size['broken_count'] }}]</span>
@@ -881,10 +946,12 @@
 {{-- Shared piece context menu --}}
 @if(!$showArchived)
 <div id="pieceCtxMenu" class="piece-ctx-menu">
+    <div class="piece-ctx-menu-label" id="pieceCtxMenuHint">მონიშნეთ დასრულებული ეტაპი</div>
     @foreach(piece_stages() as $stageSlug => $stageLabel)
-        <button type="button" class="piece-ctx-menu-item item-stage" data-stage="{{ $stageSlug }}" style="color: {{ piece_stage_color($stageSlug) }};"><i class="la la-layer-group"></i> {{ $stageLabel }}</button>
+        <button type="button" class="piece-ctx-menu-item item-stage" data-stage="{{ $stageSlug }}" style="color: {{ piece_stage_color($stageSlug) }};"><span class="stage-check" aria-hidden="true"></span> {{ $stageLabel }}</button>
     @endforeach
-    <button type="button" class="piece-ctx-menu-item item-stage item-stage-clear" data-stage=""><i class="la la-eraser"></i> ეტაპის მოხსნა</button>
+    <div class="piece-ctx-menu-empty" id="pieceCtxMenuEmpty">ეტაპები არ არის მიბმული</div>
+    <button type="button" class="piece-ctx-menu-item item-stage-clear" data-stage=""><i class="la la-eraser"></i> ეტაპის მოხსნა</button>
 </div>
 @endif
 
@@ -1093,6 +1160,12 @@ jQuery(function($) {
     var _orderCtxMenu = document.getElementById('orderCtxMenu');
     var _orderCtxCard = null;
 
+    // The stage slugs visible for the currently open group, in completion order.
+    // Populated on open from the size tag's data-piece-stages attribute.
+    var _activeStageOrder = [];
+    var _pieceCtxMenuHint = document.getElementById('pieceCtxMenuHint');
+    var _pieceCtxMenuEmpty = document.getElementById('pieceCtxMenuEmpty');
+
     function closeCtxMenus() {
         _pieceCtxMenu.classList.remove('open');
         _orderCtxMenu.classList.remove('open');
@@ -1126,12 +1199,28 @@ jQuery(function($) {
         if (!wasOpen) {
             _pieceCtxTag = tag;
 
-            // Highlight the group's current stage (if all pieces share one).
-            var currentStage = tag.getAttribute('data-piece-stage') || '';
+            // Only show the stages relevant to this piece — the stages of the
+            // services attached to it plus universal stages (data-piece-stages,
+            // in canonical order).
+            var allowed = (tag.getAttribute('data-piece-stages') || '')
+                .split(',').filter(function(s) { return s !== ''; });
+            _activeStageOrder = allowed;
+
+            // Each stage is an independent checkbox: checked when the group has
+            // COMPLETED it (data-piece-completed), i.e. a dated pivot record exists
+            // for every piece in the group.
+            var completed = (tag.getAttribute('data-piece-completed') || '')
+                .split(',').filter(function(s) { return s !== ''; });
+
             _pieceCtxMenu.querySelectorAll('.item-stage').forEach(function(item) {
-                var slug = item.getAttribute('data-stage') || '';
-                item.classList.toggle('active', slug !== '' && slug === currentStage);
+                var slug = item.getAttribute('data-stage');
+                item.style.display = (allowed.indexOf(slug) !== -1) ? '' : 'none';
+                item.classList.toggle('checked', completed.indexOf(slug) !== -1);
             });
+
+            // Toggle the hint / empty note depending on whether any stage applies.
+            if (_pieceCtxMenuHint) _pieceCtxMenuHint.style.display = allowed.length ? '' : 'none';
+            if (_pieceCtxMenuEmpty) _pieceCtxMenuEmpty.style.display = allowed.length ? 'none' : 'block';
 
             var anchor = tag.querySelector('.piece-dots-btn') || tag;
             var rect = anchor.getBoundingClientRect();
@@ -1164,47 +1253,69 @@ jQuery(function($) {
         finishOrder(orderId, e.currentTarget);
     });
 
-    // Stage selection: apply the chosen stage to every piece in the clicked size group.
+    // Toggle a single stage's completion for every piece in the size group.
+    // `stage` empty + completed omitted clears all stages. Otherwise `completed`
+    // (true/false) records or removes that stage's dated completion.
+    function applyStageToPieces(tag, stage, completed) {
+        var pieceIds = tag.getAttribute('data-piece-ids').split(',');
+        var token = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') ||
+                    document.querySelector('input[name="_token"]')?.value;
+
+        closeCtxMenus();
+
+        var done = 0;
+        var failed = false;
+        pieceIds.forEach(function(id) {
+            var formData = new FormData();
+            formData.append('_token', token);
+            formData.append('stage', stage);
+            if (stage !== '') {
+                formData.append('completed', completed ? '1' : '0');
+            }
+            fetch('{{ route("team.pieces.stage", ":id") }}'.replace(':id', id), {
+                method: 'POST',
+                headers: {
+                    'Accept': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRF-TOKEN': token
+                },
+                body: formData
+            })
+            .then(function(res) { return res.json(); })
+            .then(function(data) {
+                if (!data.success) failed = true;
+            })
+            .catch(function() { failed = true; })
+            .finally(function() {
+                done++;
+                if (done === pieceIds.length) {
+                    reloadTeamPageIfStatusUpdated(!failed, 'ეტაპი – მოთხოვნა ვერ შესრულდა.');
+                }
+            });
+        });
+    }
+
+    // Checkbox behaviour: each stage is independent. Clicking checks (records a
+    // dated completion) or unchecks (removes it) that stage for the whole group.
     _pieceCtxMenu.querySelectorAll('.item-stage').forEach(function(stageBtn) {
         stageBtn.addEventListener('click', function(e) {
             e.stopPropagation();
             if (!_pieceCtxTag) return;
 
-            var tag = _pieceCtxTag;
-            var pieceIds = tag.getAttribute('data-piece-ids').split(',');
-            var stage = stageBtn.getAttribute('data-stage') || '';
-            var token = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') ||
-                        document.querySelector('input[name="_token"]')?.value;
+            var slug = stageBtn.getAttribute('data-stage');
+            if (_activeStageOrder.indexOf(slug) < 0) return;
 
-            closeCtxMenus();
+            var willComplete = !stageBtn.classList.contains('checked');
+            applyStageToPieces(_pieceCtxTag, slug, willComplete);
+        });
+    });
 
-            var done = 0;
-            var failed = false;
-            pieceIds.forEach(function(id) {
-                var formData = new FormData();
-                formData.append('_token', token);
-                formData.append('stage', stage);
-                fetch('{{ route("team.pieces.stage", ":id") }}'.replace(':id', id), {
-                    method: 'POST',
-                    headers: {
-                        'Accept': 'application/json',
-                        'X-Requested-With': 'XMLHttpRequest',
-                        'X-CSRF-TOKEN': token
-                    },
-                    body: formData
-                })
-                .then(function(res) { return res.json(); })
-                .then(function(data) {
-                    if (!data.success) failed = true;
-                })
-                .catch(function() { failed = true; })
-                .finally(function() {
-                    done++;
-                    if (done === pieceIds.length) {
-                        reloadTeamPageIfStatusUpdated(!failed, 'ეტაპი – მოთხოვნა ვერ შესრულდა.');
-                    }
-                });
-            });
+    // Clear all completed stages for the group.
+    _pieceCtxMenu.querySelectorAll('.item-stage-clear').forEach(function(clearBtn) {
+        clearBtn.addEventListener('click', function(e) {
+            e.stopPropagation();
+            if (!_pieceCtxTag) return;
+            applyStageToPieces(_pieceCtxTag, '');
         });
     });
 
@@ -1297,6 +1408,143 @@ jQuery(function($) {
         .catch(function() { if (callback) callback(false); });
     }
 </script>
+
+@if(!$showArchived)
+<script>
+    // Auto-reload: periodically ask the server which orders currently match the
+    // active filters. If a newly *confirmed* order appears that is not on the
+    // page yet, reload so the team sees it. Uses the current URL's query string
+    // so the check respects whatever filter is applied.
+    (function() {
+        var POLL_INTERVAL = 10000; // ms
+
+        var checkUrl = '{{ route('team.orders.check') }}';
+        var search = window.location.search; // preserves applied filters (?applied=1&stage[]=...)
+        var pollUrl = checkUrl + (search ? search : '');
+
+        // --- Notification chime (Web Audio API; no external sound file) ------
+        var audioCtx = null;
+        function ensureAudioCtx() {
+            if (audioCtx) return audioCtx;
+            var Ctx = window.AudioContext || window.webkitAudioContext;
+            if (Ctx) audioCtx = new Ctx();
+            return audioCtx;
+        }
+        // Browsers block audio until the page receives a user gesture. Firefox
+        // in particular stays muted for later timer-triggered sound unless the
+        // context is both resumed AND primed (a silent blip played) inside a
+        // real gesture. Do that on the first interactions, then stop listening
+        // once the context is confirmed running.
+        var unlockEvents = ['pointerdown', 'click', 'keydown', 'touchstart'];
+        function unlockAudio() {
+            var ctx = ensureAudioCtx();
+            if (!ctx) return;
+            if (ctx.state !== 'running' && ctx.resume) ctx.resume();
+            try {
+                var src = ctx.createBufferSource();
+                src.buffer = ctx.createBuffer(1, 1, 22050); // 1 silent sample
+                src.connect(ctx.destination);
+                src.start(0);
+            } catch (e) { /* priming is best-effort */ }
+            if (ctx.state === 'running') {
+                unlockEvents.forEach(function(evt) {
+                    document.removeEventListener(evt, unlockAudio);
+                });
+            }
+        }
+        unlockEvents.forEach(function(evt) {
+            document.addEventListener(evt, unlockAudio, { passive: true });
+        });
+
+        function playNotification() {
+            var ctx = ensureAudioCtx();
+            if (!ctx) return;
+            if (ctx.state === 'suspended') ctx.resume();
+
+            var now = ctx.currentTime;
+            // A standard ascending four-note chime (C6–E6–G6–C7 major arpeggio)
+            // at full volume, with the final note held a touch longer. A master
+            // gain feeds the output so the overlapping notes stay loud without
+            // clipping into distortion.
+            var master = ctx.createGain();
+            master.gain.value = 1.0; // maximum
+            master.connect(ctx.destination);
+
+            [
+                { f: 1046.50, t: 0,    d: 0.5 },
+                { f: 1318.51, t: 0.18, d: 0.5 },
+                { f: 1567.98, t: 0.36, d: 0.5 },
+                { f: 2093.00, t: 0.54, d: 0.8 }
+            ].forEach(function(note) {
+                var osc = ctx.createOscillator();
+                var gain = ctx.createGain();
+                osc.type = 'triangle'; // bell-like, richer than a pure sine
+                osc.frequency.value = note.f;
+                osc.connect(gain);
+                gain.connect(master);
+                var start = now + note.t;
+                gain.gain.setValueAtTime(0.0001, start);
+                gain.gain.exponentialRampToValueAtTime(1.0, start + 0.01);
+                gain.gain.exponentialRampToValueAtTime(0.0001, start + note.d);
+                osc.start(start);
+                osc.stop(start + note.d + 0.05);
+            });
+        }
+
+        function currentOrderIds() {
+            var ids = {};
+            document.querySelectorAll('.order-card[data-order-id]').forEach(function(el) {
+                ids[String(el.getAttribute('data-order-id'))] = true;
+            });
+            return ids;
+        }
+
+        // Don't reload while the user is mid-interaction — it would be jarring
+        // and could lose in-progress work (dragging, an open menu, a preview).
+        function isBusy() {
+            if (document.hidden) return true;
+            if (document.querySelector('.order-card.dragging')) return true;
+            if (document.querySelector('.piece-ctx-menu.open')) return true;
+            var overlay = document.getElementById('orderPreviewOverlay');
+            if (overlay && overlay.style.display !== 'none' && overlay.style.display !== '') return true;
+            if (document.querySelector('.modal.show')) return true;
+            return false;
+        }
+
+        function poll() {
+            if (isBusy()) return;
+
+            fetch(pollUrl, {
+                headers: {
+                    'Accept': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                credentials: 'same-origin'
+            })
+            .then(function(res) { return res.ok ? res.json() : null; })
+            .then(function(data) {
+                if (!data || !Array.isArray(data.ids)) return;
+                if (isBusy()) return; // re-check: state may have changed during the request
+
+                var shown = currentOrderIds();
+                var hasNewCard = data.ids.some(function(id) {
+                    return !shown[String(id)];
+                });
+
+                if (hasNewCard) {
+                    // Chime first, then reload — the reload would otherwise cut
+                    // the sound off before it is audible.
+                    playNotification();
+                    setTimeout(function() { window.location.reload(); }, 1500);
+                }
+            })
+            .catch(function() { /* transient network error — try again next tick */ });
+        }
+
+        setInterval(poll, POLL_INTERVAL);
+    })();
+</script>
+@endif
 
 @basset('https://cdn.jsdelivr.net/npm/jquery-ui@1.13.2/dist/jquery-ui.min.js')
 @basset('https://cdnjs.cloudflare.com/ajax/libs/jqueryui-touch-punch/0.2.3/jquery.ui.touch-punch.min.js')

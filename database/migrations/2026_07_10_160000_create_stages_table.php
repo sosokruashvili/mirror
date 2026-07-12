@@ -20,7 +20,7 @@ return new class extends Migration
             $table->id();
             $table->string('name')->unique();
             $table->string('title');
-            $table->string('color')->default('#64748B');
+            $table->string('color')->default('#64748b');
             $table->unsignedInteger('position')->default(0);
             $table->timestamps();
         });
@@ -30,13 +30,13 @@ return new class extends Migration
         // referencing these `name` slugs).
         $now = now();
         $stages = [
-            ['name' => 'cutting', 'title' => 'მოჭრა', 'color' => '#FACC15'],
-            ['name' => 'processing', 'title' => 'დამუშავება', 'color' => '#0EA5E9'],
-            ['name' => 'cutting-drilling', 'title' => 'ჭრა/ხვრეტა', 'color' => '#6366F1'],
-            ['name' => 'tempering', 'title' => 'წრთობა', 'color' => '#EF4444'],
-            ['name' => 'assembly', 'title' => 'აწყობა', 'color' => '#F59E0B'],
-            ['name' => 'curing', 'title' => 'დამატოვება', 'color' => '#7E22CE'],
-            ['name' => 'completion', 'title' => 'დასრულება', 'color' => '#10B981'],
+            ['name' => 'cutting', 'title' => 'მოჭრა', 'color' => '#facc15'],
+            ['name' => 'processing', 'title' => 'დამუშავება', 'color' => '#0ea5e9'],
+            ['name' => 'cutting-drilling', 'title' => 'ჭრა/ხვრეტა', 'color' => '#6366f1'],
+            ['name' => 'tempering', 'title' => 'წრთობა', 'color' => '#ef4444'],
+            ['name' => 'assembly', 'title' => 'აწყობა', 'color' => '#f59e0b'],
+            ['name' => 'curing', 'title' => 'დამატოვება', 'color' => '#7e22ce'],
+            ['name' => 'completion', 'title' => 'დასრულება', 'color' => '#10b981'],
         ];
 
         foreach ($stages as $index => $stage) {

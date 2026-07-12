@@ -126,11 +126,13 @@
         content: 'No services yet — click "Add service".';
         color: var(--bs-secondary-color, #97a0af); font-size: .85rem; display: block; padding: .25rem 0;
     }
-    /* Make the select2 service dropdown text match the theme's input color (white on dark)
-       instead of the faint default. */
+    /* Make the select2 service dropdown text follow the Tabler theme's body color
+       (dark on light theme, light on dark theme) instead of the faint select2 default.
+       Tabler exposes --tblr-body-color, not --bs-body-color; the final `inherit` fallback
+       guarantees we never render invisible white text on a light background. */
     #pieces-services-field .select2-selection__rendered,
     #pieces-services-field .select2-selection__rendered .select2-selection__placeholder {
-        color: var(--bs-body-color, #fff) !important;
+        color: var(--tblr-body-color, inherit) !important;
     }
 </style>
 @endpush

@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(awk '{print $3, $4}')",
+      "Bash(awk 'NR>=599 && NR<=760 && /pieces-list|addColumn|data-piece-stage|function|renderService/' app/Http/Controllers/Admin/OrderCrudController.php)"
+    ]
+  }
+}

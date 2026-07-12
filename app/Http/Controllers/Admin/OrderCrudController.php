@@ -327,7 +327,20 @@ class OrderCrudController extends CrudController
     {
         // Set custom view for create operation
         $this->crud->setCreateView('vendor.backpack.crud.order.create');
-        
+
+        // Default the Save button to "Save and edit this item" so the user stays on the
+        // form after saving instead of being sent back to the list. Runs for both the
+        // create and update operations since setupUpdateOperation() calls this method.
+        $this->crud->setOperationSetting('defaultSaveAction', 'save_and_edit');
+
+        // Backpack remembers the last-used save action per operation in the session, and
+        // that remembered value takes precedence over the default above — so an earlier
+        // "Save and back" on the edit form would stick. Reset it to our default whenever
+        // the form is *displayed* (GET), leaving the actual save request untouched.
+        if ($this->crud->getRequest()->isMethod('get')) {
+            session([$this->crud->getCurrentOperation() . '.saveAction' => 'save_and_edit']);
+        }
+
         // Set validation rules
         $this->crud->setValidation(\App\Http\Requests\OrderRequest::class);
         
@@ -783,10 +796,28 @@ class OrderCrudController extends CrudController
                 };
                 
                 $html = '<div class="pieces-list">';
-                
+
+                // Lookups for filtering each piece's stage dropdown to only the
+                // stages relevant to it: the universal stages plus the stages of
+                // the services attached to that piece (services.stage_id).
+                $allStageLabels = piece_stages();
+                $stageOrderSlugs = array_keys($allStageLabels);
+                $universalStageSlugs = array_keys(piece_universal_stages());
+                $stageSlugById = \App\Models\Stage::ordered()->pluck('name', 'id');
+
                 // Render pieces with their services
                 foreach ($entry->pieces as $piece) {
                     $pieceServices = $entry->services->filter(fn($s) => $s->pivot->piece_id == $piece->id);
+
+                    // Stages this piece can move through, in canonical order.
+                    $serviceStageSlugs = $pieceServices
+                        ->map(fn($s) => $stageSlugById[$s->stage_id] ?? null)
+                        ->filter()
+                        ->all();
+                    $pieceStageSlugs = array_values(array_filter(
+                        $stageOrderSlugs,
+                        fn($slug) => in_array($slug, $serviceStageSlugs, true) || in_array($slug, $universalStageSlugs, true)
+                    ));
                     
                     $html .= '<div class="mb-3 p-3 border rounded piece-item">';
                     $html .= '<div class="fw-bold d-block mb-2">Piece #' . $piece->id . ($piece->product ? ' - ' . htmlspecialchars($piece->product->title, ENT_QUOTES, 'UTF-8') : '') . '</div>';
@@ -801,7 +832,8 @@ class OrderCrudController extends CrudController
                     $html .= '<label class="small me-2 fw-bold">Stage (ეტაპი):</label>';
                     $html .= '<select class="form-select form-select-sm d-inline-block" style="width:auto;" data-piece-stage-select data-piece-id="' . $piece->id . '">';
                     $html .= '<option value="">—</option>';
-                    foreach (piece_stages() as $slug => $label) {
+                    foreach ($pieceStageSlugs as $slug) {
+                        $label = $allStageLabels[$slug] ?? $slug;
                         $selected = $piece->stage === $slug ? ' selected' : '';
                         $html .= '<option value="' . $slug . '"' . $selected . '>' . htmlspecialchars($label, ENT_QUOTES, 'UTF-8') . '</option>';
                     }
@@ -1012,8 +1044,18 @@ class OrderCrudController extends CrudController
             $pieceIdMap = [];
             // The order edit form does not manage stages (that's done via the Piece CRUD and
             // the preview page), but pieces are deleted and recreated here — so capture the
-            // existing stage per piece id first and carry it over to avoid wiping it on save.
+            // existing stage cache AND the completed-stage pivot (with completion dates) per
+            // piece id first, and carry both over to the freshly created pieces.
             $existingStages = $order->pieces()->pluck('stage', 'id')->toArray();
+            $existingCompletions = $order->pieces()->with('stages')->get()
+                ->mapWithKeys(function ($piece) {
+                    return [$piece->id => $piece->stages->map(function ($stage) {
+                        return [
+                            'stage_id' => $stage->id,
+                            'completed_at' => $stage->pivot->completed_at,
+                        ];
+                    })->all()];
+                })->toArray();
             if (!empty($fields['pieces'])) {
                 $order->pieces()->delete();
                 $pieceIndex = 0;
@@ -1027,6 +1069,15 @@ class OrderCrudController extends CrudController
                         'quantity' => $piece['quantity'] ?? 1,
                         'stage' => $existingStage,
                     ]);
+                    // Re-attach the completed-stage pivot records (with their original
+                    // completion dates) to the recreated piece.
+                    if (!empty($piece['id']) && !empty($existingCompletions[$piece['id']])) {
+                        foreach ($existingCompletions[$piece['id']] as $completion) {
+                            $createdPiece->stages()->attach($completion['stage_id'], [
+                                'completed_at' => $completion['completed_at'],
+                            ]);
+                        }
+                    }
                     // Map both temporary ids (temp_#) and existing ids to the freshly created piece id
                     $tempId = 'temp_' . $pieceIndex;
                     $pieceIdMap[$tempId] = $createdPiece->id;
@@ -1298,18 +1349,26 @@ class OrderCrudController extends CrudController
             ], 404);
         }
 
-        $stage = request()->input('stage');
-        $stage = ($stage === '' || $stage === null) ? null : $stage;
+        $stageSlug = request()->input('stage');
+        $stageSlug = ($stageSlug === '' || $stageSlug === null) ? null : $stageSlug;
 
-        if ($stage !== null && !array_key_exists($stage, piece_stages())) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Invalid stage',
-            ], 422);
+        // This single-select editor means "the piece has completed through this
+        // stage", so mark every stage up to and including it as completed in the
+        // piece_stage pivot (and refresh the pieces.stage cache).
+        if ($stageSlug === null) {
+            $piece->setCompletedThroughStage(null);
+        } else {
+            $stage = \App\Models\Stage::where('name', $stageSlug)->first();
+
+            if (!$stage) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Invalid stage',
+                ], 422);
+            }
+
+            $piece->setCompletedThroughStage($stage);
         }
-
-        $piece->stage = $stage;
-        $piece->save();
 
         return response()->json([
             'success' => true,

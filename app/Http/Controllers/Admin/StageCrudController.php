@@ -63,6 +63,13 @@ class StageCrudController extends CrudController
                     . ' <span class="text-muted">' . $color . '</span>';
             },
         ]);
+
+        CRUD::addColumn([
+            'name' => 'is_universal',
+            'label' => 'Universal',
+            'type' => 'boolean',
+            'options' => [0 => 'No', 1 => 'Yes'],
+        ]);
     }
 
     protected function setupCreateOperation()
@@ -99,6 +106,13 @@ class StageCrudController extends CrudController
             'type' => 'number',
             'hint' => 'Lower numbers appear first everywhere stages are listed.',
             'default' => 0,
+        ]);
+
+        CRUD::addField([
+            'name' => 'is_universal',
+            'label' => 'Universal stage',
+            'type' => 'checkbox',
+            'hint' => 'When on, this stage applies to every piece regardless of its services (e.g. მოჭრა, დასრულება).',
         ]);
     }
 

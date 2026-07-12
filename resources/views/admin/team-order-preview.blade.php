@@ -352,11 +352,22 @@
 										<span class="piece-detail-value">{{ number_format($piece->getArea(), 2) }} m²</span>
 									</div>
 								@endif
-								@if($piece->stage)
-									<div class="piece-detail-item">
-										<span class="piece-detail-label">ეტაპი:</span>
-										<span class="piece-detail-value">{{ piece_stage_ge($piece->stage) }}</span>
-									</div>
+								@php
+									$completedStages = $piece->stages->sortBy('position');
+								@endphp
+								@if($completedStages->isNotEmpty())
+									@foreach($completedStages as $completedStage)
+										<div class="piece-detail-item">
+											<span class="piece-detail-label">{{ $completedStage->title }}:</span>
+											<span class="piece-detail-value">
+												@if($completedStage->pivot->completed_at)
+													{{ \Illuminate\Support\Carbon::parse($completedStage->pivot->completed_at)->format('Y-m-d H:i') }}
+												@else
+													✓
+												@endif
+											</span>
+										</div>
+									@endforeach
 								@endif
 								@if(($piece->broken_glasses_count ?? 0) > 0)
 									<div class="piece-detail-item piece-broken-badge">

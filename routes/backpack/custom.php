@@ -51,6 +51,7 @@ Route::group([
     
     // Team order processing page
     Route::get('team/orders', 'TeamOrderController@index')->name('team.orders');
+    Route::get('team/orders/check', 'TeamOrderController@check')->name('team.orders.check');
     Route::post('team/orders/{id}/finish', 'TeamOrderController@finish')->name('team.orders.finish');
     Route::post('team/orders/{id}/archive', 'TeamOrderController@archive')->name('team.orders.archive');
     Route::post('team/orders/{id}/unarchive', 'TeamOrderController@unarchive')->name('team.orders.unarchive');

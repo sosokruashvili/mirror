@@ -34,6 +34,7 @@ class StageRequest extends FormRequest
             'title' => 'required|string|max:255',
             'color' => 'required|string|max:9',
             'position' => 'nullable|integer|min:0',
+            'is_universal' => 'nullable|boolean',
         ];
     }
 }

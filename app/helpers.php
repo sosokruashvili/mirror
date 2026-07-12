@@ -80,6 +80,25 @@ if (!function_exists('piece_stages')) {
     }
 }
 
+if (!function_exists('piece_universal_stages')) {
+    /**
+     * Stages that apply to every piece regardless of its services (e.g. მოჭრა,
+     * დასრულება), keyed by name (slug) => title, in production order.
+     *
+     * A piece's selectable stages are these universal stages plus the stages of
+     * the services attached to it.
+     *
+     * @return array<string, string>
+     */
+    function piece_universal_stages(): array
+    {
+        return \App\Models\Stage::ordered()
+            ->where('is_universal', true)
+            ->pluck('title', 'name')
+            ->all();
+    }
+}
+
 if (!function_exists('piece_stage_colors')) {
     /**
      * Badge color for each production stage, keyed by name (slug) => hex.

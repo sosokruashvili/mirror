@@ -27,10 +27,12 @@ class Stage extends Model
         'title',
         'color',
         'position',
+        'is_universal',
     ];
 
     protected $casts = [
         'position' => 'integer',
+        'is_universal' => 'boolean',
     ];
 
     public const CACHE_KEY = 'stages.ordered';
@@ -88,6 +90,23 @@ class Stage extends Model
     public function pieces()
     {
         return $this->hasMany(Piece::class, 'stage', 'name');
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | MUTATORS
+    |--------------------------------------------------------------------------
+    */
+
+    /**
+     * Store colors lowercased so they satisfy the color field's `#[0-9a-f]{6}`
+     * pattern. Without this an uppercase value (e.g. #10B981) trips the HTML5
+     * validation ("Please match the requested format") when the edit form
+     * reloads with the stored value.
+     */
+    public function setColorAttribute($value): void
+    {
+        $this->attributes['color'] = is_string($value) ? strtolower($value) : $value;
     }
 
     /*

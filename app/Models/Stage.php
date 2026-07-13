@@ -85,11 +85,14 @@ class Stage extends Model
     }
 
     /**
-     * Pieces currently at this stage (matched by the `name` slug).
+     * Pieces that have COMPLETED this stage, with the completion time on the
+     * pivot (`completed_at`).
      */
     public function pieces()
     {
-        return $this->hasMany(Piece::class, 'stage', 'name');
+        return $this->belongsToMany(Piece::class, 'piece_stage')
+            ->withPivot('completed_at', 'user_id')
+            ->withTimestamps();
     }
 
     /*

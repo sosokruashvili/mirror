@@ -828,18 +828,20 @@ class OrderCrudController extends CrudController
                     $html .= '</div>';
 
                     // Per-piece production stage selector (saves inline via AJAX).
+                    // "Completed through" the highest completed stage (piece_stage pivot).
+                    $pieceStage = $piece->currentStageName();
                     $html .= '<div class="mb-2 d-print-none">';
                     $html .= '<label class="small me-2 fw-bold">Stage (ეტაპი):</label>';
                     $html .= '<select class="form-select form-select-sm d-inline-block" style="width:auto;" data-piece-stage-select data-piece-id="' . $piece->id . '">';
                     $html .= '<option value="">—</option>';
                     foreach ($pieceStageSlugs as $slug) {
                         $label = $allStageLabels[$slug] ?? $slug;
-                        $selected = $piece->stage === $slug ? ' selected' : '';
+                        $selected = $pieceStage === $slug ? ' selected' : '';
                         $html .= '<option value="' . $slug . '"' . $selected . '>' . htmlspecialchars($label, ENT_QUOTES, 'UTF-8') . '</option>';
                     }
                     $html .= '</select>';
-                    // Non-JS / print fallback showing the saved stage label.
-                    $html .= '<span class="d-none d-print-inline">' . htmlspecialchars(piece_stage_ge($piece->stage), ENT_QUOTES, 'UTF-8') . '</span>';
+                    // Non-JS / print fallback showing the highest completed stage label.
+                    $html .= '<span class="d-none d-print-inline">' . htmlspecialchars(piece_stage_ge($pieceStage), ENT_QUOTES, 'UTF-8') . '</span>';
                     $html .= '</div>';
                     
                     if ($pieceServices->count() > 0) {
@@ -1044,15 +1046,15 @@ class OrderCrudController extends CrudController
             $pieceIdMap = [];
             // The order edit form does not manage stages (that's done via the Piece CRUD and
             // the preview page), but pieces are deleted and recreated here — so capture the
-            // existing stage cache AND the completed-stage pivot (with completion dates) per
-            // piece id first, and carry both over to the freshly created pieces.
-            $existingStages = $order->pieces()->pluck('stage', 'id')->toArray();
+            // completed-stage pivot (with completion dates) per piece id first and carry it
+            // over to the freshly created pieces.
             $existingCompletions = $order->pieces()->with('stages')->get()
                 ->mapWithKeys(function ($piece) {
                     return [$piece->id => $piece->stages->map(function ($stage) {
                         return [
                             'stage_id' => $stage->id,
                             'completed_at' => $stage->pivot->completed_at,
+                            'user_id' => $stage->pivot->user_id,
                         ];
                     })->all()];
                 })->toArray();
@@ -1060,14 +1062,10 @@ class OrderCrudController extends CrudController
                 $order->pieces()->delete();
                 $pieceIndex = 0;
                 foreach ($fields['pieces'] as $piece) {
-                    $existingStage = (!empty($piece['id']) && array_key_exists($piece['id'], $existingStages))
-                        ? $existingStages[$piece['id']]
-                        : null;
                     $createdPiece = $order->pieces()->create([
                         'width' => $piece['width'] ?? 0,
                         'height' => $piece['height'] ?? 0,
                         'quantity' => $piece['quantity'] ?? 1,
-                        'stage' => $existingStage,
                     ]);
                     // Re-attach the completed-stage pivot records (with their original
                     // completion dates) to the recreated piece.
@@ -1075,6 +1073,7 @@ class OrderCrudController extends CrudController
                         foreach ($existingCompletions[$piece['id']] as $completion) {
                             $createdPiece->stages()->attach($completion['stage_id'], [
                                 'completed_at' => $completion['completed_at'],
+                                'user_id' => $completion['user_id'],
                             ]);
                         }
                     }
@@ -1370,11 +1369,13 @@ class OrderCrudController extends CrudController
             $piece->setCompletedThroughStage($stage);
         }
 
+        $currentStage = $piece->currentStageName();
+
         return response()->json([
             'success' => true,
             'piece_id' => $piece->id,
-            'stage' => $piece->stage,
-            'stage_label' => piece_stage_ge($piece->stage),
+            'stage' => $currentStage,
+            'stage_label' => piece_stage_ge($currentStage),
         ]);
     }
 

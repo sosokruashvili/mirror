@@ -1,5 +1,22 @@
 <?php
 
+if (!function_exists('setting')) {
+    /**
+     * Read a global application setting by key, cast to its declared type.
+     *
+     * Settings are managed on the Global Settings admin page. Returns $default
+     * when the setting is missing or has no value stored.
+     *
+     * @param string $key
+     * @param mixed $default
+     * @return mixed
+     */
+    function setting(string $key, mixed $default = null): mixed
+    {
+        return \App\Models\Setting::get($key, $default);
+    }
+}
+
 if (!function_exists('status_badge')) {
     /**
      * Generate a Bootstrap badge for order status

@@ -2,8 +2,6 @@
 
 namespace App\Providers;
 
-use App\Models\Piece;
-use App\Observers\PieceObserver;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Contracts\Auth\StatefulGuard;
 use Backpack\CRUD\app\Library\Auth\BackpackUserProvider;
@@ -27,6 +25,6 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        Piece::observe(PieceObserver::class);
+        //
     }
 }

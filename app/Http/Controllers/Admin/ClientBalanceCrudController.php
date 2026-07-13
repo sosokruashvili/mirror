@@ -6,6 +6,7 @@ use Backpack\CRUD\app\Http\Controllers\CrudController;
 use Backpack\CRUD\app\Library\CrudPanel\CrudPanelFacade as CRUD;
 use Backpack\CRUD\app\Library\Widget;
 use App\Models\Client;
+use App\Services\ClientBalanceService;
 
 /**
  * Class ClientBalanceCrudController
@@ -44,7 +45,13 @@ class ClientBalanceCrudController extends CrudController
     {
         // Add summary widget that considers filters
         $this->addClientBalanceStatsWidget();
-        
+
+        // Manual "recalculate now" button (re-runs today's snapshot on demand).
+        $this->crud->addButtonFromView('top', 'recalculate_balances', 'recalculate_balances', 'beginning');
+
+        // Eager load the latest stored balance snapshot to avoid N+1 queries.
+        $this->crud->addClause('with', 'latestBalance');
+
         CRUD::addColumn([
             'name' => 'id',
             'label' => 'ID',
@@ -91,7 +98,7 @@ class ClientBalanceCrudController extends CrudController
             'searchLogic' => false,
         ]);
 
-        // Payments total (only paid payments)
+        // Payments total (from the latest daily snapshot)
         CRUD::addColumn([
             'name' => 'payments_total',
             'label' => 'Payments Total',
@@ -100,11 +107,11 @@ class ClientBalanceCrudController extends CrudController
             'suffix' => ' ₾',
             'searchLogic' => false,
             'value' => function ($entry) {
-                return $entry->payments()->where('status', 'Paid')->sum('amount_gel') ?? 0;
+                return $this->resolveRowComponents($entry)['payments_total'];
             },
         ]);
 
-        // Orders total (excluding draft orders)
+        // Orders total (from the latest daily snapshot)
         CRUD::addColumn([
             'name' => 'orders_total',
             'label' => 'Orders Total',
@@ -113,13 +120,11 @@ class ClientBalanceCrudController extends CrudController
             'suffix' => ' ₾',
             'searchLogic' => false,
             'value' => function ($entry) {
-                return $entry->orders()->where('status', '!=', 'draft')->get()->sum(function($order) {
-                    return $order->price_gel;
-                });
+                return $this->resolveRowComponents($entry)['orders_total'];
             },
         ]);
 
-        // Balance
+        // Balance (from the latest daily snapshot)
         CRUD::addColumn([
             'name' => 'balance',
             'label' => 'Balance',
@@ -128,12 +133,12 @@ class ClientBalanceCrudController extends CrudController
             'suffix' => ' ₾',
             'searchLogic' => false,
             'value' => function ($entry) {
-                return $entry->calculateBalance();
+                return $this->resolveRowComponents($entry)['balance'];
             },
             'wrapper' => [
                 'element' => 'span',
                 'class' => function ($crud, $column, $entry, $related_key) {
-                    $balance = $entry->calculateBalance();
+                    $balance = $this->resolveRowComponents($entry)['balance'];
                     return $balance >= 0 ? 'text-success' : 'text-danger';
                 }
             ]
@@ -188,54 +193,105 @@ class ClientBalanceCrudController extends CrudController
     }
 
     /**
+     * Resolve the balance components (payments_total, orders_total, balance) for a
+     * client row. Reads the latest stored daily snapshot when available and falls
+     * back to a live calculation when the client has no snapshot yet (e.g. before
+     * the first scheduled run). Memoized per client for the duration of the request.
+     *
+     * @return array{payments_total: float, orders_total: float, balance: float}
+     */
+    protected function resolveRowComponents($client): array
+    {
+        if (isset($this->rowComponentsCache[$client->id])) {
+            return $this->rowComponentsCache[$client->id];
+        }
+
+        if ($client->latestBalance) {
+            $components = [
+                'payments_total' => (float) $client->latestBalance->payments_total,
+                'orders_total' => (float) $client->latestBalance->orders_total,
+                'balance' => (float) $client->latestBalance->balance,
+            ];
+        } else {
+            $components = app(ClientBalanceService::class)->calculateComponentsForClient($client);
+        }
+
+        return $this->rowComponentsCache[$client->id] = $components;
+    }
+
+    /**
+     * In-request memoization cache for resolveRowComponents().
+     *
+     * @var array<int, array{payments_total: float, orders_total: float, balance: float}>
+     */
+    protected $rowComponentsCache = [];
+
+    /**
+     * Build the filtered set of clients (with the latest snapshot eager loaded)
+     * used by the stats widget and its AJAX counterpart.
+     */
+    protected function getFilteredClientsForStats()
+    {
+        $query = Client::query()->with('latestBalance');
+
+        if (request()->has('client_type') && request()->get('client_type') !== '') {
+            $query->where('client_type', request()->get('client_type'));
+        }
+
+        if (request()->has('name') && request()->get('name')) {
+            $query->where('name', 'LIKE', '%' . request()->get('name') . '%');
+        }
+
+        if (request()->has('email') && request()->get('email')) {
+            $query->where('email', 'LIKE', '%' . request()->get('email') . '%');
+        }
+
+        if (request()->has('phone_number') && request()->get('phone_number')) {
+            $query->where('phone_number', 'LIKE', '%' . request()->get('phone_number') . '%');
+        }
+
+        return $query->get();
+    }
+
+    /**
+     * Aggregate stored-snapshot stats across a collection of clients.
+     *
+     * @return array{clientsCount:int, totalPayments:float, totalOrders:float, totalBalance:float}
+     */
+    protected function aggregateStats($clients): array
+    {
+        $totalPayments = 0.0;
+        $totalOrders = 0.0;
+
+        foreach ($clients as $client) {
+            $components = $this->resolveRowComponents($client);
+            $totalPayments += $components['payments_total'];
+            $totalOrders += $components['orders_total'];
+        }
+
+        return [
+            'clientsCount' => $clients->count(),
+            'totalPayments' => $totalPayments,
+            'totalOrders' => $totalOrders,
+            'totalBalance' => $totalPayments - $totalOrders,
+        ];
+    }
+
+    /**
      * Add widgets for client balance statistics (count, payments, orders, balance).
-     * This widget considers active filters.
-     * 
+     * This widget considers active filters and reads from stored daily snapshots.
+     *
      * @return void
      */
     protected function addClientBalanceStatsWidget()
     {
-        // Get the model and start building query
-        $query = Client::query();
-        
-        // Apply filters from request (mimic what CRUD filters do)
-        if (request()->has('client_type') && request()->get('client_type') !== '') {
-            $query->where('client_type', request()->get('client_type'));
-        }
-        
-        if (request()->has('name') && request()->get('name')) {
-            $query->where('name', 'LIKE', '%' . request()->get('name') . '%');
-        }
-        
-        if (request()->has('email') && request()->get('email')) {
-            $query->where('email', 'LIKE', '%' . request()->get('email') . '%');
-        }
-        
-        if (request()->has('phone_number') && request()->get('phone_number')) {
-            $query->where('phone_number', 'LIKE', '%' . request()->get('phone_number') . '%');
-        }
-        
-        // Get all filtered clients with relationships
-        $clients = $query->with(['payments', 'orders.pieces', 'orders.products', 'orders.services'])->get();
-        
-        // Calculate statistics
-        $clientsCount = $clients->count();
-        
-        // Total payments (only paid payments) - use loaded relationships
-        $totalPayments = $clients->sum(function($client) {
-            return $client->payments->where('status', 'Paid')->sum('amount_gel') ?? 0;
-        });
-        
-        // Total orders (excluding draft orders) - use loaded relationships
-        $totalOrders = $clients->sum(function($client) {
-            return $client->orders->where('status', '!=', 'draft')->sum(function($order) {
-                return $order->price_gel;
-            });
-        });
-        
-        // Total balance
-        $totalBalance = $totalPayments - $totalOrders;
-        
+        $stats = $this->aggregateStats($this->getFilteredClientsForStats());
+
+        $clientsCount = $stats['clientsCount'];
+        $totalPayments = $stats['totalPayments'];
+        $totalOrders = $stats['totalOrders'];
+        $totalBalance = $stats['totalBalance'];
+
         // Add widget - pass data to view
         Widget::add([
             'type' => 'view',
@@ -255,53 +311,26 @@ class ClientBalanceCrudController extends CrudController
      */
     public function getBalanceStats()
     {
-        // Get the model and start building query
-        $query = Client::query();
-        
-        // Apply filters from request
-        if (request()->has('client_type') && request()->get('client_type') !== '') {
-            $query->where('client_type', request()->get('client_type'));
-        }
-        
-        if (request()->has('name') && request()->get('name')) {
-            $query->where('name', 'LIKE', '%' . request()->get('name') . '%');
-        }
-        
-        if (request()->has('email') && request()->get('email')) {
-            $query->where('email', 'LIKE', '%' . request()->get('email') . '%');
-        }
-        
-        if (request()->has('phone_number') && request()->get('phone_number')) {
-            $query->where('phone_number', 'LIKE', '%' . request()->get('phone_number') . '%');
-        }
-        
-        // Get all filtered clients with relationships
-        $clients = $query->with(['payments', 'orders.pieces', 'orders.products', 'orders.services'])->get();
-        
-        // Calculate statistics
-        $clientsCount = $clients->count();
-        
-        // Total payments (only paid payments) - use loaded relationships
-        $totalPayments = $clients->sum(function($client) {
-            return $client->payments->where('status', 'Paid')->sum('amount_gel') ?? 0;
-        });
-        
-        // Total orders (excluding draft orders) - use loaded relationships
-        $totalOrders = $clients->sum(function($client) {
-            return $client->orders->where('status', '!=', 'draft')->sum(function($order) {
-                return $order->price_gel;
-            });
-        });
-        
-        // Total balance
-        $totalBalance = $totalPayments - $totalOrders;
-        
-        return response()->json([
-            'clientsCount' => $clientsCount,
-            'totalPayments' => $totalPayments,
-            'totalOrders' => $totalOrders,
-            'totalBalance' => $totalBalance,
-        ]);
+        $stats = $this->aggregateStats($this->getFilteredClientsForStats());
+
+        return response()->json($stats);
+    }
+
+    /**
+     * Manually re-run today's balance snapshot for all clients, then return the
+     * refreshed (filter-aware) stats so the widget can update without a reload.
+     *
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function recalculate(ClientBalanceService $service)
+    {
+        $count = $service->snapshotDailyBalances(now());
+
+        $stats = $this->aggregateStats($this->getFilteredClientsForStats());
+
+        return response()->json(array_merge([
+            'message' => "Recalculated balances for {$count} client(s).",
+        ], $stats));
     }
 }
 

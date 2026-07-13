@@ -34,9 +34,9 @@ class OrderPieceStatusSync
      */
     public static function productionPieces(Order $order)
     {
-        if (!$order->relationLoaded('pieces')) {
-            $order->load('pieces');
-        }
+        // Completed stages live in the piece_stage pivot, so make sure they are
+        // loaded for the status rules below.
+        $order->loadMissing('pieces.stages');
 
         return $order->pieces;
     }
@@ -62,11 +62,11 @@ class OrderPieceStatusSync
             return null;
         }
 
-        if ($pieces->every(fn ($piece) => $piece->stage === 'completion')) {
+        if ($pieces->every(fn ($piece) => $piece->stages->contains('name', 'completion'))) {
             return 'ready';
         }
 
-        if ($pieces->contains(fn ($piece) => !empty($piece->stage))) {
+        if ($pieces->contains(fn ($piece) => $piece->stages->isNotEmpty())) {
             return 'working';
         }
 
@@ -114,7 +114,7 @@ class OrderPieceStatusSync
             'changes' => [],
         ];
 
-        $query = Order::with('pieces')->orderBy('id');
+        $query = Order::with('pieces.stages')->orderBy('id');
 
         if ($orderId !== null) {
             $query->whereKey($orderId);

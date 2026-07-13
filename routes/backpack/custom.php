@@ -45,10 +45,15 @@ Route::group([
     Route::crud('warehouse-expense', 'WarehouseExpenseCrudController');
     Route::crud('client-balance', 'ClientBalanceCrudController');
     Route::get('client-balance/get-balance-stats', 'ClientBalanceCrudController@getBalanceStats')->name('client-balance.getBalanceStats');
+    Route::post('client-balance/recalculate', 'ClientBalanceCrudController@recalculate')->name('client-balance.recalculate');
     Route::crud('custom-price', 'CustomPriceCrudController');
     Route::crud('cashier', 'CashierCrudController');
     Route::crud('cashier-expense', 'CashierExpenseCrudController');
     
+    // Global settings page
+    Route::get('settings', 'SettingController@edit')->name('settings.edit');
+    Route::put('settings', 'SettingController@update')->name('settings.update');
+
     // Team order processing page
     Route::get('team/orders', 'TeamOrderController@index')->name('team.orders');
     Route::get('team/orders/check', 'TeamOrderController@check')->name('team.orders.check');

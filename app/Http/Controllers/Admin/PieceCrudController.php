@@ -90,14 +90,17 @@ class PieceCrudController extends CrudController
             'label' => 'Stage',
             'type' => 'custom_html',
             'escaped' => false,
+            // Highest completed stage from the piece_stage pivot.
             'value' => function ($entry) {
-                if (!$entry->stage) {
+                $slug = $entry->currentStageName();
+
+                if (!$slug) {
                     return '<span class="badge" style="background-color: ' . piece_draft_color() . '; color: #ffffff;">Draft</span>';
                 }
 
-                $bg = piece_stage_color($entry->stage);
-                $text = piece_stage_text_color($entry->stage);
-                $label = htmlspecialchars(piece_stage_ge($entry->stage), ENT_QUOTES, 'UTF-8');
+                $bg = piece_stage_color($slug);
+                $text = piece_stage_text_color($slug);
+                $label = htmlspecialchars(piece_stage_ge($slug), ENT_QUOTES, 'UTF-8');
 
                 return '<span class="badge" style="background-color: ' . $bg . '; color: ' . $text . ';">' . $label . '</span>';
             }
@@ -249,12 +252,8 @@ class PieceCrudController extends CrudController
             ],
         ]);
 
-        CRUD::addField([
-            'name' => 'stage',
-            'label' => 'Stage (ეტაპი)',
-            'type' => 'select_from_array',
-            'options' => piece_stages(),
-            'allows_null' => true,
-        ]);
+        // Production stages are no longer a single column on the piece; they are
+        // tracked per-stage (with completion dates) in the piece_stage pivot and
+        // managed from the team orders page / order preview.
     }
 }

@@ -200,8 +200,11 @@ class Order extends Model
         // Draft orders exclude their (draft) pieces from the price; only services count.
         if ($this->status !== 'draft') {
             foreach ($this->products as $product) {
+                // Use the per-order price stored on the pivot (personal/manually entered
+                // price); fall back to the catalog price only when no pivot price is set.
+                $unitPrice = $product->pivot->price ?? $product->price;
                 foreach ($this->pieces as $piece) {
-                    $totalPriceGel += $piece->getArea() * $product->price * $this->currency_rate;
+                    $totalPriceGel += $piece->getArea() * $unitPrice * $this->currency_rate;
                 }
             }
         }
@@ -222,8 +225,11 @@ class Order extends Model
        $totalPriceGel += $servicePriceSum;
 
        foreach($this->products as $product) {
+            // Use the per-order price stored on the pivot (personal/manually entered
+            // price); fall back to the catalog price only when no pivot price is set.
+            $unitPrice = $product->pivot->price ?? $product->price;
             foreach($this->pieces as $piece) {
-                $piece->price = $piece->getArea() * $product->price * $this->currency_rate;
+                $piece->price = $piece->getArea() * $unitPrice * $this->currency_rate;
                 $piece->save();
                 $totalPriceGel += $piece->price;
             }

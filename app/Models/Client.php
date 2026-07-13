@@ -71,6 +71,22 @@ class Client extends Model
     }
 
     /**
+     * The daily balance snapshots for the client.
+     */
+    public function balances()
+    {
+        return $this->hasMany(ClientBalance::class);
+    }
+
+    /**
+     * The most recent daily balance snapshot for the client.
+     */
+    public function latestBalance()
+    {
+        return $this->hasOne(ClientBalance::class)->latestOfMany('balance_date');
+    }
+
+    /**
      * Calculate the client's balance.
      * Balance = sum of paid payments - sum of orders total price (excluding draft orders)
      * 

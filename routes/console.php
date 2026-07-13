@@ -17,6 +17,8 @@ app()->booted(function () {
     })->dailyAt('20:00');
 
     app(Schedule::class)->command('cashier:snapshot-daily')->dailyAt('23:58');
+
+    app(Schedule::class)->command('clients:snapshot-balances')->dailyAt('23:59');
 });
 
 

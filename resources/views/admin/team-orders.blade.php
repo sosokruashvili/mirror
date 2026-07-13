@@ -19,6 +19,10 @@
     if (!is_array($stageFilter)) {
         $stageFilter = $stageFilter === 'all' ? [] : [$stageFilter];
     }
+    $currentStageFilter = $currentStageFilter ?? [];
+    if (!is_array($currentStageFilter)) {
+        $currentStageFilter = $currentStageFilter === 'all' ? [] : [$currentStageFilter];
+    }
     $clientFilter = $clientFilter ?? 'all';
     $products = $products ?? collect();
     $services = $services ?? collect();
@@ -46,6 +50,9 @@
     }
     if (!empty($stageFilter)) {
         $toggleQuery['stage'] = $stageFilter;
+    }
+    if (!empty($currentStageFilter)) {
+        $toggleQuery['current_stage'] = $currentStageFilter;
     }
 @endphp
 <style>
@@ -648,11 +655,23 @@
         border-color: var(--tblr-body-color, #dadcde) transparent transparent transparent;
     }
 
-    .team-logout-btn {
+    .team-user-bar {
         position: fixed;
         top: 16px;
         right: 16px;
         z-index: 1001;
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        white-space: nowrap;
+    }
+
+    .team-user-name {
+        color: var(--tblr-body-color, #dadcde);
+        font-weight: 600;
+    }
+
+    .team-logout-btn {
         display: inline-flex;
         align-items: center;
         gap: 6px;
@@ -676,10 +695,13 @@
     }
 </style>
 
-<a href="{{ route('backpack.auth.logout') }}" class="btn btn-outline-light team-logout-btn" title="გასვლა">
-    <i class="la la-sign-out-alt"></i>
-    <span>გასვლა</span>
-</a>
+<div class="team-user-bar">
+    <span class="team-user-name">{{ backpack_user()->name }}</span>
+    <a href="{{ route('backpack.auth.logout') }}" class="btn btn-outline-light team-logout-btn" title="გასვლა">
+        <i class="la la-sign-out-alt"></i>
+        <span>გასვლა</span>
+    </a>
+</div>
 
 <div class="container-fluid">
     <div class="d-flex flex-wrap align-items-end pt-3 gap-2">
@@ -736,7 +758,7 @@
             </div>
 
             <div>
-                <label class="form-label mb-1 text-light">ეტაპი</label>
+                <label class="form-label mb-1 text-light">ჩემი ეტაპი</label>
                 <div class="checkbox-dropdown" id="stageDropdown">
                     <div class="checkbox-dropdown-toggle" id="stageDropdownToggle">ყველა</div>
                     <div class="checkbox-dropdown-menu">
@@ -750,6 +772,21 @@
                             <input type="checkbox" name="stage[]" value="__none__" {{ in_array('__none__', $stageFilter) ? 'checked' : '' }}>
                             ეტაპის გარეშე
                         </label>
+                    </div>
+                </div>
+            </div>
+
+            <div>
+                <label class="form-label mb-1 text-light">მიმდინარე ეტაპი</label>
+                <div class="checkbox-dropdown" id="currentStageDropdown">
+                    <div class="checkbox-dropdown-toggle" id="currentStageDropdownToggle">ყველა</div>
+                    <div class="checkbox-dropdown-menu">
+                        @foreach($stages as $stage)
+                        <label>
+                            <input type="checkbox" name="current_stage[]" value="{{ $stage->name }}" {{ in_array($stage->name, $currentStageFilter) ? 'checked' : '' }}>
+                            {{ $stage->title }}
+                        </label>
+                        @endforeach
                     </div>
                 </div>
             </div>
@@ -816,25 +853,35 @@
                                     $piecesWithSizes = $order->pieces->filter(function($piece) {
                                         return $piece->width && $piece->height;
                                     });
-                                    
+
+                                    // On the team page, the displayed size includes the cutting
+                                    // allowance. The Cutting Size setting is in mm; piece sizes are
+                                    // in cm, so convert (mm / 10) and add it to each dimension.
+                                    $cuttingCm = ((float) setting('cutting_size', 0)) / 10;
+
                                     $sizeGroups = [];
                                     foreach($piecesWithSizes as $piece) {
-                                        $key = number_format($piece->width, 0) . 'x' . number_format($piece->height, 0);
+                                        // Highest completed stage (from the piece_stage pivot) drives
+                                        // the tag colour, exactly as the old cache column did.
+                                        $pieceStage = $piece->currentStageName();
+                                        $displayWidth = number_format($piece->width + $cuttingCm, 1);
+                                        $displayHeight = number_format($piece->height + $cuttingCm, 1);
+                                        $key = $displayWidth . 'x' . $displayHeight;
                                         if (!isset($sizeGroups[$key])) {
                                             $sizeGroups[$key] = [
-                                                'width' => number_format($piece->width, 0),
-                                                'height' => number_format($piece->height, 0),
+                                                'width' => $displayWidth,
+                                                'height' => $displayHeight,
                                                 'quantity' => 0,
                                                 'piece_ids' => [],
                                                 'service_shortnames' => [],
                                                 'stage_slugs' => [],
                                                 'completed_slugs' => $piece->completedStageNames(),
                                                 'broken_count' => 0,
-                                                'stage' => $piece->stage,
+                                                'stage' => $pieceStage,
                                                 'stage_mixed' => false,
                                             ];
                                         } else {
-                                            if ($sizeGroups[$key]['stage'] !== $piece->stage) {
+                                            if ($sizeGroups[$key]['stage'] !== $pieceStage) {
                                                 $sizeGroups[$key]['stage_mixed'] = true;
                                             }
                                             // A stage checkbox is only "checked" for the group when
@@ -905,16 +952,10 @@
                             
                             <div class="order-actions">
                                 @if($showArchived)
-                                <button type="button" class="btn btn-primary" onclick="previewOrder('{{ url(config("backpack.base.route_prefix") . "/order/" . $order->id . "/show") }}', {{ $order->pieces->count() }})">
-                                    ნახვა
-                                </button>
                                 <button type="button" class="btn btn-danger btn-archive" onclick="unarchiveOrder({{ $order->id }})">
                                     დეარქივაცია
                                 </button>
                                 @else
-                                <button type="button" class="btn btn-primary" onclick="previewOrder('{{ url(config("backpack.base.route_prefix") . "/order/" . $order->id . "/show") }}', {{ $order->pieces->count() }})">
-                                    ნახვა
-                                </button>
                                 @if($order->atachment)
                                 <a href="{{ asset('storage/' . $order->atachment) }}" target="_blank" class="btn" style="background-color: #e67e22; border-color: #e67e22; color: #fff;">
                                     <i class="la la-file-download"></i>
@@ -1063,6 +1104,7 @@ jQuery(function($) {
     initCheckboxDropdown('productDropdown', 'productDropdownToggle');
     initCheckboxDropdown('serviceDropdown', 'serviceDropdownToggle');
     initCheckboxDropdown('stageDropdown', 'stageDropdownToggle');
+    initCheckboxDropdown('currentStageDropdown', 'currentStageDropdownToggle');
 
     document.addEventListener('click', function() {
         document.querySelectorAll('.checkbox-dropdown.open').forEach(function(dd) {
@@ -1181,9 +1223,20 @@ jQuery(function($) {
         if (!wasOpen) {
             _orderCtxCard = card;
             var rect = dotsBtn.getBoundingClientRect();
-            _orderCtxMenu.style.top = (rect.bottom + 4) + 'px';
+
+            _orderCtxMenu.style.top = '0px';
             _orderCtxMenu.style.left = Math.max(8, rect.right - 130) + 'px';
             _orderCtxMenu.classList.add('open');
+
+            var menuH = _orderCtxMenu.offsetHeight;
+            var spaceBelow = window.innerHeight - rect.bottom;
+            var top;
+            if (spaceBelow < menuH + 8 && rect.top > spaceBelow) {
+                top = Math.max(8, rect.top - menuH - 4);
+            } else {
+                top = rect.bottom + 4;
+            }
+            _orderCtxMenu.style.top = top + 'px';
         }
     }
 
@@ -1224,9 +1277,31 @@ jQuery(function($) {
 
             var anchor = tag.querySelector('.piece-dots-btn') || tag;
             var rect = anchor.getBoundingClientRect();
-            _pieceCtxMenu.style.top = (rect.bottom + 4) + 'px';
-            _pieceCtxMenu.style.left = rect.left + 'px';
+
+            // Render first so we can measure the menu, then position it.
+            _pieceCtxMenu.style.top = '0px';
+            _pieceCtxMenu.style.left = '0px';
             _pieceCtxMenu.classList.add('open');
+
+            var menuH = _pieceCtxMenu.offsetHeight;
+            var menuW = _pieceCtxMenu.offsetWidth;
+            var spaceBelow = window.innerHeight - rect.bottom;
+
+            // Flip above the anchor when it would overflow the bottom edge
+            // and there's more room above.
+            var top;
+            if (spaceBelow < menuH + 8 && rect.top > spaceBelow) {
+                top = Math.max(8, rect.top - menuH - 4);
+            } else {
+                top = rect.bottom + 4;
+            }
+
+            // Keep it inside the right edge too.
+            var left = Math.min(rect.left, window.innerWidth - menuW - 8);
+            if (left < 8) left = 8;
+
+            _pieceCtxMenu.style.top = top + 'px';
+            _pieceCtxMenu.style.left = left + 'px';
         }
     }
 

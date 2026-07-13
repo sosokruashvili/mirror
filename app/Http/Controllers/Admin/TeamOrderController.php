@@ -62,6 +62,7 @@ class TeamOrderController extends Controller
             'product' => $productFilter,
             'service' => $serviceFilter,
             'stage' => $stageFilter,
+            'current_stage' => $currentStageFilter,
             'client' => $clientFilter,
         ] = $this->resolveFilters($request);
 
@@ -73,6 +74,7 @@ class TeamOrderController extends Controller
                 'product' => $productFilter,
                 'service' => $serviceFilter,
                 'stage' => $stageFilter,
+                'current_stage' => $currentStageFilter,
                 'client' => $clientFilter,
             ];
             $user->save();
@@ -117,6 +119,7 @@ class TeamOrderController extends Controller
             'product' => $productFilter,
             'service' => $serviceFilter,
             'stage' => $stageFilter,
+            'current_stage' => $currentStageFilter,
             'client' => $clientFilter,
             'from' => $dateFrom,
             'to' => $dateTo,
@@ -124,7 +127,7 @@ class TeamOrderController extends Controller
 
         $orders = $ordersQuery->get();
 
-        return view('admin.team-orders', compact('orders', 'showArchived', 'products', 'productFilter', 'services', 'serviceFilter', 'stages', 'stageFilter', 'clients', 'clientFilter', 'dateFrom', 'dateTo'));
+        return view('admin.team-orders', compact('orders', 'showArchived', 'products', 'productFilter', 'services', 'serviceFilter', 'stages', 'stageFilter', 'currentStageFilter', 'clients', 'clientFilter', 'dateFrom', 'dateTo'));
     }
 
     /**
@@ -161,7 +164,7 @@ class TeamOrderController extends Controller
      * Resolve the active team-order filters from the request, falling back to
      * the user's saved filters when the filter form was not just submitted.
      *
-     * @return array{applied:bool,from:?string,to:?string,product:array,service:array,stage:array,client:mixed}
+     * @return array{applied:bool,from:?string,to:?string,product:array,service:array,stage:array,current_stage:array,client:mixed}
      */
     private function resolveFilters(Request $request): array
     {
@@ -190,6 +193,7 @@ class TeamOrderController extends Controller
             'product' => $normalizeArray($pick('product', [])),
             'service' => $normalizeArray($pick('service', [])),
             'stage' => $normalizeArray($pick('stage', [])),
+            'current_stage' => $normalizeArray($pick('current_stage', [])),
             'client' => $pick('client', 'all'),
         ];
     }
@@ -204,6 +208,7 @@ class TeamOrderController extends Controller
         $productFilter = $filters['product'] ?? [];
         $serviceFilter = $filters['service'] ?? [];
         $stageFilter = $filters['stage'] ?? [];
+        $currentStageFilter = $filters['current_stage'] ?? [];
         $clientFilter = $filters['client'] ?? 'all';
         $dateFrom = $filters['from'] ?? null;
         $dateTo = $filters['to'] ?? null;
@@ -263,6 +268,34 @@ class TeamOrderController extends Controller
 
                     if ($wantsNoStage) {
                         $pq->orWhereDoesntHave('services');
+                    }
+                });
+            });
+        }
+
+        if (!empty($currentStageFilter)) {
+            // Show orders containing a piece whose CURRENT stage (its highest
+            // completed stage) is one of the selected stages. A piece's current
+            // stage is $slug when it has completed $slug but has completed
+            // nothing beyond it (no completed stage of a higher position).
+            $stagePositions = \App\Models\Stage::pluck('position', 'name');
+
+            $ordersQuery->whereHas('pieces', function ($pieceQ) use ($currentStageFilter, $stagePositions) {
+                $pieceQ->where(function ($pq) use ($currentStageFilter, $stagePositions) {
+                    foreach ($currentStageFilter as $slug) {
+                        if (!isset($stagePositions[$slug])) {
+                            continue;
+                        }
+
+                        $position = $stagePositions[$slug];
+
+                        $pq->orWhere(function ($p) use ($slug, $position) {
+                            $p->whereHas('stages', function ($stageQ) use ($slug) {
+                                $stageQ->where('stages.name', $slug);
+                            })->whereDoesntHave('stages', function ($stageQ) use ($position) {
+                                $stageQ->where('stages.position', '>', $position);
+                            });
+                        });
                     }
                 });
             });
@@ -409,11 +442,13 @@ class TeamOrderController extends Controller
                 $piece->setStageCompleted($stage, $request->boolean('completed'));
             }
 
+            $currentStage = $piece->currentStageName();
+
             return response()->json([
                 'success' => true,
                 'piece_id' => $piece->id,
-                'stage' => $piece->stage,
-                'stage_label' => piece_stage_ge($piece->stage),
+                'stage' => $currentStage,
+                'stage_label' => piece_stage_ge($currentStage),
                 'completed_stages' => $piece->completedStageNames(),
             ]);
         } catch (\Exception $e) {

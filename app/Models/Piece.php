@@ -15,7 +15,6 @@ class Piece extends Model
         'product_id',
         'width',
         'height',
-        'stage',
         'broken',
     ];
 
@@ -42,16 +41,6 @@ class Piece extends Model
     }
 
     /**
-     * The production stage this piece is at (matched by the `name` slug stored
-     * in `pieces.stage`). `pieces.stage` is a denormalized cache of the highest
-     * completed stage — see {@see refreshStageColumn()} and the stages() pivot.
-     */
-    public function stageModel()
-    {
-        return $this->belongsTo(Stage::class, 'stage', 'name');
-    }
-
-    /**
      * The services attached to this piece (order_service rows carrying this
      * piece's id). A piece's selectable/relevant production stages are the
      * stages of these services plus the universal stages.
@@ -64,13 +53,13 @@ class Piece extends Model
 
     /**
      * The production stages this piece has COMPLETED, each with the datetime it
-     * was completed (pivot `completed_at`). This is the authoritative record of
-     * the piece's progress; `pieces.stage` is just a cache derived from it.
+     * was completed (pivot `completed_at`) and the user who marked it complete
+     * (pivot `user_id`). This is the authoritative record of the piece's progress.
      */
     public function stages()
     {
         return $this->belongsToMany(Stage::class, 'piece_stage')
-            ->withPivot('completed_at')
+            ->withPivot('completed_at', 'user_id')
             ->withTimestamps();
     }
 
@@ -83,6 +72,68 @@ class Piece extends Model
     protected function completedStages()
     {
         return $this->relationLoaded('stages') ? $this->stages : $this->stages()->get();
+    }
+
+    /**
+     * The production stages relevant to this piece, in canonical order: the
+     * universal stages (that apply to every piece) plus the stages of the
+     * services attached to it. This mirrors the selectable set on the team
+     * orders page — the stages the piece must pass through.
+     *
+     * @return \Illuminate\Support\Collection<int, \App\Models\Stage>
+     */
+    public function relevantStages(): \Illuminate\Support\Collection
+    {
+        $services = $this->relationLoaded('services') ? $this->services : $this->services()->get();
+        $serviceStageIds = $services->pluck('stage_id')->filter()->unique()->all();
+
+        return Stage::ordered()
+            ->filter(fn (Stage $stage) => $stage->is_universal || in_array($stage->id, $serviceStageIds, true))
+            ->values();
+    }
+
+    /**
+     * Auto-close the final 'completion' (დასრულება) stage once every other
+     * stage relevant to this piece has been completed. No team member is
+     * responsible for that stage, so it should pass automatically as soon as
+     * the real production work is done.
+     *
+     * Attaches straight to the pivot (not via setStageCompleted) so it does not
+     * re-trigger this check. Callers gate it to "completing" actions so a
+     * deliberate uncheck of 'completion' is not immediately undone.
+     *
+     * @return bool True when it just completed the final stage.
+     */
+    protected function autoCompleteFinalStage(): bool
+    {
+        $relevant = $this->relevantStages();
+
+        $completion = $relevant->firstWhere('name', 'completion');
+        if ($completion === null) {
+            return false;
+        }
+
+        // The stages that gate completion — everything relevant except the
+        // final stage itself. Nothing to gate on → don't auto-complete.
+        $gatingStages = $relevant->reject(fn (Stage $stage) => $stage->name === 'completion');
+        if ($gatingStages->isEmpty()) {
+            return false;
+        }
+
+        $completedIds = $this->completedStages()->pluck('id')->all();
+
+        // Already done, or a gating stage is still outstanding: nothing to do.
+        if (in_array($completion->id, $completedIds, true)) {
+            return false;
+        }
+        if (!$gatingStages->every(fn (Stage $stage) => in_array($stage->id, $completedIds, true))) {
+            return false;
+        }
+
+        $this->stages()->attach($completion->id, static::completionPivot());
+        $this->load('stages');
+
+        return true;
     }
 
     /**
@@ -105,37 +156,79 @@ class Piece extends Model
     }
 
     /**
-     * Recompute the denormalized `pieces.stage` cache from the completed-stage
-     * pivot and persist it when it changed. Saving flips the `stage` column,
-     * which fires PieceObserver → order-status sync, exactly as before.
+     * The slug of the piece's highest completed stage (its furthest point of
+     * progress), or null when nothing is completed yet.
      */
-    public function refreshStageColumn(): void
+    public function currentStageName(): ?string
     {
-        $slug = $this->highestCompletedStage()?->name;
+        return $this->highestCompletedStage()?->name;
+    }
 
-        if ($this->stage !== $slug) {
-            $this->stage = $slug;
-            $this->save();
+    /**
+     * Resync the owning order's status from its pieces' completed stages. Called
+     * after the completed-stage pivot changes (there is no `stage` column to key
+     * a model observer off anymore).
+     */
+    public function syncOrderStatus(): void
+    {
+        if ($order = $this->order) {
+            \App\Services\OrderPieceStatusSync::syncOrderStatusFromPieces($order);
         }
     }
 
     /**
-     * Mark a single stage completed (creating a dated pivot record) or not
-     * completed (removing it), preserving the completion time of stages that
-     * were already done. Used by the team page checkbox toggles.
+     * The id of the user performing the current stage update (recorded on the
+     * piece_stage pivot), or null outside an authenticated request.
+     */
+    protected static function currentActorId(): ?int
+    {
+        if (function_exists('backpack_user') && ($user = backpack_user())) {
+            return $user->getKey();
+        }
+
+        return auth()->id();
+    }
+
+    /**
+     * Pivot attributes stored when a stage completion is recorded: the time and
+     * the user who did it.
+     *
+     * @return array<string, mixed>
+     */
+    protected static function completionPivot(): array
+    {
+        return [
+            'completed_at' => now(),
+            'user_id' => static::currentActorId(),
+        ];
+    }
+
+    /**
+     * Mark a single stage completed (creating a dated pivot record stamped with
+     * the current user) or not completed (removing it), preserving the
+     * completion time of stages that were already done. Used by the team page
+     * checkbox toggles.
      */
     public function setStageCompleted(Stage $stage, bool $completed): void
     {
         $has = $this->stages()->where('stages.id', $stage->id)->exists();
 
         if ($completed && !$has) {
-            $this->stages()->attach($stage->id, ['completed_at' => now()]);
+            $this->stages()->attach($stage->id, static::completionPivot());
         } elseif (!$completed && $has) {
             $this->stages()->detach($stage->id);
         }
 
         $this->load('stages');
-        $this->refreshStageColumn();
+
+        // Completing a stage may have been the last one gating 'completion'.
+        // Only run on completion (not on an uncheck) so deliberately clearing
+        // the final stage isn't instantly undone.
+        if ($completed) {
+            $this->autoCompleteFinalStage();
+        }
+
+        $this->syncOrderStatus();
     }
 
     /**
@@ -154,13 +247,14 @@ class Piece extends Model
 
             $detach = [];
             $attach = [];
+            $pivot = static::completionPivot();
             foreach (Stage::ordered() as $s) {
                 if ($s->position > $throughPos) {
                     if (in_array($s->id, $completedIds, true)) {
                         $detach[] = $s->id;
                     }
                 } elseif (!in_array($s->id, $completedIds, true)) {
-                    $attach[$s->id] = ['completed_at' => now()];
+                    $attach[$s->id] = $pivot;
                 }
             }
 
@@ -173,7 +267,14 @@ class Piece extends Model
         }
 
         $this->load('stages');
-        $this->refreshStageColumn();
+
+        // "Completed through X" that reaches the last gating stage should close
+        // the final 'completion' stage too. Skip when clearing all (stage null).
+        if ($stage !== null) {
+            $this->autoCompleteFinalStage();
+        }
+
+        $this->syncOrderStatus();
     }
 
     /**
@@ -221,13 +322,5 @@ class Piece extends Model
     public function servicesShortnames()
     {
         return $this->services->pluck('shortname')->unique()->implode(', ');
-    }
-
-    /**
-     * Georgian label for the piece's production stage.
-     */
-    public function getStageLabelAttribute(): string
-    {
-        return piece_stage_ge($this->stage);
     }
 }

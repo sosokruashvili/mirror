@@ -7,6 +7,10 @@
     $showArchived = $showArchived ?? false;
     $dateFrom = $dateFrom ?? request()->query('from');
     $dateTo = $dateTo ?? request()->query('to');
+    $productTypeFilter = $productTypeFilter ?? [];
+    if (!is_array($productTypeFilter)) {
+        $productTypeFilter = $productTypeFilter === 'all' ? [] : [$productTypeFilter];
+    }
     $serviceFilter = $serviceFilter ?? [];
     if (!is_array($serviceFilter)) {
         $serviceFilter = $serviceFilter === 'all' ? [] : [$serviceFilter];
@@ -20,6 +24,7 @@
         $currentStageFilter = $currentStageFilter === 'all' ? [] : [$currentStageFilter];
     }
     $clientFilter = $clientFilter ?? 'all';
+    $productTypes = $productTypes ?? collect();
     $services = $services ?? collect();
     $stages = $stages ?? collect();
     $clients = $clients ?? collect();
@@ -37,6 +42,9 @@
         'to' => $dateTo ?: null,
         'client' => ($clientFilter !== 'all') ? $clientFilter : null,
     ]);
+    if (!empty($productTypeFilter)) {
+        $toggleQuery['product_type'] = $productTypeFilter;
+    }
     if (!empty($serviceFilter)) {
         $toggleQuery['service'] = $serviceFilter;
     }
@@ -757,6 +765,21 @@
             </div>
 
             <div>
+                <label class="form-label mb-1 text-light">პროდუქცია</label>
+                <div class="checkbox-dropdown" id="productTypeDropdown">
+                    <div class="checkbox-dropdown-toggle" id="productTypeDropdownToggle">ყველა</div>
+                    <div class="checkbox-dropdown-menu">
+                        @foreach($productTypes as $productType)
+                        <label>
+                            <input type="checkbox" name="product_type[]" value="{{ $productType }}" {{ in_array($productType, $productTypeFilter) ? 'checked' : '' }}>
+                            {{ product_type_ge($productType) }}
+                        </label>
+                        @endforeach
+                    </div>
+                </div>
+            </div>
+
+            <div>
                 <label class="form-label mb-1 text-light">სერვისები</label>
                 <div class="checkbox-dropdown" id="serviceDropdown">
                     <div class="checkbox-dropdown-toggle" id="serviceDropdownToggle">ყველა</div>
@@ -1126,6 +1149,7 @@ jQuery(function($) {
         updateLabel();
     }
 
+    initCheckboxDropdown('productTypeDropdown', 'productTypeDropdownToggle');
     initCheckboxDropdown('serviceDropdown', 'serviceDropdownToggle');
     initCheckboxDropdown('stageDropdown', 'stageDropdownToggle');
     initCheckboxDropdown('currentStageDropdown', 'currentStageDropdownToggle');

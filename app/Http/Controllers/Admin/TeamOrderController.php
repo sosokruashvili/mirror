@@ -59,6 +59,7 @@ class TeamOrderController extends Controller
             'applied' => $applied,
             'from' => $dateFrom,
             'to' => $dateTo,
+            'product_type' => $productTypeFilter,
             'service' => $serviceFilter,
             'stage' => $stageFilter,
             'current_stage' => $currentStageFilter,
@@ -70,6 +71,7 @@ class TeamOrderController extends Controller
             $user->team_order_filters = [
                 'from' => $dateFrom ?: null,
                 'to' => $dateTo ?: null,
+                'product_type' => $productTypeFilter,
                 'service' => $serviceFilter,
                 'stage' => $stageFilter,
                 'current_stage' => $currentStageFilter,
@@ -80,6 +82,19 @@ class TeamOrderController extends Controller
 
         $clients = \App\Models\Client::orderBy('name')->get();
         $stages = \App\Models\Stage::orderBy('position')->orderBy('id')->get();
+
+        // Distinct product types present on team orders, ordered by the canonical
+        // list so the filter options read consistently.
+        $productTypeOrder = ['mirror', 'glass', 'lamix', 'glass_pkg', 'service'];
+        $productTypes = Order::whereNotIn('status', ['draft', 'finished'])
+            ->whereNotNull('product_type')
+            ->where('product_type', '!=', '')
+            ->distinct()
+            ->pluck('product_type')
+            ->sortBy(fn ($type) => array_search($type, $productTypeOrder, true) === false
+                ? PHP_INT_MAX
+                : array_search($type, $productTypeOrder, true))
+            ->values();
 
         $teamOrderScope = function ($q) use ($showArchived) {
             $q->whereNotIn('status', ['draft', 'finished']);
@@ -113,6 +128,7 @@ class TeamOrderController extends Controller
         }
 
         $this->applyOrderFilters($ordersQuery, [
+            'product_type' => $productTypeFilter,
             'service' => $serviceFilter,
             'stage' => $stageFilter,
             'current_stage' => $currentStageFilter,
@@ -126,7 +142,7 @@ class TeamOrderController extends Controller
         // the applied filters.
         $orders = $ordersQuery->paginate(20)->withQueryString();
 
-        return view('admin.team-orders', compact('orders', 'showArchived', 'services', 'serviceFilter', 'stages', 'stageFilter', 'currentStageFilter', 'clients', 'clientFilter', 'dateFrom', 'dateTo'));
+        return view('admin.team-orders', compact('orders', 'showArchived', 'productTypes', 'productTypeFilter', 'services', 'serviceFilter', 'stages', 'stageFilter', 'currentStageFilter', 'clients', 'clientFilter', 'dateFrom', 'dateTo'));
     }
 
     /**
@@ -169,7 +185,7 @@ class TeamOrderController extends Controller
      * Resolve the active team-order filters from the request, falling back to
      * the user's saved filters when the filter form was not just submitted.
      *
-     * @return array{applied:bool,from:?string,to:?string,service:array,stage:array,current_stage:array,client:mixed}
+     * @return array{applied:bool,from:?string,to:?string,product_type:array,service:array,stage:array,current_stage:array,client:mixed}
      */
     private function resolveFilters(Request $request): array
     {
@@ -195,6 +211,7 @@ class TeamOrderController extends Controller
             'applied' => $applied,
             'from' => $pick('from', null),
             'to' => $pick('to', null),
+            'product_type' => $normalizeArray($pick('product_type', [])),
             'service' => $normalizeArray($pick('service', [])),
             'stage' => $normalizeArray($pick('stage', [])),
             'current_stage' => $normalizeArray($pick('current_stage', [])),
@@ -209,12 +226,17 @@ class TeamOrderController extends Controller
      */
     private function applyOrderFilters($ordersQuery, array $filters): void
     {
+        $productTypeFilter = $filters['product_type'] ?? [];
         $serviceFilter = $filters['service'] ?? [];
         $stageFilter = $filters['stage'] ?? [];
         $currentStageFilter = $filters['current_stage'] ?? [];
         $clientFilter = $filters['client'] ?? 'all';
         $dateFrom = $filters['from'] ?? null;
         $dateTo = $filters['to'] ?? null;
+
+        if (!empty($productTypeFilter)) {
+            $ordersQuery->whereIn('product_type', $productTypeFilter);
+        }
 
         if (!empty($serviceFilter)) {
             $ordersQuery->whereHas('services', function ($q) use ($serviceFilter) {

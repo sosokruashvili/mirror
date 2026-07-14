@@ -113,8 +113,8 @@
         }
     }
 
-    // Fill perimeter / area / tape length from the parent piece's dimensions.
-    function fillPieceMetrics($row, overwriteTape) {
+    // Fill perimeter / area / tape length / foam length from the parent piece's dimensions.
+    function fillPieceMetrics($row, overwrite) {
         var $card = $row.closest('[data-piece-card]');
         if (!$card.length) { return; } // order-level service, no piece
 
@@ -130,13 +130,15 @@
         setSvc($row, 'perimeter', (perUnitPerimeter * q).toFixed(2));
         setSvc($row, 'area', (perUnitArea * q).toFixed(2));
 
-        if (subVisible($row, 'tape_length')) {
-            var cur = getSvc($row, 'tape_length');
-            var hasValue = cur !== null && String(cur).trim() !== '';
-            if (overwriteTape || !hasValue) {
-                setSvc($row, 'tape_length', (perUnitPerimeter * q).toFixed(2));
+        ['tape_length', 'foam_length'].forEach(function (field) {
+            if (subVisible($row, field)) {
+                var cur = getSvc($row, field);
+                var hasValue = cur !== null && String(cur).trim() !== '';
+                if (overwrite || !hasValue) {
+                    setSvc($row, field, (perUnitPerimeter * q).toFixed(2));
+                }
             }
-        }
+        });
     }
 
     /* -------------------------------------------------------------- piece cards */

@@ -97,6 +97,32 @@
                 </button>
             </div>
         </form>
+
+        @if (! empty($dbSyncAvailable))
+            <div class="card border-warning">
+                <div class="card-header">
+                    <div class="card-title mb-0">Developer tools</div>
+                </div>
+                <div class="card-body">
+                    <p class="mb-2">
+                        Replace this dev database with a fresh copy of production
+                        (<strong>{{ $dbSyncSource }}</strong>).
+                    </p>
+                    <p class="text-danger mb-3">
+                        <i class="la la-exclamation-triangle"></i>
+                        This <strong>erases all data on dev</strong> and cannot be undone.
+                        It takes a few seconds.
+                    </p>
+                    <form method="post" action="{{ route('settings.syncFromProd') }}"
+                          onsubmit="return confirm('Erase the dev database and replace it with a copy of production? This cannot be undone.');">
+                        {!! csrf_field() !!}
+                        <button type="submit" class="btn btn-warning">
+                            <i class="la la-database"></i> Sync DB from Production
+                        </button>
+                    </form>
+                </div>
+            </div>
+        @endif
     </div>
 </div>
 @endsection

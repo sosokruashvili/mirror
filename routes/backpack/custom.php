@@ -53,6 +53,7 @@ Route::group([
     // Global settings page
     Route::get('settings', 'SettingController@edit')->name('settings.edit');
     Route::put('settings', 'SettingController@update')->name('settings.update');
+    Route::post('settings/sync-from-prod', 'SettingController@syncFromProd')->name('settings.syncFromProd');
 
     // Team order processing page
     Route::get('team/orders', 'TeamOrderController@index')->name('team.orders');

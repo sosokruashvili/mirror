@@ -17,6 +17,7 @@ class CashierExpense extends Model
     public const CATEGORY_CONSUMABLE_MATERIALS = 'Consumable Materials';
     public const CATEGORY_INSTALLATION = 'Installation';
     public const CATEGORY_SALARY = 'Salary';
+    public const CATEGORY_GENERAL = 'General';
 
     protected $fillable = [
         'type',
@@ -47,6 +48,7 @@ class CashierExpense extends Model
             self::CATEGORY_CONSUMABLE_MATERIALS => 'Consumable Materials',
             self::CATEGORY_INSTALLATION => 'Installation',
             self::CATEGORY_SALARY => 'Salary',
+            self::CATEGORY_GENERAL => 'General',
         ];
     }
 }

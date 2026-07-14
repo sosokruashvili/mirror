@@ -77,6 +77,14 @@ class OrderCrudController extends CrudController
         ]);
 
         CRUD::addColumn([
+            'name' => 'authorUser',
+            'label' => 'Author',
+            'type' => 'relationship',
+            'entity' => 'authorUser',
+            'attribute' => 'name',
+        ]);
+
+        CRUD::addColumn([
             'name' => 'status',
             'label' => 'Status',
             'type' => 'custom_html',
@@ -200,6 +208,19 @@ class OrderCrudController extends CrudController
         },
         function ($value) {
             CRUD::addClause('where', 'client_id', $value);
+        });
+
+        // Author filter (orders.author stores the creating user's id)
+        CRUD::addFilter([
+            'type' => 'select2',
+            'name' => 'author',
+            'label' => 'Author',
+        ],
+        function () {
+            return \App\Models\User::orderBy('name')->pluck('name', 'id')->toArray();
+        },
+        function ($value) {
+            CRUD::addClause('where', 'author', $value);
         });
 
         CRUD::addFilter([

@@ -12,6 +12,7 @@ class ClientBalance extends Model
     protected $fillable = [
         'client_id',
         'balance_date',
+        'starting_balance',
         'payments_total',
         'orders_total',
         'balance',
@@ -19,6 +20,7 @@ class ClientBalance extends Model
 
     protected $casts = [
         'balance_date' => 'date',
+        'starting_balance' => 'decimal:2',
         'payments_total' => 'decimal:2',
         'orders_total' => 'decimal:2',
         'balance' => 'decimal:2',

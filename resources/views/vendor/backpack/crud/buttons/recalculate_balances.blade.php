@@ -1,6 +1,6 @@
 @if ($crud->hasAccess('list'))
-    <a href="javascript:void(0)" id="recalculateBalancesBtn" class="btn btn-sm btn-secondary shadow-sm">
-        <i class="la la-sync"></i> Recalculate Balances
+    <a href="javascript:void(0)" id="recalculateBalancesBtn" bp-button="recalculate-balances" class="btn btn-primary" data-style="zoom-in">
+        <i class="la la-sync"></i> <span>&nbsp;Recalculate Balances</span>
     </a>
 @endif
 
@@ -30,6 +30,7 @@
 
                     // Update the stats widget from the fresh values returned above.
                     $('#stats-clients-count').text(Number(response.clientsCount).toLocaleString());
+                    $('#stats-total-starting').text(parseFloat(response.totalStarting).toFixed(0) + ' ₾');
                     $('#stats-total-payments').text(parseFloat(response.totalPayments).toFixed(0) + ' ₾');
                     $('#stats-total-orders').text(parseFloat(response.totalOrders).toFixed(0) + ' ₾');
                     $('#stats-total-balance').text(parseFloat(response.totalBalance).toFixed(0) + ' ₾');

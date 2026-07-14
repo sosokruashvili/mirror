@@ -11,13 +11,15 @@ class ClientBalanceService
     /**
      * Compute the current balance components for a single client.
      *
-     * balance = sum of Paid payments - sum of non-draft orders' total price
-     * (uses the live calculateTotalPrice(), matching Client::calculateBalance()).
+     * balance = starting balance + sum of Paid payments - sum of non-draft orders'
+     * total price (uses the live calculateTotalPrice(), matching Client::calculateBalance()).
      *
-     * @return array{payments_total: float, orders_total: float, balance: float}
+     * @return array{starting_balance: float, payments_total: float, orders_total: float, balance: float}
      */
     public function calculateComponentsForClient(Client $client): array
     {
+        $startingBalance = (float) ($client->starting_balance ?? 0);
+
         $paymentsTotal = (float) $client->payments()
             ->where('status', 'Paid')
             ->sum('amount_gel');
@@ -30,9 +32,10 @@ class ClientBalanceService
             });
 
         return [
+            'starting_balance' => $startingBalance,
             'payments_total' => $paymentsTotal,
             'orders_total' => $ordersTotal,
-            'balance' => $paymentsTotal - $ordersTotal,
+            'balance' => $startingBalance + $paymentsTotal - $ordersTotal,
         ];
     }
 

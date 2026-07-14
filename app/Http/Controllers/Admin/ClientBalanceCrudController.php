@@ -98,6 +98,19 @@ class ClientBalanceCrudController extends CrudController
             'searchLogic' => false,
         ]);
 
+        // Starting balance (manually entered opening balance on the client)
+        CRUD::addColumn([
+            'name' => 'starting_balance',
+            'label' => 'Starting Balance',
+            'type' => 'number',
+            'decimals' => 0,
+            'suffix' => ' ₾',
+            'searchLogic' => false,
+            'value' => function ($entry) {
+                return $this->resolveRowComponents($entry)['starting_balance'];
+            },
+        ]);
+
         // Payments total (from the latest daily snapshot)
         CRUD::addColumn([
             'name' => 'payments_total',
@@ -188,8 +201,68 @@ class ClientBalanceCrudController extends CrudController
             $this->crud->addClause('where', 'phone_number', 'LIKE', "%{$value}%");
         });
 
+        // Range filters on the latest snapshot amounts (payments, orders, balance).
+        CRUD::addFilter([
+            'name' => 'payments_total',
+            'type' => 'range',
+            'label' => 'Payments Total',
+            'label_from' => 'Min',
+            'label_to' => 'Max',
+        ], false, function ($value) {
+            $range = json_decode($value);
+            $this->applyLatestBalanceRange($this->crud->query, 'payments_total', $range->from ?? null, $range->to ?? null);
+        });
+
+        CRUD::addFilter([
+            'name' => 'orders_total',
+            'type' => 'range',
+            'label' => 'Orders Total',
+            'label_from' => 'Min',
+            'label_to' => 'Max',
+        ], false, function ($value) {
+            $range = json_decode($value);
+            $this->applyLatestBalanceRange($this->crud->query, 'orders_total', $range->from ?? null, $range->to ?? null);
+        });
+
+        CRUD::addFilter([
+            'name' => 'balance',
+            'type' => 'range',
+            'label' => 'Balance',
+            'label_from' => 'Min',
+            'label_to' => 'Max',
+        ], false, function ($value) {
+            $range = json_decode($value);
+            $this->applyLatestBalanceRange($this->crud->query, 'balance', $range->from ?? null, $range->to ?? null);
+        });
+
         // Default ordering by ID ascending
         $this->crud->orderBy('id', 'asc');
+    }
+
+    /**
+     * Constrain a client query to those whose latest balance snapshot has the given
+     * column within [$from, $to]. Either bound may be null/empty to leave it open.
+     *
+     * @param  \Illuminate\Database\Eloquent\Builder  $query
+     * @return void
+     */
+    protected function applyLatestBalanceRange($query, string $column, $from, $to)
+    {
+        $hasFrom = $from !== null && $from !== '';
+        $hasTo = $to !== null && $to !== '';
+
+        if (!$hasFrom && !$hasTo) {
+            return;
+        }
+
+        $query->whereHas('latestBalance', function ($q) use ($column, $from, $to, $hasFrom, $hasTo) {
+            if ($hasFrom) {
+                $q->where($column, '>=', $from);
+            }
+            if ($hasTo) {
+                $q->where($column, '<=', $to);
+            }
+        });
     }
 
     /**
@@ -198,7 +271,7 @@ class ClientBalanceCrudController extends CrudController
      * back to a live calculation when the client has no snapshot yet (e.g. before
      * the first scheduled run). Memoized per client for the duration of the request.
      *
-     * @return array{payments_total: float, orders_total: float, balance: float}
+     * @return array{starting_balance: float, payments_total: float, orders_total: float, balance: float}
      */
     protected function resolveRowComponents($client): array
     {
@@ -208,6 +281,7 @@ class ClientBalanceCrudController extends CrudController
 
         if ($client->latestBalance) {
             $components = [
+                'starting_balance' => (float) $client->latestBalance->starting_balance,
                 'payments_total' => (float) $client->latestBalance->payments_total,
                 'orders_total' => (float) $client->latestBalance->orders_total,
                 'balance' => (float) $client->latestBalance->balance,
@@ -222,7 +296,7 @@ class ClientBalanceCrudController extends CrudController
     /**
      * In-request memoization cache for resolveRowComponents().
      *
-     * @var array<int, array{payments_total: float, orders_total: float, balance: float}>
+     * @var array<int, array{starting_balance: float, payments_total: float, orders_total: float, balance: float}>
      */
     protected $rowComponentsCache = [];
 
@@ -250,30 +324,45 @@ class ClientBalanceCrudController extends CrudController
             $query->where('phone_number', 'LIKE', '%' . request()->get('phone_number') . '%');
         }
 
+        // Mirror the snapshot range filters so the stats match the filtered table.
+        foreach (['payments_total', 'orders_total', 'balance'] as $column) {
+            if (request()->filled($column)) {
+                $range = json_decode(request()->get($column));
+                if ($range) {
+                    $this->applyLatestBalanceRange($query, $column, $range->from ?? null, $range->to ?? null);
+                }
+            }
+        }
+
         return $query->get();
     }
 
     /**
      * Aggregate stored-snapshot stats across a collection of clients.
      *
-     * @return array{clientsCount:int, totalPayments:float, totalOrders:float, totalBalance:float}
+     * @return array{clientsCount:int, totalStarting:float, totalPayments:float, totalOrders:float, totalBalance:float}
      */
     protected function aggregateStats($clients): array
     {
+        $totalStarting = 0.0;
         $totalPayments = 0.0;
         $totalOrders = 0.0;
+        $totalBalance = 0.0;
 
         foreach ($clients as $client) {
             $components = $this->resolveRowComponents($client);
+            $totalStarting += $components['starting_balance'];
             $totalPayments += $components['payments_total'];
             $totalOrders += $components['orders_total'];
+            $totalBalance += $components['balance'];
         }
 
         return [
             'clientsCount' => $clients->count(),
+            'totalStarting' => $totalStarting,
             'totalPayments' => $totalPayments,
             'totalOrders' => $totalOrders,
-            'totalBalance' => $totalPayments - $totalOrders,
+            'totalBalance' => $totalBalance,
         ];
     }
 
@@ -288,6 +377,7 @@ class ClientBalanceCrudController extends CrudController
         $stats = $this->aggregateStats($this->getFilteredClientsForStats());
 
         $clientsCount = $stats['clientsCount'];
+        $totalStarting = $stats['totalStarting'];
         $totalPayments = $stats['totalPayments'];
         $totalOrders = $stats['totalOrders'];
         $totalBalance = $stats['totalBalance'];
@@ -298,6 +388,7 @@ class ClientBalanceCrudController extends CrudController
             'view' => 'vendor.backpack.crud.widgets.client_balance_stats',
             'wrapper' => ['class' => 'col-12', 'id' => 'client-balance-stats-widget'],
             'clientsCount' => $clientsCount,
+            'totalStarting' => $totalStarting,
             'totalPayments' => $totalPayments,
             'totalOrders' => $totalOrders,
             'totalBalance' => $totalBalance,

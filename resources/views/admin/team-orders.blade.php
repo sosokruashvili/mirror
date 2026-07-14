@@ -3,7 +3,7 @@
 @section('content')
 @php
     $isTeamUser = backpack_user() && backpack_user()->hasRole('team');
-    $dragStorageKey = 'teamOrdersGridOrder:v1:' . (backpack_user()->id ?? 'guest');
+    $dragStorageKey = 'teamOrdersGridOrder:v1:' . (backpack_user()->id ?? 'guest') . ':p' . (int) request()->query('page', 1);
     $showArchived = $showArchived ?? false;
     $dateFrom = $dateFrom ?? request()->query('from');
     $dateTo = $dateTo ?? request()->query('to');
@@ -274,6 +274,44 @@
     
     .orders-grid {
         padding: 20px 0;
+    }
+
+    /* Pagination bar (dark theme) */
+    .team-pagination {
+        display: flex;
+        justify-content: center;
+        padding: 8px 0 32px;
+    }
+    .team-pagination .pagination {
+        margin: 0;
+        flex-wrap: wrap;
+        gap: 4px;
+    }
+    .team-pagination .page-link {
+        background-color: var(--tblr-bg-forms, #1a2234);
+        border-color: var(--tblr-border-color, #2c3c56);
+        color: var(--tblr-body-color, #dadcde);
+        min-width: 40px;
+        min-height: 40px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        touch-action: manipulation;
+    }
+    .team-pagination .page-link:hover {
+        background-color: #6081b3;
+        border-color: #6081b3;
+        color: #fff;
+    }
+    .team-pagination .page-item.active .page-link {
+        background-color: #6081b3;
+        border-color: #6081b3;
+        color: #fff;
+    }
+    .team-pagination .page-item.disabled .page-link {
+        background-color: rgba(255, 255, 255, 0.04);
+        border-color: var(--tblr-border-color, #2c3c56);
+        color: #6c757d;
     }
     
     .orders-grid .order-tile {
@@ -980,6 +1018,12 @@
                 @endforelse
                 </div>
             </div>
+
+            @if($orders->hasPages())
+                <div class="team-pagination">
+                    {{ $orders->onEachSide(1)->links('pagination::bootstrap-5') }}
+                </div>
+            @endif
         </div>
     </div>
 </div>
@@ -989,6 +1033,10 @@
 <div id="pieceCtxMenu" class="piece-ctx-menu">
     <div class="piece-ctx-menu-label" id="pieceCtxMenuHint">მონიშნეთ დასრულებული ეტაპი</div>
     @foreach(piece_stages() as $stageSlug => $stageLabel)
+        {{-- The final 'completion' (დასრულება) stage auto-passes once every other
+             stage is done (no one is responsible for it), so it is not offered
+             as a manual toggle here. --}}
+        @continue($stageSlug === 'completion')
         <button type="button" class="piece-ctx-menu-item item-stage" data-stage="{{ $stageSlug }}" style="color: {{ piece_stage_color($stageSlug) }};"><span class="stage-check" aria-hidden="true"></span> {{ $stageLabel }}</button>
     @endforeach
     <div class="piece-ctx-menu-empty" id="pieceCtxMenuEmpty">ეტაპები არ არის მიბმული</div>

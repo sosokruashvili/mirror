@@ -250,8 +250,21 @@ class ClientCrudController extends CrudController
             ]
         ]);
 
-        
-        
+        CRUD::addField([
+            'name' => 'starting_balance',
+            'label' => 'Starting Balance',
+            'type' => 'number',
+            'default' => 0,
+            'attributes' => [
+                'step' => '0.01',
+            ],
+            'hint' => 'Opening balance carried over from before the system. Positive = client credit, negative = client owes.',
+            'wrapper' => [
+                'class' => 'form-group col-md-6'
+            ]
+        ]);
+
+
         // Add JavaScript to handle the select functionality
         CRUD::addField([
             'name' => 'client_type_script',

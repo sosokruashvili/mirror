@@ -21,11 +21,13 @@ class Client extends Model
         'personal_id',
         'legal_id',
         'address',
-        'phone_number'
+        'phone_number',
+        'starting_balance'
     ];
-    
+
     protected $casts = [
-        'client_type' => 'boolean'
+        'client_type' => 'boolean',
+        'starting_balance' => 'decimal:2'
     ];
 
     protected static function boot()
@@ -88,21 +90,24 @@ class Client extends Model
 
     /**
      * Calculate the client's balance.
-     * Balance = sum of paid payments - sum of orders total price (excluding draft orders)
-     * 
+     * Balance = starting balance + sum of paid payments - sum of orders total price (excluding draft orders)
+     *
      * @return float
      */
     public function calculateBalance()
     {
+        // Manually entered opening balance carried over from before the system.
+        $startingBalance = (float) ($this->starting_balance ?? 0);
+
         // Only count payments with status 'Paid'
         $paymentsSum = $this->payments()->where('status', 'Paid')->sum('amount_gel') ?? 0;
-        
+
         // Only count orders that are not in 'draft' status
         $ordersSum = $this->orders()->where('status', '!=', 'draft')->get()->sum(function($order) {
             return $order->calculateTotalPrice();
         });
-        
-        return $paymentsSum - $ordersSum;
+
+        return $startingBalance + $paymentsSum - $ordersSum;
     }
 
     public function getBalanceAttribute()

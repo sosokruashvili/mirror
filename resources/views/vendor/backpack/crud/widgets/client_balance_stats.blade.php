@@ -1,5 +1,5 @@
 <div class="row mb-3" id="client-balance-stats-widget">
-    <div class="col-md-3 mb-3 mb-md-0">
+    <div class="col-md mb-3 mb-md-0">
         <div class="card bg-primary text-white mb-0">
             <div class="card-header">
                 <h4 class="mb-0">Clients Count</h4>
@@ -9,7 +9,17 @@
             </div>
         </div>
     </div>
-    <div class="col-md-3 mb-3 mb-md-0">
+    <div class="col-md mb-3 mb-md-0">
+        <div class="card bg-secondary text-white mb-0">
+            <div class="card-header">
+                <h4 class="mb-0">Total Starting</h4>
+            </div>
+            <div class="card-body">
+                <h2 class="mb-0" id="stats-total-starting">{{ number_format($widget['totalStarting'], 0) }} ₾</h2>
+            </div>
+        </div>
+    </div>
+    <div class="col-md mb-3 mb-md-0">
         <div class="card bg-success text-white mb-0">
             <div class="card-header">
                 <h4 class="mb-0">Total Payments</h4>
@@ -19,7 +29,7 @@
             </div>
         </div>
     </div>
-    <div class="col-md-3 mb-3 mb-md-0">
+    <div class="col-md mb-3 mb-md-0">
         <div class="card bg-info text-white mb-0">
             <div class="card-header">
                 <h4 class="mb-0">Total Orders</h4>
@@ -29,7 +39,7 @@
             </div>
         </div>
     </div>
-    <div class="col-md-3">
+    <div class="col-md">
         <div class="card {{ $widget['totalBalance'] >= 0 ? 'bg-success' : 'bg-danger' }} text-white mb-0" id="stats-balance-card">
             <div class="card-header">
                 <h4 class="mb-0">Total Balance</h4>
@@ -70,6 +80,7 @@
             success: function(response) {
                 // Update widget values
                 $('#stats-clients-count').text(response.clientsCount.toLocaleString());
+                $('#stats-total-starting').text(parseFloat(response.totalStarting).toFixed(0) + ' ₾');
                 $('#stats-total-payments').text(parseFloat(response.totalPayments).toFixed(0) + ' ₾');
                 $('#stats-total-orders').text(parseFloat(response.totalOrders).toFixed(0) + ' ₾');
                 $('#stats-total-balance').text(parseFloat(response.totalBalance).toFixed(0) + ' ₾');

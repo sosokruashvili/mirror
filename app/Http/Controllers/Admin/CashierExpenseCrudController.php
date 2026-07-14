@@ -92,10 +92,10 @@ class CashierExpenseCrudController extends CrudController
         ], false, function ($value) {
             $dates = json_decode($value, true);
             if (!empty($dates['from'])) {
-                $this->crud->addClause('where', 'expense_date', '>=', $dates['from']);
+                $this->crud->addClause('where', 'expense_date', '>=', \Carbon\Carbon::parse($dates['from'])->startOfDay());
             }
             if (!empty($dates['to'])) {
-                $this->crud->addClause('where', 'expense_date', '<=', $dates['to'] . ' 23:59:59');
+                $this->crud->addClause('where', 'expense_date', '<=', \Carbon\Carbon::parse($dates['to'])->endOfDay());
             }
         });
 

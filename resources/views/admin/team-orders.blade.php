@@ -7,10 +7,6 @@
     $showArchived = $showArchived ?? false;
     $dateFrom = $dateFrom ?? request()->query('from');
     $dateTo = $dateTo ?? request()->query('to');
-    $productFilter = $productFilter ?? [];
-    if (!is_array($productFilter)) {
-        $productFilter = $productFilter === 'all' ? [] : [$productFilter];
-    }
     $serviceFilter = $serviceFilter ?? [];
     if (!is_array($serviceFilter)) {
         $serviceFilter = $serviceFilter === 'all' ? [] : [$serviceFilter];
@@ -24,7 +20,6 @@
         $currentStageFilter = $currentStageFilter === 'all' ? [] : [$currentStageFilter];
     }
     $clientFilter = $clientFilter ?? 'all';
-    $products = $products ?? collect();
     $services = $services ?? collect();
     $stages = $stages ?? collect();
     $clients = $clients ?? collect();
@@ -42,9 +37,6 @@
         'to' => $dateTo ?: null,
         'client' => ($clientFilter !== 'all') ? $clientFilter : null,
     ]);
-    if (!empty($productFilter)) {
-        $toggleQuery['product'] = $productFilter;
-    }
     if (!empty($serviceFilter)) {
         $toggleQuery['service'] = $serviceFilter;
     }
@@ -765,21 +757,6 @@
             </div>
 
             <div>
-                <label class="form-label mb-1 text-light">მასალა</label>
-                <div class="checkbox-dropdown" id="productDropdown">
-                    <div class="checkbox-dropdown-toggle" id="productDropdownToggle">ყველა</div>
-                    <div class="checkbox-dropdown-menu">
-                        @foreach($products as $product)
-                        <label>
-                            <input type="checkbox" name="product[]" value="{{ $product->id }}" {{ in_array($product->id, $productFilter) ? 'checked' : '' }}>
-                            {{ $product->title }}
-                        </label>
-                        @endforeach
-                    </div>
-                </div>
-            </div>
-
-            <div>
                 <label class="form-label mb-1 text-light">სერვისები</label>
                 <div class="checkbox-dropdown" id="serviceDropdown">
                     <div class="checkbox-dropdown-toggle" id="serviceDropdownToggle">ყველა</div>
@@ -1149,7 +1126,6 @@ jQuery(function($) {
         updateLabel();
     }
 
-    initCheckboxDropdown('productDropdown', 'productDropdownToggle');
     initCheckboxDropdown('serviceDropdown', 'serviceDropdownToggle');
     initCheckboxDropdown('stageDropdown', 'stageDropdownToggle');
     initCheckboxDropdown('currentStageDropdown', 'currentStageDropdownToggle');

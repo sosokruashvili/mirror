@@ -867,6 +867,11 @@
                             
                             <div class="order-details">
                                 <div class="detail-row">
+                                    <span class="detail-label">ავტორი:</span>
+                                    <span class="detail-value">{{ $order->authorUser->name ?? 'N/A' }}</span>
+                                </div>
+
+                                <div class="detail-row">
                                     <span class="detail-label">კლიენტი:</span>
                                     <span class="detail-value">{{ $order->client->name ?? 'N/A' }}</span>
                                 </div>

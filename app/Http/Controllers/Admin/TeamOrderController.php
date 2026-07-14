@@ -113,6 +113,7 @@ class TeamOrderController extends Controller
             ->values();
 
         $ordersQuery = Order::with([
+            'authorUser',
             'client',
             'products',
             'services',

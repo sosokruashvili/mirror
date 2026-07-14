@@ -123,6 +123,18 @@ class Order extends Model
     }
 
     /**
+     * The user who created the order (stored on orders.author).
+     *
+     * Named authorUser() rather than author() on purpose: a relationship method
+     * that shares its name with the real `author` column collides, and Eloquent
+     * returns the raw column value instead of loading the relation.
+     */
+    public function authorUser()
+    {
+        return $this->belongsTo(User::class, 'author');
+    }
+
+    /**
      * The payments that belong to the order.
      */
     public function payments()

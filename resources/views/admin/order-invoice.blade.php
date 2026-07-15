@@ -113,19 +113,45 @@
         $productRowNum = 1;
         $pieceRowNum = 1;
 
-        // Services: only pivot data from DB (no calculation)
+        // Services: only pivot data from DB (no calculation). The measure column
+        // varies per service (area / perimeter / length_cm / …), so both quantity
+        // and unit are resolved from the pivot rather than from services.unit.
+        $measureLabels = get_extra_field_labels();
+
         foreach ($order->services as $service) {
-            $qty = (float) ($service->pivot->quantity ?? 1);
+            $measure = order_service_measure($service);
             $lineTotal = (float) ($service->pivot->price_gel ?? 0);
             $desc = $service->title;
             if (!empty($service->pivot->description)) {
                 $desc .= ' – ' . $service->pivot->description;
             }
+
+            // Services priced off several measures at once (e.g. განათება) can only
+            // show one in the quantity column; the rest go into the description so
+            // they are not dropped from the invoice.
+            $extraMeasures = [];
+            foreach (['tape_length' => 'მ', 'foam_length' => 'მ', 'sensor_quantity1' => 'ცალი'] as $field => $unit) {
+                if ($field === $measure['field']) {
+                    continue;
+                }
+                if (!in_array($field, $service->extra_field_names ?? [], true)) {
+                    continue;
+                }
+                $value = $service->pivot->{$field} ?? null;
+                if ($value === null || $value === '') {
+                    continue;
+                }
+                $extraMeasures[] = ($measureLabels[$field] ?? $field) . ': ' . (0 + $value) . ' ' . $unit;
+            }
+            if ($extraMeasures) {
+                $desc .= ' (' . implode(', ', $extraMeasures) . ')';
+            }
+
             $serviceLineItems[] = [
                 'num' => $serviceRowNum++,
                 'description' => $desc,
-                'qty' => $qty,
-                'unit' => $service->unit ?? 'ც.',
+                'qty' => $measure['qty'],
+                'unit' => $measure['unit'],
                 'price_gel' => null,
                 'total_gel' => $lineTotal,
             ];
@@ -277,8 +303,8 @@
                 <tr>
                     <td>{{ $item['num'] }}</td>
                     <td>{{ $item['description'] }}</td>
-                    <td class="text-right">{{ is_numeric($item['qty']) && $item['qty'] == (int)$item['qty'] ? (int)$item['qty'] : $item['qty'] }}</td>
-                    <td>{{ $item['unit'] }}</td>
+                    <td class="text-right">{{ $item['qty'] !== null ? rtrim(rtrim(number_format($item['qty'], 2, '.', ''), '0'), '.') : '—' }}</td>
+                    <td>{{ $item['unit'] ?? '—' }}</td>
                     <td class="text-right">{{ $item['total_gel'] !== null ? number_format($item['total_gel'], 2) : '—' }}</td>
                 </tr>
                 @empty

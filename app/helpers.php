@@ -319,3 +319,59 @@ if (!function_exists('get_service_extra_fields')) {
     }
 }
 
+if (!function_exists('order_service_measure')) {
+    /**
+     * Resolve the billable measure of an order_service pivot row.
+     *
+     * Which pivot column holds the measure depends on the service: perimeter for
+     * frames/edges, area for matting, length_cm for cutouts, and so on. The
+     * services.unit column does not reliably describe it (e.g. ევრო კრომკა is
+     * billed per perimeter metre but carries unit "ცალი"), so the unit is taken
+     * from the resolved column instead.
+     *
+     * @param \App\Models\Service $service Service with its order pivot loaded
+     * @return array{field: ?string, qty: ?float, unit: ?string}
+     */
+    function order_service_measure($service): array
+    {
+        // Column => unit, in the order they should be preferred.
+        $measures = [
+            'area' => 'კვ.მ',
+            'perimeter' => 'მ',
+            'length_cm' => 'სმ',
+            'distance' => 'კმ',
+            'tape_length' => 'მ',
+            'foam_length' => 'მ',
+            'sensor_quantity1' => 'ცალი',
+            'quantity' => 'ცალი',
+        ];
+
+        $enabled = $service->extra_field_names ?? [];
+        if (!is_array($enabled)) {
+            $enabled = [];
+        }
+
+        $pivot = $service->pivot ?? null;
+        $none = ['field' => null, 'qty' => null, 'unit' => null];
+
+        if (!$pivot) {
+            return $none;
+        }
+
+        foreach ($measures as $field => $unit) {
+            if (!in_array($field, $enabled, true)) {
+                continue;
+            }
+
+            $value = $pivot->{$field} ?? null;
+            if ($value === null || $value === '') {
+                continue;
+            }
+
+            return ['field' => $field, 'qty' => (float) $value, 'unit' => $unit];
+        }
+
+        return $none;
+    }
+}
+

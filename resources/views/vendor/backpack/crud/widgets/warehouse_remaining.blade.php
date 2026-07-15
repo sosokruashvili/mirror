@@ -1,11 +1,43 @@
 @php
     $rows = $widget['rows'] ?? collect();
+    $products = $widget['products'] ?? collect();
+    $selectedProduct = $widget['selected_product'] ?? null;
+
+    // Keep the CRUD list's own query params (its filters, sorting) intact when this
+    // table's filter submits, so filtering here doesn't disturb the table below.
+    $carryOver = collect(request()->except(['summary_product_id']))
+        ->filter(fn ($value) => is_scalar($value));
 @endphp
 
 <div class="card mb-3">
-    <div class="card-header">
-        <h4 class="mb-0">Remaining in warehouse (m²)</h4>
-        <small class="text-muted">Per product: total warehouse area minus total order expenses</small>
+    <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
+        <div>
+            <h4 class="mb-0">Remaining in warehouse (m²)</h4>
+            <small class="text-muted">Per product: total warehouse area minus total order expenses</small>
+        </div>
+
+        <form method="GET" action="{{ url()->current() }}" class="d-flex align-items-center gap-2 mb-0">
+            @foreach($carryOver as $key => $value)
+                <input type="hidden" name="{{ $key }}" value="{{ $value }}">
+            @endforeach
+
+            <label for="summary_product_id" class="form-label mb-0 text-muted small">Product</label>
+            <select name="summary_product_id"
+                    id="summary_product_id"
+                    class="form-select form-select-sm"
+                    style="min-width: 220px;"
+                    onchange="this.form.submit()">
+                <option value="">All products</option>
+                @foreach($products as $id => $title)
+                    <option value="{{ $id }}" @selected((string) $selectedProduct === (string) $id)>{{ $title }}</option>
+                @endforeach
+            </select>
+
+            @if($selectedProduct)
+                <a href="{{ url()->current() . ($carryOver->isNotEmpty() ? '?' . http_build_query($carryOver->all()) : '') }}"
+                   class="btn btn-sm btn-link text-muted">Reset</a>
+            @endif
+        </form>
     </div>
     <div class="card-body p-0">
         <div class="table-responsive">

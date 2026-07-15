@@ -230,9 +230,14 @@ class Order extends Model
         $this->save();
     }
 
-    public function calculateTotalPrice()
+    /**
+     * @param  bool  $persist  Whether to also write each piece's computed price back
+     *                         to the piece. Pass false on read-only screens, which
+     *                         only need the number and shouldn't write on a GET.
+     */
+    public function calculateTotalPrice($persist = true)
     {
-       $totalPriceGel = 0; 
+       $totalPriceGel = 0;
        $servicePriceSum = $this->services->sum('pivot.price_gel');
        $totalPriceGel += $servicePriceSum;
 
@@ -242,7 +247,9 @@ class Order extends Model
             $unitPrice = $product->pivot->price ?? $product->price;
             foreach($this->pieces as $piece) {
                 $piece->price = $piece->getArea() * $unitPrice * $this->currency_rate;
-                $piece->save();
+                if ($persist) {
+                    $piece->save();
+                }
                 $totalPriceGel += $piece->price;
             }
         }

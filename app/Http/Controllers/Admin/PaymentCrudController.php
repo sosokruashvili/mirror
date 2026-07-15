@@ -81,6 +81,13 @@ class PaymentCrudController extends CrudController
         ]);
 
         CRUD::addColumn([
+            'name' => 'type',
+            'label' => 'Type',
+            'type' => 'select_from_array',
+            'options' => Payment::types(),
+        ]);
+
+        CRUD::addColumn([
             'name' => 'status',
             'label' => 'Status',
             'type' => 'text',
@@ -131,6 +138,16 @@ class PaymentCrudController extends CrudController
             ];
         }, function($value) {
             $this->crud->addClause('where', 'method', $value);
+        });
+
+        CRUD::addFilter([
+            'name' => 'type',
+            'type' => 'select2',
+            'label' => 'Type'
+        ], function() {
+            return Payment::types();
+        }, function($value) {
+            $this->crud->addClause('where', 'type', $value);
         });
 
         CRUD::addFilter([
@@ -248,6 +265,18 @@ class PaymentCrudController extends CrudController
         ]);
 
         CRUD::addField([
+            'name' => 'type',
+            'label' => 'Payment Type',
+            'type' => 'select_from_array',
+            'options' => Payment::types(),
+            'allows_null' => false,
+            'default' => Payment::TYPE_ORDER,
+            'wrapper' => [
+                'class' => 'form-group col-md-6'
+            ]
+        ]);
+
+        CRUD::addField([
             'name' => 'currency_rate',
             'label' => 'Currency Rate',
             'type' => 'number',
@@ -356,7 +385,11 @@ class PaymentCrudController extends CrudController
         if (request()->has('method') && request()->get('method') !== '') {
             $query->where('method', request()->get('method'));
         }
-        
+
+        if (request()->has('type') && request()->get('type') !== '') {
+            $query->where('type', request()->get('type'));
+        }
+
         if (request()->has('status') && request()->get('status') !== '') {
             $query->where('status', request()->get('status'));
         }
@@ -513,6 +546,7 @@ class PaymentCrudController extends CrudController
             'amount_gel' => 'required|numeric|min:0',
             'currency_rate' => 'required|numeric|min:0',
             'method' => 'required|in:Cash,Transfer,Terminal,PM Transfer',
+            'type' => 'required|in:' . implode(',', array_keys(Payment::types())),
             'status' => 'required|in:Paid,Pending',
             'payment_date' => 'required|date',
             'file' => 'nullable|file|max:10240',

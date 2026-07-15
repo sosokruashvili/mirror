@@ -175,6 +175,9 @@ class WarehouseCrudController extends CrudController
      * minus the total expenses (m²) of every order that contains the product.
      * Quantity of lists is informational only and is not used in the math.
      *
+     * Narrowed by this table's own product filter, which uses summary_product_id
+     * so it stays independent of the CRUD list's product_id filter below.
+     *
      * @return \Illuminate\Support\Collection
      */
     protected function getRemainingStock()
@@ -200,6 +203,9 @@ class WarehouseCrudController extends CrudController
             });
 
         return Product::query()
+            ->when(request('summary_product_id'), function ($query, $productId) {
+                $query->where('id', $productId);
+            })
             ->orderBy('title')
             ->get()
             ->map(function (Product $product) use ($warehouseAreas, $expensesByProduct) {
@@ -228,6 +234,8 @@ class WarehouseCrudController extends CrudController
             'view' => 'vendor.backpack.crud.widgets.warehouse_remaining',
             'wrapper' => ['class' => 'col-12'],
             'rows' => $this->getRemainingStock(),
+            'products' => Product::query()->orderBy('title')->pluck('title', 'id'),
+            'selected_product' => request('summary_product_id'),
         ])->to('before_content');
     }
 }

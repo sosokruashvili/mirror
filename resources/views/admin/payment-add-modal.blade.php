@@ -44,6 +44,15 @@
                         </div>
 
                         <div class="col-md-6 mb-3">
+                            <label class="form-label">Payment Type <span class="text-danger">*</span></label>
+                            <select name="type" class="form-control" required>
+                                @foreach(\App\Models\Payment::types() as $value => $label)
+                                    <option value="{{ $value }}">{{ $label }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+
+                        <div class="col-md-6 mb-3">
                             <label class="form-label">Currency Rate <span class="text-danger">*</span></label>
                             <input type="number" name="currency_rate" class="form-control" step="0.0001" min="0" required value="{{ $defaultCurrencyRate }}">
                         </div>

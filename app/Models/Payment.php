@@ -13,13 +13,17 @@ class Payment extends Model
 
     protected $table = 'payments';
     protected $guarded = ['id'];
-    
+
+    const TYPE_ORDER = 'Order';
+    const TYPE_DEBT = 'Debt';
+
     protected $fillable = [
         'client_id',
         'order_id',
         'amount_gel',
         'currency_rate',
         'method',
+        'type',
         'status',
         'file',
         'payment_date'
@@ -47,6 +51,19 @@ class Payment extends Model
         static::deleted(function ($payment) {
             static::updateOrderPaymentStatus();
         });
+    }
+
+    /**
+     * Payment types, keyed by the value stored in the database.
+     *
+     * @return array
+     */
+    public static function types()
+    {
+        return [
+            self::TYPE_ORDER => 'შეკვეთა',
+            self::TYPE_DEBT => 'ვალი',
+        ];
     }
 
     /**

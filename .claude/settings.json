@@ -2,7 +2,17 @@
   "permissions": {
     "allow": [
       "Bash(awk '{print $3, $4}')",
-      "Bash(awk 'NR>=599 && NR<=760 && /pieces-list|addColumn|data-piece-stage|function|renderService/' app/Http/Controllers/Admin/OrderCrudController.php)"
+      "Bash(awk 'NR>=599 && NR<=760 && /pieces-list|addColumn|data-piece-stage|function|renderService/' app/Http/Controllers/Admin/OrderCrudController.php)",
+      "Bash(cat *)",
+      "Bash(php *)",
+      "Bash(php artisan *)",
+      "Bash(composer *)",
+      "Bash(git status)",
+      "Bash(git diff *)",
+      "Bash(git log *)",
+      "Bash(git add *)",
+      "Bash(mkdir *)",
+      "Bash(rm /tmp/*)"
     ]
   }
 }

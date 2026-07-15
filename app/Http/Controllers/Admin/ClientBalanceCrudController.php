@@ -49,6 +49,12 @@ class ClientBalanceCrudController extends CrudController
         // Manual "recalculate now" button (re-runs today's snapshot on demand).
         $this->crud->addButtonFromView('top', 'recalculate_balances', 'recalculate_balances', 'beginning');
 
+        // Expandable rows: clicking a client row loads their payments and orders inline.
+        // The custom list view makes the whole row (not just the +/- icon) the trigger.
+        $this->crud->enableDetailsRow();
+        $this->crud->setDetailsRowView('vendor.backpack.crud.details_rows.client_balance');
+        $this->crud->setListView('vendor.backpack.crud.client_balance.list');
+
         // Eager load the latest stored balance snapshot to avoid N+1 queries.
         $this->crud->addClause('with', 'latestBalance');
 
@@ -237,6 +243,55 @@ class ClientBalanceCrudController extends CrudController
 
         // Default ordering by ID ascending
         $this->crud->orderBy('id', 'asc');
+    }
+
+    /**
+     * Render the expanded sub-list for one client row: their payments and orders.
+     * Called over AJAX by the details-row logic in the list view.
+     *
+     * @return \Illuminate\Contracts\View\View
+     */
+    public function showDetailsRow($id)
+    {
+        $this->crud->hasAccessOrFail('list');
+
+        $client = Client::query()
+            ->with([
+                'latestBalance',
+                'payments' => function ($query) {
+                    $query->orderByDesc('payment_date')->orderByDesc('id');
+                },
+                'payments.order',
+                // calculateTotalPrice() walks services/products/pieces on each order,
+                // so eager load them to keep the expanded row to a handful of queries.
+                'orders' => function ($query) {
+                    $query->orderByDesc('id');
+                },
+                'orders.services',
+                'orders.products',
+                'orders.pieces',
+            ])
+            ->findOrFail($id);
+
+        // Only these count towards the balance; the view greys out the rest.
+        $countedPayments = $client->payments->where('status', 'Paid');
+        $countedOrders = $client->orders->where('status', '!=', 'draft');
+
+        return view('vendor.backpack.crud.details_rows.client_balance', [
+            'crud' => $this->crud,
+            'entry' => $client,
+            'components' => $this->resolveRowComponents($client),
+            'payments' => $client->payments,
+            'orders' => $client->orders,
+            // persist: false — this is a read-only screen, so price the orders
+            // without writing the computed price back to every piece.
+            'orderTotals' => $client->orders->mapWithKeys(function ($order) {
+                return [$order->id => (float) $order->calculateTotalPrice(false)];
+            }),
+            'countedPaymentsTotal' => (float) $countedPayments->sum('amount_gel'),
+            'countedPaymentsCount' => $countedPayments->count(),
+            'countedOrderIds' => $countedOrders->pluck('id')->all(),
+        ]);
     }
 
     /**

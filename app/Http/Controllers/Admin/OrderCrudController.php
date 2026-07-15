@@ -12,6 +12,7 @@ use App\Models\Piece;
 use App\Models\Service;
 use App\Models\Product;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Carbon;
 use App\Models\CustomPrice;
 use App\Models\Payment;
@@ -27,6 +28,12 @@ class OrderCrudController extends CrudController
     use \Backpack\CRUD\app\Http\Controllers\Operations\UpdateOperation;
     use \Backpack\CRUD\app\Http\Controllers\Operations\DeleteOperation;
     use \Backpack\CRUD\app\Http\Controllers\Operations\ShowOperation;
+
+    /**
+     * Cache key holding the last manually-entered USD rate, reused as the
+     * default currency rate for subsequent order creation.
+     */
+    private const MANUAL_RATE_CACHE_KEY = 'order.manual_currency_rate';
 
     /**
      * Configure the CrudPanel object. Apply settings to all operations.
@@ -405,12 +412,18 @@ class OrderCrudController extends CrudController
 
         CRUD::addField([
             'name' => 'currency_rate',
-            'label' => 'Current USD Rate',
+            'label' => 'USD Rate',
             'type' => 'number',
-            'default' => Currency::exchangeRate(),
+            // Prefill with the manual rate remembered from the last order that
+            // used one; fall back to the live NBG rate when none has been set.
+            'default' => Cache::get(self::MANUAL_RATE_CACHE_KEY, Currency::exchangeRate()),
+            'hint' => 'Actual current USD rate: ' . Currency::exchangeRate(),
             'attributes' => [
                 'required' => true,
-                'readonly' => true,
+                'step' => '0.0001',
+            ],
+            'wrapper' => [
+                'class' => 'form-group col-md-3',
             ],
         ]);
 
@@ -889,6 +902,12 @@ class OrderCrudController extends CrudController
     {
         return DB::transaction(function () {
             $fields = request()->all();
+
+            // Remember the manual USD rate so it prefills future orders until
+            // someone enters a different one.
+            if (isset($fields['currency_rate']) && $fields['currency_rate'] !== '') {
+                Cache::forever(self::MANUAL_RATE_CACHE_KEY, $fields['currency_rate']);
+            }
 
             $order = Order::create(
                 [

@@ -18,6 +18,23 @@ class RoleRequest extends FormRequest
     }
 
     /**
+     * The `checklist` field submits its selected values as a JSON-encoded
+     * string in a single hidden input, so decode it into an array before
+     * the `array` validation rule and the relationship saving run.
+     *
+     * @return void
+     */
+    protected function prepareForValidation()
+    {
+        if (is_string($this->permissions)) {
+            $decoded = json_decode($this->permissions, true);
+            $this->merge([
+                'permissions' => is_array($decoded) ? $decoded : [],
+            ]);
+        }
+    }
+
+    /**
      * Get the validation rules that apply to the request.
      *
      * @return array

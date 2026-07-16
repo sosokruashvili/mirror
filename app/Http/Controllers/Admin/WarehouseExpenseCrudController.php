@@ -18,6 +18,7 @@ use Backpack\CRUD\app\Library\Widget;
  */
 class WarehouseExpenseCrudController extends CrudController
 {
+    use \App\Http\Controllers\Admin\Traits\ChecksAccess;
     use \Backpack\CRUD\app\Http\Controllers\Operations\ListOperation;
 
     /**

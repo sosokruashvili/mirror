@@ -15,6 +15,7 @@ use App\Services\ClientBalanceService;
  */
 class ClientBalanceCrudController extends CrudController
 {
+    use \App\Http\Controllers\Admin\Traits\ChecksAccess;
     use \Backpack\CRUD\app\Http\Controllers\Operations\ListOperation;
 
     /**

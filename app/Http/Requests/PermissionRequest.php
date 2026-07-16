@@ -29,6 +29,7 @@ class PermissionRequest extends FormRequest
         return [
             'name' => 'required|string|max:255|unique:permissions,name,' . ($id ?? 'NULL'),
             'description' => 'nullable|string|max:255',
+            'type' => 'nullable|in:page,stage',
         ];
     }
 }

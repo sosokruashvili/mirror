@@ -26,7 +26,7 @@ class PermissionSeeder extends Seeder
         foreach ($permissions as $name => $description) {
             Permission::updateOrCreate(
                 ['name' => $name, 'guard_name' => 'web'],
-                ['description' => $description]
+                ['description' => $description, 'type' => 'stage']
             );
         }
 

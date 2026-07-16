@@ -13,6 +13,7 @@ use Backpack\CRUD\app\Library\CrudPanel\CrudPanelFacade as CRUD;
  */
 class PermissionCrudController extends CrudController
 {
+    use \App\Http\Controllers\Admin\Traits\ChecksAccess;
     use \Backpack\CRUD\app\Http\Controllers\Operations\ListOperation;
     use \Backpack\CRUD\app\Http\Controllers\Operations\CreateOperation;
     use \Backpack\CRUD\app\Http\Controllers\Operations\UpdateOperation;
@@ -52,6 +53,12 @@ class PermissionCrudController extends CrudController
         ]);
 
         CRUD::addColumn([
+            'name' => 'type',
+            'label' => 'Type',
+            'type' => 'text',
+        ]);
+
+        CRUD::addColumn([
             'name' => 'roles',
             'label' => 'Used by Roles',
             'type' => 'select_multiple',
@@ -83,6 +90,16 @@ class PermissionCrudController extends CrudController
             'label' => 'Description',
             'type' => 'text',
             'hint' => 'Human-friendly label shown in the admin panel',
+        ]);
+
+        CRUD::addField([
+            'name' => 'type',
+            'label' => 'Type',
+            'type' => 'select_from_array',
+            'options' => ['page' => 'Page access', 'stage' => 'Production stage'],
+            'allows_null' => false,
+            'default' => 'page',
+            'hint' => 'Page = controls access to a page/action. Stage = a production workflow capability.',
         ]);
     }
 

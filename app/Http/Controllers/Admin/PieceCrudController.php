@@ -13,6 +13,7 @@ use Backpack\CRUD\app\Library\Widget;
  */
 class PieceCrudController extends CrudController
 {
+    use \App\Http\Controllers\Admin\Traits\ChecksAccess;
     use \Backpack\CRUD\app\Http\Controllers\Operations\ListOperation;
     use \Backpack\CRUD\app\Http\Controllers\Operations\UpdateOperation;
     use \Backpack\CRUD\app\Http\Controllers\Operations\DeleteOperation;

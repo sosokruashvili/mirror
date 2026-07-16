@@ -13,6 +13,7 @@ use Backpack\CRUD\app\Library\CrudPanel\CrudPanelFacade as CRUD;
  */
 class UserCrudController extends CrudController
 {
+    use \App\Http\Controllers\Admin\Traits\ChecksAccess;
     use \Backpack\CRUD\app\Http\Controllers\Operations\ListOperation;
     use \Backpack\CRUD\app\Http\Controllers\Operations\CreateOperation;
     use \Backpack\CRUD\app\Http\Controllers\Operations\UpdateOperation;
@@ -286,5 +287,27 @@ class UserCrudController extends CrudController
         \Alert::success(trans('backpack::crud.update_success'))->flash();
         $this->crud->setSaveAction();
         return $this->crud->performSaveAction($item->getKey());
+    }
+
+    /**
+     * Prevent deleting the last administrator, so no one can lock everyone
+     * out of the system.
+     */
+    public function destroy($id)
+    {
+        $this->crud->hasAccessOrFail('delete');
+
+        $user = \App\Models\User::findOrFail($id);
+
+        if ($user->hasRole('admin') && $this->adminCount() <= 1) {
+            abort(403, 'You cannot delete the last administrator.');
+        }
+
+        return $this->crud->delete($id);
+    }
+
+    private function adminCount(): int
+    {
+        return \App\Models\User::whereHas('roles', fn ($q) => $q->where('slug', 'admin'))->count();
     }
 }

@@ -14,6 +14,11 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->web(append: [
             \App\Http\Middleware\VerifyCsrfToken::class,
         ]);
+
+        // Page-permission guard for custom admin pages (uses the Backpack guard).
+        $middleware->alias([
+            'backpack.can' => \App\Http\Middleware\CheckBackpackPermission::class,
+        ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         //

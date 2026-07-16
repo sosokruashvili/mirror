@@ -13,6 +13,7 @@ class Permission extends SpatiePermission
         'name',
         'guard_name',
         'description',
+        'type',
     ];
 
     /**

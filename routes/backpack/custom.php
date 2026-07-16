@@ -50,19 +50,19 @@ Route::group([
     Route::crud('cashier', 'CashierCrudController');
     Route::crud('cashier-expense', 'CashierExpenseCrudController');
     
-    // Global settings page
-    Route::get('settings', 'SettingController@edit')->name('settings.edit');
-    Route::put('settings', 'SettingController@update')->name('settings.update');
-    Route::post('settings/sync-from-prod', 'SettingController@syncFromProd')->name('settings.syncFromProd');
+    // Global settings page (access-controlled: settings.view / settings.update)
+    Route::get('settings', 'SettingController@edit')->name('settings.edit')->middleware('backpack.can:settings.view');
+    Route::put('settings', 'SettingController@update')->name('settings.update')->middleware('backpack.can:settings.update');
+    Route::post('settings/sync-from-prod', 'SettingController@syncFromProd')->name('settings.syncFromProd')->middleware('backpack.can:settings.update');
 
-    // Team order processing page
-    Route::get('team/orders', 'TeamOrderController@index')->name('team.orders');
-    Route::get('team/orders/check', 'TeamOrderController@check')->name('team.orders.check');
-    Route::post('team/orders/{id}/finish', 'TeamOrderController@finish')->name('team.orders.finish');
-    Route::post('team/orders/{id}/archive', 'TeamOrderController@archive')->name('team.orders.archive');
-    Route::post('team/orders/{id}/unarchive', 'TeamOrderController@unarchive')->name('team.orders.unarchive');
-    Route::post('team/pieces/{id}/broken', 'TeamOrderController@markPieceBroken')->name('team.pieces.broken');
-    Route::post('team/pieces/{id}/stage', 'TeamOrderController@updatePieceStage')->name('team.pieces.stage');
+    // Team order processing page (access-controlled: team-order.view / team-order.operate)
+    Route::get('team/orders', 'TeamOrderController@index')->name('team.orders')->middleware('backpack.can:team-order.view');
+    Route::get('team/orders/check', 'TeamOrderController@check')->name('team.orders.check')->middleware('backpack.can:team-order.view');
+    Route::post('team/orders/{id}/finish', 'TeamOrderController@finish')->name('team.orders.finish')->middleware('backpack.can:team-order.operate');
+    Route::post('team/orders/{id}/archive', 'TeamOrderController@archive')->name('team.orders.archive')->middleware('backpack.can:team-order.operate');
+    Route::post('team/orders/{id}/unarchive', 'TeamOrderController@unarchive')->name('team.orders.unarchive')->middleware('backpack.can:team-order.operate');
+    Route::post('team/pieces/{id}/broken', 'TeamOrderController@markPieceBroken')->name('team.pieces.broken')->middleware('backpack.can:team-order.operate');
+    Route::post('team/pieces/{id}/stage', 'TeamOrderController@updatePieceStage')->name('team.pieces.stage')->middleware('backpack.can:team-order.operate');
 }); // this should be the absolute last line of this file
 
 /**

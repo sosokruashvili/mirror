@@ -27,6 +27,13 @@ class CashierCrudController extends CrudController
     {
         $this->addCashierStatsWidget();
 
+        // Expandable rows: clicking a day loads the cash payments and expenses
+        // that produced that day's balance. The custom list view makes the whole
+        // row (not just the +/- icon) the trigger, same as the client balance page.
+        $this->crud->enableDetailsRow();
+        $this->crud->setDetailsRowView('vendor.backpack.crud.details_rows.cashier_balance');
+        $this->crud->setListView('vendor.backpack.crud.cashier.list');
+
         CRUD::addColumn([
             'name' => 'balance_date',
             'label' => 'Date',
@@ -62,6 +69,52 @@ class CashierCrudController extends CrudController
         });
 
         $this->crud->orderBy('balance_date', 'desc');
+    }
+
+    /**
+     * Render the expanded breakdown for one day's snapshot: opening balance,
+     * the cash payments (in) and cash expenses (out) of that day, and the
+     * resulting closing balance. Called over AJAX by the details-row logic.
+     *
+     * @return \Illuminate\Contracts\View\View
+     */
+    public function showDetailsRow($id)
+    {
+        $this->crud->hasAccessOrFail('list');
+
+        $entry = CashierBalance::findOrFail($id);
+        $date = $entry->balance_date->copy()->startOfDay();
+        $service = app(CashierService::class);
+
+        $payments = $service->cashPaymentsQueryForDate($date)
+            ->with(['client', 'order'])
+            ->orderByDesc('payment_date')
+            ->orderByDesc('id')
+            ->get();
+
+        $expenses = $service->cashExpensesQueryForDate($date)
+            ->orderByDesc('expense_date')
+            ->orderByDesc('id')
+            ->get();
+
+        $openingBalance = $service->getPreviousClosingBalance($date);
+        $cashIn = (float) $payments->sum('amount_gel');
+        $cashOut = (float) $expenses->sum('amount_gel');
+
+        return view('vendor.backpack.crud.details_rows.cashier_balance', [
+            'crud' => $this->crud,
+            'entry' => $entry,
+            'openingBalance' => $openingBalance,
+            'cashIn' => $cashIn,
+            'cashOut' => $cashOut,
+            'netChange' => $cashIn - $cashOut,
+            // Recomputed from today's data; can drift from the stored snapshot
+            // if payments/expenses were edited after the snapshot was taken.
+            'calculatedClosing' => $openingBalance + $cashIn - $cashOut,
+            'storedClosing' => (float) $entry->amount,
+            'payments' => $payments,
+            'expenses' => $expenses,
+        ]);
     }
 
     protected function addCashierStatsWidget(): void

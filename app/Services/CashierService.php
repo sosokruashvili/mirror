@@ -9,21 +9,37 @@ use Carbon\Carbon;
 
 class CashierService
 {
-    public function getCashPaymentsForDate(Carbon $date): float
+    /**
+     * Query for the payments that count as cash-in on a given day.
+     * Single source of truth for both the daily sum and the details-row list.
+     */
+    public function cashPaymentsQueryForDate(Carbon $date)
     {
-        return (float) Payment::query()
+        return Payment::query()
             ->where('method', 'Cash')
             ->where('status', 'Paid')
-            ->whereDate('payment_date', $date)
-            ->sum('amount_gel');
+            ->whereDate('payment_date', $date);
+    }
+
+    /**
+     * Query for the expenses that count as cash-out on a given day.
+     * Single source of truth for both the daily sum and the details-row list.
+     */
+    public function cashExpensesQueryForDate(Carbon $date)
+    {
+        return CashierExpense::query()
+            ->where('type', CashierExpense::TYPE_CASH)
+            ->whereDate('expense_date', $date);
+    }
+
+    public function getCashPaymentsForDate(Carbon $date): float
+    {
+        return (float) $this->cashPaymentsQueryForDate($date)->sum('amount_gel');
     }
 
     public function getCashExpensesForDate(Carbon $date): float
     {
-        return (float) CashierExpense::query()
-            ->where('type', CashierExpense::TYPE_CASH)
-            ->whereDate('expense_date', $date)
-            ->sum('amount_gel');
+        return (float) $this->cashExpensesQueryForDate($date)->sum('amount_gel');
     }
 
     public function getNetChangeForDate(Carbon $date): float

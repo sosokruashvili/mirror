@@ -138,10 +138,10 @@ class TeamOrderController extends Controller
             'to' => $dateTo,
         ]);
 
-        // Paginate at 20 cards per page. withQueryString() keeps the active
+        // Paginate at 32 cards per page. withQueryString() keeps the active
         // filter query string on every pagination link so paging never drops
         // the applied filters.
-        $orders = $ordersQuery->paginate(20)->withQueryString();
+        $orders = $ordersQuery->paginate(32)->withQueryString();
 
         return view('admin.team-orders', compact('orders', 'showArchived', 'productTypes', 'productTypeFilter', 'services', 'serviceFilter', 'stages', 'stageFilter', 'currentStageFilter', 'clients', 'clientFilter', 'dateFrom', 'dateTo'));
     }
@@ -171,11 +171,11 @@ class TeamOrderController extends Controller
 
         $this->applyOrderFilters($ordersQuery, $filters);
 
-        // Mirror the index page's ordering and 20-per-page pagination so the
+        // Mirror the index page's ordering and 32-per-page pagination so the
         // poll compares against the SAME set of orders the current page shows.
         // Comparing against every matching order would report every card on the
         // other pages as "new" and reload the page endlessly.
-        $page = $ordersQuery->orderBy('created_at', 'desc')->paginate(20);
+        $page = $ordersQuery->orderBy('created_at', 'desc')->paginate(32);
 
         return response()->json([
             'ids' => $page->pluck('id'),

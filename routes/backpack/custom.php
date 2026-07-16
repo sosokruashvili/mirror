@@ -48,6 +48,7 @@ Route::group([
     Route::post('client-balance/recalculate', 'ClientBalanceCrudController@recalculate')->name('client-balance.recalculate');
     Route::crud('custom-price', 'CustomPriceCrudController');
     Route::crud('cashier', 'CashierCrudController');
+    Route::post('cashier/recalculate', 'CashierCrudController@recalculate')->name('cashier.recalculate');
     Route::crud('cashier-expense', 'CashierExpenseCrudController');
     
     // Global settings page (access-controlled: settings.view / settings.update)

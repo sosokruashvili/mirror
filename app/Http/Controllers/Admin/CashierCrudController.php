@@ -27,6 +27,10 @@ class CashierCrudController extends CrudController
     {
         $this->addCashierStatsWidget();
 
+        // Manual "recalculate now" button: re-chains every stored snapshot so
+        // backdated payments/expenses stop drifting from the frozen amounts.
+        $this->crud->addButtonFromView('top', 'recalculate_cashier', 'recalculate_cashier', 'beginning');
+
         // Expandable rows: clicking a day loads the cash payments and expenses
         // that produced that day's balance. The custom list view makes the whole
         // row (not just the +/- icon) the trigger, same as the client balance page.
@@ -115,6 +119,23 @@ class CashierCrudController extends CrudController
             'payments' => $payments,
             'expenses' => $expenses,
         ]);
+    }
+
+    /**
+     * Re-run the full snapshot chain (earliest stored day through the latest),
+     * then return fresh today-stats so the widget can update without a reload.
+     *
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function recalculate(CashierService $service)
+    {
+        $this->crud->hasAccessOrFail('list');
+
+        $count = $service->resnapshotAll();
+
+        return response()->json(array_merge([
+            'message' => "Recalculated cashier balance for {$count} day(s).",
+        ], $service->getTodayStats()));
     }
 
     protected function addCashierStatsWidget(): void

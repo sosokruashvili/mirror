@@ -78,6 +78,34 @@ class CashierService
         );
     }
 
+    /**
+     * Re-run every stored snapshot in chronological order, from the earliest
+     * to the latest snapshotted day (gaps in between are filled). Each day's
+     * closing feeds the next day's opening, so backdated payment/expense edits
+     * propagate through the whole chain. Returns the number of days written.
+     */
+    public function resnapshotAll(): int
+    {
+        $first = CashierBalance::min('balance_date');
+        $last = CashierBalance::max('balance_date');
+
+        if (!$first) {
+            return 0;
+        }
+
+        $date = Carbon::parse($first)->startOfDay();
+        $end = Carbon::parse($last)->startOfDay();
+        $count = 0;
+
+        while ($date->lte($end)) {
+            $this->snapshotDailyBalance($date);
+            $count++;
+            $date->addDay();
+        }
+
+        return $count;
+    }
+
     public function getTodayStats(): array
     {
         $today = now()->startOfDay();

@@ -175,6 +175,15 @@ class PieceCrudController extends CrudController
             $this->crud->addClause('where', 'order_id', request()->get('order_id'));
         }
 
+        // ID filter
+        CRUD::addFilter([
+            'name' => 'id',
+            'type' => 'text',
+            'label' => 'ID',
+        ], false, function ($value) {
+            $this->crud->addClause('where', 'id', $value);
+        });
+
         // Add filter for order_id
         $this->crud->addFilter([
             'name' => 'order_id',
@@ -184,6 +193,57 @@ class PieceCrudController extends CrudController
             return \App\Models\Order::all()->pluck('id', 'id')->toArray();
         }, function($value) {
             $this->crud->addClause('where', 'order_id', $value);
+        });
+
+        // Product filter (piece.product_id)
+        CRUD::addFilter([
+            'name' => 'product_id',
+            'type' => 'select2',
+            'label' => 'Product',
+        ], function () {
+            return \App\Models\Product::orderBy('title')->pluck('title', 'id')->toArray();
+        }, function ($value) {
+            $this->crud->addClause('where', 'product_id', $value);
+        });
+
+        // Product Type filter (on the owning order)
+        CRUD::addFilter([
+            'name' => 'product_type',
+            'type' => 'select2',
+            'label' => 'Product Type',
+        ], function () {
+            return [
+                'mirror' => 'სარკე',
+                'glass' => 'შუშა',
+                'lamix' => 'ლამექსი',
+                'glass_pkg' => 'შუშაპაკეტი',
+                'service' => 'მომსახურება',
+            ];
+        }, function ($value) {
+            $this->crud->addClause('whereHas', 'order', function ($query) use ($value) {
+                $query->where('product_type', $value);
+            });
+        });
+
+        // Created At date range filter
+        CRUD::addFilter([
+            'name' => 'created_at',
+            'type' => 'date_range',
+            'label' => 'Created At',
+        ], false, function ($value) {
+            $dates = json_decode($value, true);
+
+            if (!is_array($dates)) {
+                return;
+            }
+
+            if (!empty($dates['from'])) {
+                $this->crud->addClause('where', 'created_at', '>=', \Carbon\Carbon::parse($dates['from'])->startOfDay()->toDateTimeString());
+            }
+
+            if (!empty($dates['to'])) {
+                $this->crud->addClause('where', 'created_at', '<=', \Carbon\Carbon::parse($dates['to'])->endOfDay()->toDateTimeString());
+            }
         });
 
         Widget::add([

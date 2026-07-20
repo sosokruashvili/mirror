@@ -1,11 +1,11 @@
 <div class="col-12">
     <div class="card">
         <div class="card-header">
-            <div class="d-flex flex-wrap align-items-center justify-content-between gap-3">
-                <div>
-                    <h3 class="card-title mb-0">Daily Orders &amp; Income</h3>
-                    <div class="text-muted small">Orders count and income (paid / credit) per day, excluding draft orders</div>
-                </div>
+            <div>
+                <h3 class="card-title mb-0">Daily Orders &amp; Income</h3>
+                <div class="text-muted small">Orders count and income (paid / credit) per period, excluding draft orders</div>
+            </div>
+            <div class="d-flex flex-wrap align-items-end justify-content-between gap-2 mt-2">
                 <div class="d-flex flex-wrap align-items-end gap-2">
                     <div>
                         <label class="form-label small mb-1" for="daily-stats-from">From</label>
@@ -16,7 +16,12 @@
                         <input type="date" id="daily-stats-to" class="form-control form-control-sm">
                     </div>
                     <button type="button" class="btn btn-sm btn-primary" id="daily-stats-apply">Apply</button>
-                    <button type="button" class="btn btn-sm btn-outline-secondary" id="daily-stats-reset">Last 30 days</button>
+                    <button type="button" class="btn btn-sm btn-outline-secondary" id="daily-stats-reset">Reset range</button>
+                </div>
+                <div class="btn-group ms-auto" role="group" aria-label="Chart period">
+                    <button type="button" class="btn btn-sm btn-outline-primary active" data-period="days">By day</button>
+                    <button type="button" class="btn btn-sm btn-outline-primary" data-period="months">By month</button>
+                    <button type="button" class="btn btn-sm btn-outline-primary" data-period="years">By year</button>
                 </div>
             </div>
         </div>
@@ -55,6 +60,14 @@
     var canvas = document.getElementById('daily-stats-chart');
     var $from = $('#daily-stats-from');
     var $to = $('#daily-stats-to');
+    var $periodButtons = $('#daily-stats-chart').closest('.card').find('[data-period]');
+    var currentPeriod = 'days';
+
+    function setActivePeriod(period) {
+        currentPeriod = period;
+        $periodButtons.removeClass('active');
+        $periodButtons.filter('[data-period="' + period + '"]').addClass('active');
+    }
 
     function formatMoney(value) {
         return Number(value || 0).toLocaleString(undefined, {
@@ -64,7 +77,8 @@
     }
 
     function renderChart(data) {
-        // Sync the pickers with the range the server actually used.
+        // Sync the controls with what the server actually used.
+        setActivePeriod(data.period || 'days');
         $from.val(data.from);
         $to.val(data.to);
 
@@ -174,16 +188,24 @@
     }
 
     function loadChart(params) {
+        var data = $.extend({ period: currentPeriod }, params || {});
+
         $.ajax({
             url: chartUrl,
             method: 'GET',
-            data: params || {},
+            data: data,
             success: renderChart,
             error: function () {
                 console.error('Failed to load daily stats chart data');
             }
         });
     }
+
+    $periodButtons.on('click', function () {
+        // Switching the grouping resets to that period's default range.
+        setActivePeriod($(this).data('period'));
+        loadChart({});
+    });
 
     $('#daily-stats-apply').on('click', function () {
         loadChart({ from: $from.val(), to: $to.val() });

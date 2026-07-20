@@ -68,10 +68,10 @@
         @include('vendor.backpack.ui.widgets.daily_stats_chart')
     </div>
 
-    {{-- Orders Area Chart & Orders by Product Type Widgets --}}
+    {{-- Orders by Product Type & Orders Area Chart Widgets --}}
     <div class="row mt-4">
-        @include('vendor.backpack.ui.widgets.orders_area_chart')
         @include('vendor.backpack.ui.widgets.product_type_stats_chart')
+        @include('vendor.backpack.ui.widgets.orders_area_chart')
     </div>
 
     {{-- Second Row --}}

@@ -23,7 +23,9 @@ class DashboardController
      */
     public function getDailyStatsChart(Request $request): JsonResponse
     {
-        [$from, $to] = $this->resolveDailyStatsRange($request);
+        $period = $this->resolvePeriod($request);
+        [$from, $to] = $this->resolveDailyStatsRange($request, $period);
+        $periodConfig = $this->periodConfig($period);
 
         $orders = Order::query()
             ->where('status', '!=', 'draft')
@@ -31,12 +33,12 @@ class DashboardController
             ->with(['pieces', 'products', 'services', 'payments'])
             ->get();
 
-        // Aggregate value/paid/credit per calendar day. Paid is capped at the
-        // order value so each stacked "income" bar equals the order value
-        // (a rare overpayment doesn't inflate the paid segment).
+        // Aggregate value/paid/credit per bucket (day, month, or year). Paid is
+        // capped at the order value so each stacked "income" bar equals the
+        // order value (a rare overpayment doesn't inflate the paid segment).
         $byDate = [];
         foreach ($orders as $order) {
-            $key = $order->created_at->toDateString();
+            $key = $order->created_at->format($periodConfig['keyFormat']);
 
             if (! isset($byDate[$key])) {
                 $byDate[$key] = ['count' => 0, 'paid' => 0.0, 'credit' => 0.0];
@@ -50,8 +52,8 @@ class DashboardController
             $byDate[$key]['credit'] += max(0, $value - $paid);
         }
 
-        // Build a continuous day-by-day series so days with no orders show as
-        // gaps rather than being skipped on the x-axis.
+        // Build a continuous bucket-by-bucket series so periods with no orders
+        // show as gaps rather than being skipped on the x-axis.
         $labels = [];
         $counts = [];
         $paid = [];
@@ -59,15 +61,21 @@ class DashboardController
 
         $cursor = $from->copy();
         while ($cursor <= $to) {
-            $key = $cursor->toDateString();
-            $labels[] = $cursor->format('d M');
+            $key = $cursor->format($periodConfig['keyFormat']);
+            $labels[] = $cursor->format($periodConfig['labelFormat']);
             $counts[] = $byDate[$key]['count'] ?? 0;
             $paid[] = round($byDate[$key]['paid'] ?? 0.0, 2);
             $credit[] = round($byDate[$key]['credit'] ?? 0.0, 2);
-            $cursor->addDay();
+
+            match ($periodConfig['step']) {
+                'month' => $cursor->addMonth(),
+                'year' => $cursor->addYear(),
+                default => $cursor->addDay(),
+            };
         }
 
         return response()->json([
+            'period' => $period,
             'from' => $from->toDateString(),
             'to' => $to->toDateString(),
             'labels' => $labels,
@@ -79,6 +87,30 @@ class DashboardController
             'totalCredit' => round(array_sum($credit), 2),
             'totalIncome' => round(array_sum($paid) + array_sum($credit), 2),
         ]);
+    }
+
+    /**
+     * Validate the `period` query param, defaulting to daily grouping.
+     */
+    private function resolvePeriod(Request $request): string
+    {
+        $period = $request->query('period', 'days');
+
+        return in_array($period, ['days', 'months', 'years'], true) ? $period : 'days';
+    }
+
+    /**
+     * Bucket key/label/step configuration for a grouping period.
+     *
+     * @return array{keyFormat: string, labelFormat: string, step: string}
+     */
+    private function periodConfig(string $period): array
+    {
+        return match ($period) {
+            'months' => ['keyFormat' => 'Y-m', 'labelFormat' => 'M Y', 'step' => 'month'],
+            'years' => ['keyFormat' => 'Y', 'labelFormat' => 'Y', 'step' => 'year'],
+            default => ['keyFormat' => 'Y-m-d', 'labelFormat' => 'd M', 'step' => 'day'],
+        };
     }
 
     /**
@@ -99,7 +131,7 @@ class DashboardController
 
         // Fixed set/order of product types so every bucket always appears on the
         // chart, even with zero orders in the selected range.
-        $types = ['mirror', 'glass', 'lamix', 'glass_pkg', 'service'];
+        $types = ['mirror', 'glass', 'service'];
 
         $byType = [];
         foreach ($types as $type) {
@@ -144,25 +176,45 @@ class DashboardController
     }
 
     /**
-     * Resolve the [from, to] day range for the daily stats chart from the
-     * request, defaulting to the last 30 days and capping the span at 366 days.
+     * Resolve the [from, to] range for the stats charts from the request.
+     *
+     * When `from`/`to` query params are absent the range defaults to a sensible
+     * window for the grouping period (last 30 days / 12 months / 10 years). The
+     * bounds are snapped to the period's boundaries so month/year buckets are
+     * whole, and the span is capped to keep the in-memory aggregation bounded.
      *
      * @return array{0: Carbon, 1: Carbon}
      */
-    private function resolveDailyStatsRange(Request $request): array
+    private function resolveDailyStatsRange(Request $request, string $period = 'days'): array
     {
         $to = $this->parseDate($request->query('to')) ?? now();
-        $from = $this->parseDate($request->query('from')) ?? $to->copy()->subDays(29);
+        $from = $this->parseDate($request->query('from')) ?? match ($period) {
+            'months' => $to->copy()->subMonths(11),
+            'years' => $to->copy()->subYears(9),
+            default => $to->copy()->subDays(29),
+        };
 
-        $from = $from->startOfDay();
-        $to = $to->startOfDay();
+        // Snap the bounds to the period's boundaries so partial months/years
+        // aren't split across buckets.
+        [$from, $to] = match ($period) {
+            'months' => [$from->startOfMonth(), $to->endOfMonth()],
+            'years' => [$from->startOfYear(), $to->endOfYear()],
+            default => [$from->startOfDay(), $to->startOfDay()],
+        };
 
         if ($from->gt($to)) {
             [$from, $to] = [$to, $from];
         }
 
-        if ($from->diffInDays($to) > 366) {
-            $from = $to->copy()->subDays(366);
+        // Cap the span (in days) so the eager-loaded aggregation stays bounded.
+        $maxDays = match ($period) {
+            'months' => 366 * 11,
+            'years' => 366 * 30,
+            default => 366,
+        };
+
+        if ($from->diffInDays($to) > $maxDays) {
+            $from = $to->copy()->subDays($maxDays);
         }
 
         return [$from, $to];

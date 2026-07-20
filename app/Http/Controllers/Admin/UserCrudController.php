@@ -68,15 +68,6 @@ class UserCrudController extends CrudController
         ]);
 
         CRUD::addColumn([
-            'name' => 'permissions',
-            'label' => 'Direct Permissions',
-            'type' => 'select_multiple',
-            'entity' => 'permissions',
-            'attribute' => 'label',
-            'model' => \App\Models\Permission::class,
-        ]);
-
-        CRUD::addColumn([
             'name' => 'created_at',
             'label' => 'Created',
             'type' => 'datetime',
@@ -149,21 +140,6 @@ class UserCrudController extends CrudController
                 'class' => 'form-group col-md-12'
             ]
         ]);
-
-        CRUD::addField([
-            'name' => 'permissions',
-            'label' => 'Direct Permissions (capabilities)',
-            'type' => 'checklist',
-            'entity' => 'permissions',
-            'attribute' => 'label',
-            'model' => \App\Models\Permission::class,
-            'pivot' => true,
-            'number_of_columns' => 2,
-            'hint' => 'Permissions granted directly to this user, in addition to those inherited from roles',
-            'wrapper' => [
-                'class' => 'form-group col-md-12'
-            ]
-        ]);
     }
 
     /**
@@ -229,21 +205,6 @@ class UserCrudController extends CrudController
             'attribute' => 'name',
             'model' => \App\Models\Role::class,
             'pivot' => true,
-            'wrapper' => [
-                'class' => 'form-group col-md-12'
-            ]
-        ]);
-
-        CRUD::addField([
-            'name' => 'permissions',
-            'label' => 'Direct Permissions (capabilities)',
-            'type' => 'checklist',
-            'entity' => 'permissions',
-            'attribute' => 'label',
-            'model' => \App\Models\Permission::class,
-            'pivot' => true,
-            'number_of_columns' => 2,
-            'hint' => 'Permissions granted directly to this user, in addition to those inherited from roles',
             'wrapper' => [
                 'class' => 'form-group col-md-12'
             ]

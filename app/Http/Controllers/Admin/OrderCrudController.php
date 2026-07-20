@@ -663,10 +663,15 @@ class OrderCrudController extends CrudController
         // Invoice button (opens in new tab)
         $this->crud->addButton('line', 'invoice', 'view', 'crud::buttons.invoice', 'end');
         
-        // Conditionally show edit/delete buttons only when status is draft or new
+        // Conditionally show edit/delete buttons.
+        // Update is available while the order is draft or new; delete is
+        // restricted by status and role (draft: anyone with delete access,
+        // new: administrators only).
         $entry = $this->crud->getCurrentEntry();
         if ($entry && !in_array($entry->status, ['draft', 'new'], true)) {
             $this->crud->denyAccess('update');
+        }
+        if ($entry && !$entry->canBeDeletedBy(backpack_user())) {
             $this->crud->denyAccess('delete');
         }
         
@@ -1190,15 +1195,19 @@ class OrderCrudController extends CrudController
     }
 
     /**
-     * Delete a single order (draft or new only).
+     * Delete a single order.
+     *
+     * Draft orders may be deleted by any user with delete access; orders in
+     * the "new" status may only be deleted by administrators. Orders past the
+     * "new" stage cannot be deleted at all.
      */
     public function destroy($id)
     {
         $this->crud->hasAccessOrFail('delete');
 
         $order = Order::findOrFail($id);
-        if (!in_array($order->status, ['draft', 'new'], true)) {
-            return response('Only draft or new orders can be deleted.', 403);
+        if (!$order->canBeDeletedBy(backpack_user())) {
+            return response('You do not have permission to delete this order.', 403);
         }
 
         return (string) (int) $this->crud->delete($id);
@@ -1217,16 +1226,34 @@ class OrderCrudController extends CrudController
             return response()->json(['message' => 'No entries selected.'], 400);
         }
 
+        $user = backpack_user();
         $deleted = 0;
+        $skipped = 0;
         foreach ($entries as $id) {
+            $order = Order::find($id);
+
+            // Enforce the same per-order status/role rule as single delete;
+            // orders the user may not delete are silently skipped.
+            if (!$order || !$order->canBeDeletedBy($user)) {
+                $skipped++;
+                continue;
+            }
+
             if ($this->crud->delete($id)) {
                 $deleted++;
             }
         }
 
+        $message = $deleted . ' ' . ($deleted === 1 ? 'entry' : 'entries') . ' deleted successfully.';
+        if ($skipped > 0) {
+            $message .= ' ' . $skipped . ' ' . ($skipped === 1 ? 'entry was' : 'entries were')
+                . ' skipped (only draft orders can be deleted; new orders require an administrator).';
+        }
+
         return response()->json([
-            'message' => $deleted . ' ' . ($deleted === 1 ? 'entry' : 'entries') . ' deleted successfully.',
-            'deleted' => $deleted
+            'message' => $message,
+            'deleted' => $deleted,
+            'skipped' => $skipped,
         ]);
     }
 

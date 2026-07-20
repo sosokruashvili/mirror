@@ -68,6 +68,31 @@ class Order extends Model
     |--------------------------------------------------------------------------
     */
 
+    /**
+     * Whether the given user may delete this order, based on its status.
+     *
+     * New orders are already committed to production, so only administrators
+     * may delete them. Draft orders are not yet committed and may be deleted
+     * by any user who otherwise holds delete access (e.g. operators). Orders
+     * past the "new" stage can never be deleted.
+     *
+     * This encodes only the status/role rule; whether the user holds the
+     * "order.delete" capability at all is enforced separately by the CRUD
+     * access checks.
+     */
+    public function canBeDeletedBy(?User $user): bool
+    {
+        if (! $user) {
+            return false;
+        }
+
+        return match ($this->status) {
+            'draft' => true,
+            'new' => $user->hasRole('admin'),
+            default => false,
+        };
+    }
+
     /*
     |--------------------------------------------------------------------------
     | RELATIONS

@@ -74,6 +74,11 @@
         @include('vendor.backpack.ui.widgets.orders_area_chart')
     </div>
 
+    {{-- Orders by Product Type Pie Chart Widget --}}
+    <div class="row mt-4">
+        @include('vendor.backpack.ui.widgets.product_type_pie_chart')
+    </div>
+
     {{-- Second Row --}}
     <div class="row mt-4">
         {{-- USD Exchange Rate Widget --}}

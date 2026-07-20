@@ -6,6 +6,7 @@ use App\Http\Requests\CashierExpenseRequest;
 use App\Models\CashierExpense;
 use Backpack\CRUD\app\Http\Controllers\CrudController;
 use Backpack\CRUD\app\Library\CrudPanel\CrudPanelFacade as CRUD;
+use Backpack\CRUD\app\Library\Widget;
 
 class CashierExpenseCrudController extends CrudController
 {
@@ -27,6 +28,8 @@ class CashierExpenseCrudController extends CrudController
 
     protected function setupListOperation(): void
     {
+        $this->addExpenseStatsWidget();
+
         CRUD::addColumn([
             'name' => 'id',
             'label' => 'ID',
@@ -153,5 +156,43 @@ class CashierExpenseCrudController extends CrudController
     protected function setupUpdateOperation(): void
     {
         $this->setupCreateOperation();
+    }
+
+    /**
+     * Add a summary widget totaling expenses for the current list filters.
+     */
+    protected function addExpenseStatsWidget(): void
+    {
+        $query = CashierExpense::query();
+
+        if (request()->filled('type')) {
+            $query->where('type', request()->get('type'));
+        }
+
+        if (request()->filled('category')) {
+            $query->where('category', request()->get('category'));
+        }
+
+        if (request()->filled('expense_date')) {
+            $dates = json_decode(request()->get('expense_date'), true);
+            if (is_array($dates)) {
+                if (!empty($dates['from'])) {
+                    $query->where('expense_date', '>=', \Carbon\Carbon::parse($dates['from'])->startOfDay());
+                }
+                if (!empty($dates['to'])) {
+                    $query->where('expense_date', '<=', \Carbon\Carbon::parse($dates['to'])->endOfDay());
+                }
+            }
+        }
+
+        Widget::add([
+            'type' => 'view',
+            'view' => 'vendor.backpack.crud.widgets.cashier_expense_stats',
+            'wrapper' => ['class' => 'col-12'],
+            'expensesCount' => (clone $query)->count(),
+            'totalAmount' => (clone $query)->sum('amount_gel'),
+            'totalCash' => (clone $query)->where('type', CashierExpense::TYPE_CASH)->sum('amount_gel'),
+            'totalTransfer' => (clone $query)->where('type', CashierExpense::TYPE_TRANSFER)->sum('amount_gel'),
+        ])->to('before_content');
     }
 }

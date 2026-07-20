@@ -57,14 +57,16 @@ class Payment extends Model
      */
     protected static function booted()
     {
-        // Update order payment status after payment is created or updated
-        static::saved(function ($payment) {
-            static::updateOrderPaymentStatus();
+        static::saved(function (Payment $payment) {
+            static::updateOrderPaymentStatus($payment->client_id);
+
+            if ($payment->wasChanged('client_id') && $payment->getOriginal('client_id')) {
+                static::updateOrderPaymentStatus($payment->getOriginal('client_id'));
+            }
         });
 
-        // Update order payment status after payment is deleted
-        static::deleted(function ($payment) {
-            static::updateOrderPaymentStatus();
+        static::deleted(function (Payment $payment) {
+            static::updateOrderPaymentStatus($payment->client_id);
         });
     }
 
@@ -98,20 +100,36 @@ class Payment extends Model
     }
 
     /**
-     * Update order payment status based on client balances.
-     * 
+     * Mark the given client's unpaid orders as paid when their balance covers them.
+     *
+     * @param  int|null  $clientId
      * @return void
      */
-    public static function updateOrderPaymentStatus() {
-        $orders = Order::where('paid', false)->where('status', '!=', 'draft')->get();
-        foreach($orders as $order) {
-            $client = $order->client;
-            if($client->balance >= $order->calculateTotalPrice()) {
+    public static function updateOrderPaymentStatus($clientId)
+    {
+        if (!$clientId) {
+            return;
+        }
+
+        $client = Client::find($clientId);
+        if (!$client) {
+            return;
+        }
+
+        $balance = $client->calculateBalance();
+
+        $orders = Order::where('client_id', $clientId)
+            ->where('paid', false)
+            ->where('status', '!=', 'draft')
+            ->with(['services', 'products', 'pieces'])
+            ->get();
+
+        foreach ($orders as $order) {
+            if ($balance >= $order->calculateTotalPrice(false)) {
                 $order->paid = true;
                 $order->save();
             }
         }
     }
-
 }
 

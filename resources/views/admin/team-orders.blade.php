@@ -1064,6 +1064,26 @@
     </div>
 </div>
 
+{{-- Piece "broke" reason modal (optional description) --}}
+<div class="modal fade" id="pieceBrokenModal" tabindex="-1" aria-labelledby="pieceBrokenModalLabel" aria-hidden="true" data-bs-backdrop="true" data-bs-keyboard="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="pieceBrokenModalLabel">გატყდა – მიზეზი</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <label for="pieceBrokenDescription" class="form-label">აღწერა (არასავალდებულო)</label>
+                <textarea id="pieceBrokenDescription" class="form-control" rows="3" placeholder="რატომ გატყდა..."></textarea>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">გაუქმება</button>
+                <button type="button" class="btn btn-danger" id="pieceBrokenModalSubmit"><i class="la la-times"></i> გატყდა</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 {{-- Order card context menu --}}
 @if(!$showArchived)
 <div id="orderCtxMenu" class="piece-ctx-menu">
@@ -1439,29 +1459,77 @@ jQuery(function($) {
     // card back through the flow (every piece reset to before მოჭრა). The extra
     // sheet's material is added to the order's warehouse expense server-side, so
     // reload the page to reflect the reset stage + updated [გატყდა: x].
+    // Clicking opens a small modal to capture an optional reason (description).
+    var _brokenPieceIds = [];
+
     _pieceCtxMenu.querySelectorAll('.item-broken').forEach(function(brokenBtn) {
         brokenBtn.addEventListener('click', function(e) {
             e.stopPropagation();
             if (!_pieceCtxTag) return;
-            markGroupBroken(_pieceCtxTag);
+            openPieceBrokenModal(_pieceCtxTag);
         });
     });
 
-    function markGroupBroken(tag) {
-        var pieceIds = (tag.getAttribute('data-piece-ids') || '')
+    function openPieceBrokenModal(tag) {
+        _brokenPieceIds = (tag.getAttribute('data-piece-ids') || '')
             .split(',').filter(function(s) { return s !== ''; });
-        if (pieceIds.length === 0) return;
-
-        if (!confirm('გატყდა? მთელი ბარათი თავიდან გაივლის ეტაპებს.')) return;
+        if (_brokenPieceIds.length === 0) return;
 
         closeCtxMenus();
+
+        var modalEl = document.getElementById('pieceBrokenModal');
+        var descEl = document.getElementById('pieceBrokenDescription');
+
+        // Fall back to a description-less submit if the modal isn't available.
+        if (!modalEl || typeof bootstrap === 'undefined') {
+            submitPieceBroken('');
+            return;
+        }
+
+        if (descEl) descEl.value = '';
+
+        if (modalEl.parentElement !== document.body) {
+            document.body.appendChild(modalEl);
+        }
+
+        var modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+
+        modalEl.addEventListener('shown.bs.modal', function () {
+            // Keep the modal above the order-preview overlay, and focus the field.
+            modalEl.style.zIndex = '10050';
+            var backdrops = document.querySelectorAll('.modal-backdrop');
+            if (backdrops.length) {
+                backdrops[backdrops.length - 1].style.zIndex = '10040';
+            }
+            if (descEl) descEl.focus();
+        }, { once: true });
+
+        modal.show();
+    }
+
+    var _pieceBrokenSubmitBtn = document.getElementById('pieceBrokenModalSubmit');
+    if (_pieceBrokenSubmitBtn) {
+        _pieceBrokenSubmitBtn.addEventListener('click', function() {
+            var descEl = document.getElementById('pieceBrokenDescription');
+            submitPieceBroken(descEl ? descEl.value : '');
+        });
+    }
+
+    function submitPieceBroken(description) {
+        if (_brokenPieceIds.length === 0) return;
+
+        var modalEl = document.getElementById('pieceBrokenModal');
+        if (modalEl && typeof bootstrap !== 'undefined') {
+            bootstrap.Modal.getOrCreateInstance(modalEl).hide();
+        }
 
         var token = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') ||
                     document.querySelector('input[name="_token"]')?.value;
 
         var formData = new FormData();
         formData.append('_token', token);
-        pieceIds.forEach(function(id) { formData.append('piece_ids[]', id); });
+        formData.append('description', description || '');
+        _brokenPieceIds.forEach(function(id) { formData.append('piece_ids[]', id); });
 
         fetch('{{ route("team.pieces.broken-group") }}', {
             method: 'POST',

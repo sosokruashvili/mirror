@@ -1483,11 +1483,27 @@ class OrderCrudController extends CrudController
         }
         
         // Get all filtered orders with relationships for price calculation
-        $orders = $query->with(['pieces', 'products', 'services'])->get();
-        
+        $orders = $query->with(['pieces', 'products', 'services', 'payments'])->get();
+
         // Calculate orders count
         $ordersCount = $orders->count();
-        
+
+        // Payment summary: how much has been paid across the filtered orders and
+        // how much is still left to pay. Paid amount comes from the payments
+        // linked to each order (payments.order_id); the outstanding balance per
+        // order is its value minus what's been paid, floored at 0 so overpaid
+        // orders don't offset the underpaid ones.
+        $totalPaid = 0.0;
+        $totalUnpaid = 0.0;
+
+        foreach ($orders as $order) {
+            $orderValue = $order->calculateTotalPriceExcludingDraftPieces();
+            $paid = $order->calculatePaidAmount();
+
+            $totalPaid += $paid;
+            $totalUnpaid += max(0, $orderValue - $paid);
+        }
+
         // Add stats cards - pass data to view
         Widget::add([
             'type' => 'view',
@@ -1500,6 +1516,8 @@ class OrderCrudController extends CrudController
             'totalExpenses' => $orders->sum(function($order) {
                 return $order->calculateExpenses();
             }),
+            'totalPaid' => $totalPaid,
+            'totalUnpaid' => $totalUnpaid,
         ])->to('before_content');
     }
 

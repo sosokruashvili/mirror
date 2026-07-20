@@ -126,9 +126,17 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
+    // Guards against a second POST while one is already in flight. Disabling the
+    // submit button is not enough on its own: a queued double-click or an Enter
+    // keypress can fire another `submit` event before the disable takes effect,
+    // which previously created duplicate payments.
+    let isSubmitting = false;
+
     // Form submission
     form.addEventListener('submit', function(e) {
         e.preventDefault();
+        if (isSubmitting) return;
+        isSubmitting = true;
         errorsDiv.classList.add('d-none');
         errorsDiv.innerHTML = '';
 
@@ -191,6 +199,7 @@ document.addEventListener('DOMContentLoaded', function() {
             errorsDiv.classList.remove('d-none');
         })
         .finally(() => {
+            isSubmitting = false;
             submitBtn.disabled = false;
             submitBtn.textContent = originalText;
         });

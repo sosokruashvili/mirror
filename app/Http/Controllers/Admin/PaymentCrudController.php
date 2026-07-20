@@ -629,6 +629,32 @@ class PaymentCrudController extends CrudController
         $validated['order_id'] = $validated['order_id'] ?? null;
 
         try {
+            // Safety net against duplicate submissions (rapid double-click, an Enter
+            // keypress that slips past the button lock, or a proxy retry). If an
+            // identical payment was created moments ago, return it instead of
+            // inserting a second row. The short window still allows a genuine second
+            // identical payment to be entered a few seconds apart.
+            $recentDuplicate = Payment::where('client_id', $validated['client_id'])
+                ->where('order_id', $validated['order_id'])
+                ->where('amount_gel', $validated['amount_gel'])
+                ->where('currency_rate', $validated['currency_rate'])
+                ->where('method', $validated['method'])
+                ->where('type', $validated['type'])
+                ->where('status', $validated['status'])
+                ->where('payment_date', \Carbon\Carbon::parse($validated['payment_date']))
+                ->where('created_at', '>=', now()->subSeconds(10))
+                ->first();
+
+            if ($recentDuplicate) {
+                return response()->json([
+                    'success' => true,
+                    'payment' => [
+                        'id' => $recentDuplicate->id,
+                    ],
+                    'duplicate' => true,
+                ]);
+            }
+
             if ($request->hasFile('file')) {
                 $validated['file'] = $request->file('file')->store('payments', 'public');
             }

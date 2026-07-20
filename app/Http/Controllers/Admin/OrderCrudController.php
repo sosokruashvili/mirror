@@ -302,6 +302,26 @@ class OrderCrudController extends CrudController
         function ($value) {
             CRUD::addClause('where', 'product_type', $value);
         });
+
+        // Product filter (multiselect) — show only orders containing any of the
+        // selected products.
+        CRUD::addFilter([
+            'type' => 'select2_multiple',
+            'name' => 'products',
+            'label' => 'Products',
+        ],
+        function () {
+            return Product::orderBy('title')->pluck('title', 'id')->toArray();
+        },
+        function ($value) {
+            $productIds = array_filter((array) json_decode($value, true));
+
+            if (!empty($productIds)) {
+                CRUD::addClause('whereHas', 'products', function ($query) use ($productIds) {
+                    $query->whereIn('products.id', $productIds);
+                });
+            }
+        });
         
         // Price range filter
         // Note: Since total price is calculated, this filters by service prices as approximation
@@ -1478,6 +1498,15 @@ class OrderCrudController extends CrudController
         
         if (request()->has('product_type') && request()->get('product_type')) {
             $query->where('product_type', request()->get('product_type'));
+        }
+
+        if (request()->has('products') && request()->get('products')) {
+            $productIds = array_filter((array) json_decode(request()->get('products'), true));
+            if (!empty($productIds)) {
+                $query->whereHas('products', function ($q) use ($productIds) {
+                    $q->whereIn('products.id', $productIds);
+                });
+            }
         }
 
         if (request()->has('created_at') && request()->get('created_at')) {

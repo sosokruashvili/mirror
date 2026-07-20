@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Models\Order;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -9,6 +10,114 @@ use Illuminate\Support\Facades\DB;
 
 class DashboardController
 {
+    /**
+     * Per-day order statistics for the daily stats bar chart.
+     *
+     * Returns, for each day in the requested range, the number of confirmed
+     * orders and the income for that day split into the paid portion and the
+     * outstanding (credit/owed) portion. Draft orders are excluded.
+     *
+     * The date range defaults to the last 30 days and can be overridden with
+     * `from` / `to` query params (YYYY-MM-DD). The range is capped at 366 days
+     * to keep the in-memory price calculation bounded.
+     */
+    public function getDailyStatsChart(Request $request): JsonResponse
+    {
+        [$from, $to] = $this->resolveDailyStatsRange($request);
+
+        $orders = Order::query()
+            ->where('status', '!=', 'draft')
+            ->whereBetween('created_at', [$from, $to->copy()->endOfDay()])
+            ->with(['pieces', 'products', 'services', 'payments'])
+            ->get();
+
+        // Aggregate value/paid/credit per calendar day. Paid is capped at the
+        // order value so each stacked "income" bar equals the order value
+        // (a rare overpayment doesn't inflate the paid segment).
+        $byDate = [];
+        foreach ($orders as $order) {
+            $key = $order->created_at->toDateString();
+
+            if (! isset($byDate[$key])) {
+                $byDate[$key] = ['count' => 0, 'paid' => 0.0, 'credit' => 0.0];
+            }
+
+            $value = $order->calculateTotalPriceExcludingDraftPieces();
+            $paid = min($order->calculatePaidAmount(), $value);
+
+            $byDate[$key]['count']++;
+            $byDate[$key]['paid'] += $paid;
+            $byDate[$key]['credit'] += max(0, $value - $paid);
+        }
+
+        // Build a continuous day-by-day series so days with no orders show as
+        // gaps rather than being skipped on the x-axis.
+        $labels = [];
+        $counts = [];
+        $paid = [];
+        $credit = [];
+
+        $cursor = $from->copy();
+        while ($cursor <= $to) {
+            $key = $cursor->toDateString();
+            $labels[] = $cursor->format('d M');
+            $counts[] = $byDate[$key]['count'] ?? 0;
+            $paid[] = round($byDate[$key]['paid'] ?? 0.0, 2);
+            $credit[] = round($byDate[$key]['credit'] ?? 0.0, 2);
+            $cursor->addDay();
+        }
+
+        return response()->json([
+            'from' => $from->toDateString(),
+            'to' => $to->toDateString(),
+            'labels' => $labels,
+            'counts' => $counts,
+            'paid' => $paid,
+            'credit' => $credit,
+            'totalOrders' => array_sum($counts),
+            'totalPaid' => round(array_sum($paid), 2),
+            'totalCredit' => round(array_sum($credit), 2),
+            'totalIncome' => round(array_sum($paid) + array_sum($credit), 2),
+        ]);
+    }
+
+    /**
+     * Resolve the [from, to] day range for the daily stats chart from the
+     * request, defaulting to the last 30 days and capping the span at 366 days.
+     *
+     * @return array{0: Carbon, 1: Carbon}
+     */
+    private function resolveDailyStatsRange(Request $request): array
+    {
+        $to = $this->parseDate($request->query('to')) ?? now();
+        $from = $this->parseDate($request->query('from')) ?? $to->copy()->subDays(29);
+
+        $from = $from->startOfDay();
+        $to = $to->startOfDay();
+
+        if ($from->gt($to)) {
+            [$from, $to] = [$to, $from];
+        }
+
+        if ($from->diffInDays($to) > 366) {
+            $from = $to->copy()->subDays(366);
+        }
+
+        return [$from, $to];
+    }
+
+    private function parseDate(?string $value): ?Carbon
+    {
+        if (empty($value)) {
+            return null;
+        }
+
+        try {
+            return Carbon::parse($value);
+        } catch (\Exception) {
+            return null;
+        }
+    }
     /**
      * Orders area chart data grouped by day, month, or year.
      * Excludes draft orders and draft pieces from all totals.

@@ -63,6 +63,11 @@
         </div>
     </div>
 
+    {{-- Daily Orders & Income Chart Widget --}}
+    <div class="row mt-4">
+        @include('vendor.backpack.ui.widgets.daily_stats_chart')
+    </div>
+
     {{-- Orders Area Chart Widget --}}
     <div class="row mt-4">
         @include('vendor.backpack.ui.widgets.orders_area_chart')

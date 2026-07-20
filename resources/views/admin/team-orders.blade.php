@@ -1046,6 +1046,7 @@
     @endforeach
     <div class="piece-ctx-menu-empty" id="pieceCtxMenuEmpty">ეტაპები არ არის მიბმული</div>
     <button type="button" class="piece-ctx-menu-item item-stage-clear" data-stage=""><i class="la la-eraser"></i> ეტაპის მოხსნა</button>
+    <button type="button" class="piece-ctx-menu-item item-broken" id="pieceCtxMenuBroken"><i class="la la-times"></i> გატყდა</button>
 </div>
 @endif
 
@@ -1446,6 +1447,52 @@ jQuery(function($) {
             applyStageToPieces(_pieceCtxTag, '');
         });
     });
+
+    // "გატყდა": records one broken sheet for the whole size group and sends the
+    // card back through the flow (every piece reset to before მოჭრა). The extra
+    // sheet's material is added to the order's warehouse expense server-side, so
+    // reload the page to reflect the reset stage + updated [გატყდა: x].
+    _pieceCtxMenu.querySelectorAll('.item-broken').forEach(function(brokenBtn) {
+        brokenBtn.addEventListener('click', function(e) {
+            e.stopPropagation();
+            if (!_pieceCtxTag) return;
+            markGroupBroken(_pieceCtxTag);
+        });
+    });
+
+    function markGroupBroken(tag) {
+        var pieceIds = (tag.getAttribute('data-piece-ids') || '')
+            .split(',').filter(function(s) { return s !== ''; });
+        if (pieceIds.length === 0) return;
+
+        if (!confirm('გატყდა? მთელი ბარათი თავიდან გაივლის ეტაპებს.')) return;
+
+        closeCtxMenus();
+
+        var token = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') ||
+                    document.querySelector('input[name="_token"]')?.value;
+
+        var formData = new FormData();
+        formData.append('_token', token);
+        pieceIds.forEach(function(id) { formData.append('piece_ids[]', id); });
+
+        fetch('{{ route("team.pieces.broken-group") }}', {
+            method: 'POST',
+            headers: {
+                'Accept': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-CSRF-TOKEN': token
+            },
+            body: formData
+        })
+        .then(function(res) { return res.json(); })
+        .then(function(data) {
+            reloadTeamPageIfStatusUpdated(!!data.success, data.message || 'გატყდა – მოთხოვნა ვერ შესრულდა.');
+        })
+        .catch(function() {
+            reloadTeamPageIfStatusUpdated(false, 'გატყდა – მოთხოვნა ვერ შესრულდა.');
+        });
+    }
 
 @endif
     function finishOrder(orderId, triggerEl) {

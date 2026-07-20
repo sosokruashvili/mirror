@@ -16,6 +16,7 @@ class RedirectTeamUsers
         'team.orders',
         'team.orders.finish',
         'team.pieces.broken',
+        'team.pieces.broken-group',
         'team.pieces.stage',
         'backpack.auth.logout',
         'backpack.auth.login',

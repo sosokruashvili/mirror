@@ -516,5 +516,68 @@ class TeamOrderController extends Controller
         }
     }
 
+    /**
+     * Mark a whole size-group broken from the team orders page (AJAX).
+     *
+     * A size tag on that page represents a group of same-size pieces (its
+     * `data-piece-ids`). Hitting "გატყდა" records ONE broken sheet for the group
+     * and, because a break sends the whole card back through production, resets
+     * EVERY piece in the group to before the first stage (მოჭრა is stage 1, so
+     * detaching all completed stages leaves each piece "before cutting"). The
+     * extra broken sheet's material is folded into the order's warehouse expense.
+     *
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function markGroupBroken(Request $request)
+    {
+        try {
+            $data = $request->validate([
+                'piece_ids' => 'required|array|min:1',
+                'piece_ids.*' => 'integer',
+            ]);
+
+            $pieces = Piece::whereIn('id', $data['piece_ids'])->get();
+
+            if ($pieces->isEmpty()) {
+                return response()->json(['success' => false, 'message' => 'No pieces found.'], 422);
+            }
+
+            $order = $pieces->first()->order;
+
+            if ($order && ($response = $this->rejectIfArchived($order, $request))) {
+                return $response;
+            }
+
+            // One click = one broken sheet for the whole group.
+            BrokenGlass::create([
+                'piece_id' => $pieces->first()->id,
+                'description' => $request->input('description'),
+            ]);
+
+            // The break sends the whole card back through the flow: clear every
+            // completed stage on every piece in the group.
+            foreach ($pieces as $piece) {
+                $piece->stages()->detach();
+            }
+
+            // A broken sheet consumes an extra piece worth of material, and the
+            // group is back in production. Recalculate the order's expenses (m²);
+            // draft pieces are excluded automatically.
+            if ($order) {
+                $order->expenses = $order->calculateExpenses();
+                if (!in_array($order->status, ['draft', 'finished'], true)) {
+                    $order->status = 'working';
+                }
+                $order->save();
+            }
+
+            $brokenTotal = $pieces->sum(fn ($piece) => $piece->getBrokenCount());
+
+            return response()->json(['success' => true, 'broken' => $brokenTotal]);
+        } catch (\Exception $e) {
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 422);
+        }
+    }
+
 }
 

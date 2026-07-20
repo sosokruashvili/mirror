@@ -63,6 +63,7 @@ Route::group([
     Route::post('team/orders/{id}/archive', 'TeamOrderController@archive')->name('team.orders.archive')->middleware('backpack.can:team-order.operate');
     Route::post('team/orders/{id}/unarchive', 'TeamOrderController@unarchive')->name('team.orders.unarchive')->middleware('backpack.can:team-order.operate');
     Route::post('team/pieces/{id}/broken', 'TeamOrderController@markPieceBroken')->name('team.pieces.broken')->middleware('backpack.can:team-order.operate');
+    Route::post('team/pieces/broken', 'TeamOrderController@markGroupBroken')->name('team.pieces.broken-group')->middleware('backpack.can:team-order.operate');
     Route::post('team/pieces/{id}/stage', 'TeamOrderController@updatePieceStage')->name('team.pieces.stage')->middleware('backpack.can:team-order.operate');
 }); // this should be the absolute last line of this file
 

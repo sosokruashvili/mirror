@@ -471,9 +471,6 @@
     .piece-ctx-menu-item.checked {
         background: #f4f8ff;
     }
-    .piece-ctx-menu-item.item-stage-clear {
-        color: #97a0af;
-    }
     .piece-ctx-menu-empty {
         display: none;
         padding: 12px 14px;
@@ -1045,7 +1042,6 @@
         <button type="button" class="piece-ctx-menu-item item-stage" data-stage="{{ $stageSlug }}" style="color: {{ piece_stage_color($stageSlug) }};"><span class="stage-check" aria-hidden="true"></span> {{ $stageLabel }}</button>
     @endforeach
     <div class="piece-ctx-menu-empty" id="pieceCtxMenuEmpty">ეტაპები არ არის მიბმული</div>
-    <button type="button" class="piece-ctx-menu-item item-stage-clear" data-stage=""><i class="la la-eraser"></i> ეტაპის მოხსნა</button>
     <button type="button" class="piece-ctx-menu-item item-broken" id="pieceCtxMenuBroken"><i class="la la-times"></i> გატყდა</button>
 </div>
 @endif
@@ -1436,15 +1432,6 @@ jQuery(function($) {
 
             var willComplete = !stageBtn.classList.contains('checked');
             applyStageToPieces(_pieceCtxTag, slug, willComplete);
-        });
-    });
-
-    // Clear all completed stages for the group.
-    _pieceCtxMenu.querySelectorAll('.item-stage-clear').forEach(function(clearBtn) {
-        clearBtn.addEventListener('click', function(e) {
-            e.stopPropagation();
-            if (!_pieceCtxTag) return;
-            applyStageToPieces(_pieceCtxTag, '');
         });
     });
 

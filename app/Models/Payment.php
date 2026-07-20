@@ -36,6 +36,21 @@ class Payment extends Model
     ];
 
     /**
+     * Normalise an empty order selection to null.
+     *
+     * The Order select on the payment form submits an empty string when no order
+     * is chosen (or when the payment isn't of type "Order"); coerce it to null so
+     * it stores cleanly in the nullable integer column.
+     *
+     * @param  mixed  $value
+     * @return void
+     */
+    public function setOrderIdAttribute($value)
+    {
+        $this->attributes['order_id'] = ($value === '' || $value === null) ? null : $value;
+    }
+
+    /**
      * The "booted" method of the model.
      *
      * @return void

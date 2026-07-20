@@ -215,6 +215,8 @@ class PaymentCrudController extends CrudController
     {
         // Add JavaScript to display client balance on create/update forms
         Widget::add()->type('script')->content('assets/js/payment-client-balance.js');
+        // Add JavaScript to show/populate the Order field when Payment Type = შეკვეთა (Order)
+        Widget::add()->type('script')->content('assets/js/payment-order-select.js');
 
         CRUD::addField([
             'name' => 'client_id',
@@ -274,6 +276,31 @@ class PaymentCrudController extends CrudController
             'default' => Payment::TYPE_ORDER,
             'wrapper' => [
                 'class' => 'form-group col-md-6'
+            ],
+            'attributes' => [
+                'id' => 'payment_type_field',
+            ]
+        ]);
+
+        // Order selector — only relevant (and only shown by JS) when Payment Type is
+        // "Order" (შეკვეთა). Options are populated dynamically from the selected
+        // client's orders via assets/js/payment-order-select.js. On edit, the currently
+        // linked order is passed through so JS can pre-select it once options load.
+        CRUD::addField([
+            'name' => 'order_id',
+            'label' => 'Order',
+            'type' => 'select_from_array',
+            'options' => $this->orderFieldOptions(),
+            'allows_null' => true,
+            'hint' => 'Select which of the client\'s orders this payment is for',
+            'wrapper' => [
+                'class' => 'form-group col-md-6',
+                'id' => 'order_id_wrapper',
+                'style' => 'display: none;',
+            ],
+            'attributes' => [
+                'id' => 'order_id_field',
+                'data-selected-order' => $this->currentOrderId(),
             ]
         ]);
 
@@ -333,7 +360,7 @@ class PaymentCrudController extends CrudController
                 'Pending' => 'Pending',
             ],
             'allows_null' => false,
-            'default' => 'Pending',
+            'default' => 'Paid',
             'wrapper' => [
                 'class' => 'form-group col-md-6'
             ]
@@ -365,6 +392,48 @@ class PaymentCrudController extends CrudController
     protected function setupUpdateOperation()
     {
         $this->setupCreateOperation();
+    }
+
+    /**
+     * The order_id currently linked to the payment being edited (null on create).
+     * Passed to the JS so it can pre-select the saved order once options load.
+     *
+     * @return int|null
+     */
+    protected function currentOrderId()
+    {
+        if ($this->crud->getCurrentOperation() === 'update') {
+            return optional($this->crud->getCurrentEntry())->order_id;
+        }
+
+        return null;
+    }
+
+    /**
+     * Initial options for the Order select field.
+     *
+     * On create there is no client yet, so options are empty and get populated
+     * client-side. On update we seed the current client's orders so the saved
+     * value renders correctly even before the JS runs.
+     *
+     * @return array<int|string, string>
+     */
+    protected function orderFieldOptions()
+    {
+        if ($this->crud->getCurrentOperation() !== 'update') {
+            return [];
+        }
+
+        $entry = $this->crud->getCurrentEntry();
+        if (!$entry || !$entry->client_id) {
+            return [];
+        }
+
+        return \App\Models\Order::where('client_id', $entry->client_id)
+            ->with(['pieces', 'products', 'services'])
+            ->get()
+            ->pluck('order_display', 'id')
+            ->toArray();
     }
 
     /**

@@ -1,4 +1,4 @@
-<div class="col-12">
+<div class="col-12 col-lg-6">
     <div class="card">
         <div class="card-header">
             <div class="d-flex flex-wrap align-items-center justify-content-between gap-2">

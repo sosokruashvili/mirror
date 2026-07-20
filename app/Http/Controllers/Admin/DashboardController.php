@@ -82,6 +82,68 @@ class DashboardController
     }
 
     /**
+     * Order summary grouped by order product type for the product-type bar
+     * chart.
+     *
+     * Returns, for each of the five product types (mirror / glass / lamix /
+     * glass_pkg / service), the number of confirmed orders of that type and
+     * the total value of those orders. Draft orders (and draft pieces within
+     * an order's value) are excluded.
+     *
+     * The date range defaults to the last 30 days and can be overridden with
+     * `from` / `to` query params (YYYY-MM-DD), matching the daily stats chart.
+     */
+    public function getProductTypeStatsChart(Request $request): JsonResponse
+    {
+        [$from, $to] = $this->resolveDailyStatsRange($request);
+
+        // Fixed set/order of product types so every bucket always appears on the
+        // chart, even with zero orders in the selected range.
+        $types = ['mirror', 'glass', 'lamix', 'glass_pkg', 'service'];
+
+        $byType = [];
+        foreach ($types as $type) {
+            $byType[$type] = ['count' => 0, 'value' => 0.0];
+        }
+
+        $orders = Order::query()
+            ->where('status', '!=', 'draft')
+            ->whereBetween('created_at', [$from, $to->copy()->endOfDay()])
+            ->with(['pieces', 'products', 'services'])
+            ->get();
+
+        foreach ($orders as $order) {
+            $type = strtolower((string) $order->product_type);
+            if (! isset($byType[$type])) {
+                // Ignore any unexpected/legacy product type value.
+                continue;
+            }
+
+            $byType[$type]['count']++;
+            $byType[$type]['value'] += $order->calculateTotalPriceExcludingDraftPieces();
+        }
+
+        $labels = [];
+        $counts = [];
+        $values = [];
+        foreach ($types as $type) {
+            $labels[] = product_type_ge($type);
+            $counts[] = $byType[$type]['count'];
+            $values[] = round($byType[$type]['value'], 2);
+        }
+
+        return response()->json([
+            'from' => $from->toDateString(),
+            'to' => $to->toDateString(),
+            'labels' => $labels,
+            'counts' => $counts,
+            'values' => $values,
+            'totalOrders' => array_sum($counts),
+            'totalValue' => round(array_sum($values), 2),
+        ]);
+    }
+
+    /**
      * Resolve the [from, to] day range for the daily stats chart from the
      * request, defaulting to the last 30 days and capping the span at 366 days.
      *

@@ -56,8 +56,16 @@ class ClientBalanceCrudController extends CrudController
         $this->crud->setDetailsRowView('vendor.backpack.crud.details_rows.client_balance');
         $this->crud->setListView('vendor.backpack.crud.client_balance.list');
 
-        // Eager load the latest stored balance snapshot to avoid N+1 queries.
-        $this->crud->addClause('with', 'latestBalance');
+        // Resolve the "as of" date once for the whole request and make the
+        // balanceForDate relationship aware of it, so eager loading and the
+        // whereHas range filters all read the same historical snapshot.
+        $balanceDate = $this->selectedBalanceDate();
+        Client::$balanceAsOfDate = $balanceDate;
+
+        // Eager load the stored balance snapshot to avoid N+1 queries. When a
+        // date filter is active we load the snapshot as of that date; otherwise
+        // the latest snapshot.
+        $this->crud->addClause('with', $balanceDate ? 'balanceForDate' : 'latestBalance');
 
         CRUD::addColumn([
             'name' => 'id',
@@ -165,6 +173,19 @@ class ClientBalanceCrudController extends CrudController
         ]);
 
         // Add Filters
+
+        // "Balance as of" date. Shows each client's balance from the snapshot on
+        // or before the chosen date instead of the latest one. The actual snapshot
+        // selection is wired up above via selectedBalanceDate(); this closure only
+        // needs to exist so Backpack renders and preserves the filter.
+        CRUD::addFilter([
+            'type' => 'date',
+            'name' => 'balance_date',
+            'label' => 'Balance as of date',
+        ], false, function ($value) {
+            // No-op: handled globally in setupListOperation via selectedBalanceDate().
+        });
+
         CRUD::addFilter([
             'name' => 'client_type',
             'type' => 'select2',
@@ -311,7 +332,11 @@ class ClientBalanceCrudController extends CrudController
             return;
         }
 
-        $query->whereHas('latestBalance', function ($q) use ($column, $from, $to, $hasFrom, $hasTo) {
+        // Range on whichever snapshot the screen is currently showing: the
+        // as-of-date snapshot when a date filter is active, else the latest.
+        $relation = $this->selectedBalanceDate() ? 'balanceForDate' : 'latestBalance';
+
+        $query->whereHas($relation, function ($q) use ($column, $from, $to, $hasFrom, $hasTo) {
             if ($hasFrom) {
                 $q->where($column, '>=', $from);
             }
@@ -320,6 +345,39 @@ class ClientBalanceCrudController extends CrudController
             }
         });
     }
+
+    /**
+     * The validated "balance as of" date (Y-m-d) from the request, or null when
+     * no date filter is active. Memoized for the request.
+     *
+     * @return string|null
+     */
+    protected function selectedBalanceDate(): ?string
+    {
+        if ($this->selectedBalanceDateResolved) {
+            return $this->selectedBalanceDateCache;
+        }
+
+        $this->selectedBalanceDateResolved = true;
+
+        $value = request('balance_date');
+
+        if (!$value) {
+            return $this->selectedBalanceDateCache = null;
+        }
+
+        try {
+            return $this->selectedBalanceDateCache = \Carbon\Carbon::parse($value)->toDateString();
+        } catch (\Exception $e) {
+            return $this->selectedBalanceDateCache = null;
+        }
+    }
+
+    /** @var bool */
+    protected $selectedBalanceDateResolved = false;
+
+    /** @var string|null */
+    protected $selectedBalanceDateCache = null;
 
     /**
      * Resolve the balance components (payments_total, orders_total, balance) for a
@@ -335,12 +393,26 @@ class ClientBalanceCrudController extends CrudController
             return $this->rowComponentsCache[$client->id];
         }
 
-        if ($client->latestBalance) {
+        $date = $this->selectedBalanceDate();
+        $snapshot = $date ? $client->balanceForDate : $client->latestBalance;
+
+        if ($snapshot) {
             $components = [
-                'starting_balance' => (float) $client->latestBalance->starting_balance,
-                'payments_total' => (float) $client->latestBalance->payments_total,
-                'orders_total' => (float) $client->latestBalance->orders_total,
-                'balance' => (float) $client->latestBalance->balance,
+                'starting_balance' => (float) $snapshot->starting_balance,
+                'payments_total' => (float) $snapshot->payments_total,
+                'orders_total' => (float) $snapshot->orders_total,
+                'balance' => (float) $snapshot->balance,
+            ];
+        } elseif ($date) {
+            // A specific date was requested but this client has no snapshot on or
+            // before it (e.g. the client didn't exist yet, or predates snapshots).
+            // Show zeros rather than the current live balance, which would be
+            // misleading on a historical view.
+            $components = [
+                'starting_balance' => 0.0,
+                'payments_total' => 0.0,
+                'orders_total' => 0.0,
+                'balance' => 0.0,
             ];
         } else {
             $components = app(ClientBalanceService::class)->calculateComponentsForClient($client);
@@ -362,7 +434,13 @@ class ClientBalanceCrudController extends CrudController
      */
     protected function getFilteredClientsForStats()
     {
-        $query = Client::query()->with('latestBalance');
+        // Match the table's snapshot selection. This method is also reached by
+        // standalone AJAX endpoints (getBalanceStats / recalculate) that don't run
+        // setupListOperation, so set the relationship date here too.
+        $balanceDate = $this->selectedBalanceDate();
+        Client::$balanceAsOfDate = $balanceDate;
+
+        $query = Client::query()->with($balanceDate ? 'balanceForDate' : 'latestBalance');
 
         if (request()->has('client_type') && request()->get('client_type') !== '') {
             $query->where('client_type', request()->get('client_type'));

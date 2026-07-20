@@ -89,6 +89,33 @@ class Client extends Model
     }
 
     /**
+     * The "as of date" balance for the client: the most recent snapshot whose
+     * balance_date is on or before {@see static::$balanceAsOfDate}. Used by the
+     * client balances screen's date filter. When no date is set this behaves
+     * like {@see latestBalance()} (no upper bound on the date).
+     */
+    public function balanceForDate()
+    {
+        return $this->hasOne(ClientBalance::class)->ofMany(
+            ['balance_date' => 'max'],
+            function ($query) {
+                if (static::$balanceAsOfDate) {
+                    $query->whereDate('balance_date', '<=', static::$balanceAsOfDate);
+                }
+            }
+        );
+    }
+
+    /**
+     * The "as of" date (Y-m-d) used by the {@see balanceForDate()} relationship.
+     * Set by ClientBalanceCrudController before the query runs so eager loading
+     * picks the right historical snapshot. Null means "latest snapshot".
+     *
+     * @var string|null
+     */
+    public static $balanceAsOfDate = null;
+
+    /**
      * Calculate the client's balance.
      * Balance = starting balance + sum of paid payments - sum of orders total price (excluding draft orders)
      *

@@ -71,6 +71,10 @@
         if (urlParams.get('name')) params.name = urlParams.get('name');
         if (urlParams.get('email')) params.email = urlParams.get('email');
         if (urlParams.get('phone_number')) params.phone_number = urlParams.get('phone_number');
+        if (urlParams.get('balance_date')) params.balance_date = urlParams.get('balance_date');
+        if (urlParams.get('payments_total')) params.payments_total = urlParams.get('payments_total');
+        if (urlParams.get('orders_total')) params.orders_total = urlParams.get('orders_total');
+        if (urlParams.get('balance')) params.balance = urlParams.get('balance');
         
         // Make AJAX request
         $.ajax({

@@ -62,6 +62,16 @@ class CustomPriceCrudController extends CrudController
             'type' => 'select',
             'entity' => 'client',
             'attribute' => 'name_with_id',
+            // 'name_with_id' is a computed accessor, not a real column, so the
+            // default search logic (which queries clients.name_with_id) would fail.
+            // Search the real columns it's derived from instead.
+            'searchLogic' => function ($query, $column, $searchTerm) {
+                $query->orWhereHas('client', function ($q) use ($searchTerm) {
+                    $q->where('name', 'like', '%' . $searchTerm . '%')
+                        ->orWhere('legal_id', 'like', '%' . $searchTerm . '%')
+                        ->orWhere('personal_id', 'like', '%' . $searchTerm . '%');
+                });
+            },
         ]);
 
         CRUD::addColumn([

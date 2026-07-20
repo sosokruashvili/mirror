@@ -213,6 +213,8 @@ class PaymentCrudController extends CrudController
      */
     protected function setupCreateOperation()
     {
+        CRUD::setValidation(\App\Http\Requests\PaymentRequest::class);
+
         // Add JavaScript to display client balance on create/update forms
         Widget::add()->type('script')->content('assets/js/payment-client-balance.js');
         // Add JavaScript to show/populate the Order field when Payment Type = შეკვეთა (Order)
@@ -225,13 +227,14 @@ class PaymentCrudController extends CrudController
             'entity' => 'client',
             'attribute' => 'name_with_id',
             'model' => \App\Models\Client::class,
-            'allows_null' => true,
+            'allows_null' => false,
             'hint' => 'Select the client for this payment',
             'wrapper' => [
                 'class' => 'form-group col-md-6'
             ],
             'attributes' => [
                 'id' => 'client_id_field',
+                'required' => 'required',
             ]
         ]);
 

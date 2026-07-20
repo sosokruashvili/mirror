@@ -51,7 +51,13 @@ class PaymentCrudController extends CrudController
     {
         // Add summary widget that considers filters
         $this->addPaymentStatsWidget();
-        
+
+        CRUD::addColumn([
+            'name' => 'id',
+            'label' => 'ID',
+            'type' => 'number',
+        ]);
+
         CRUD::addColumn([
             'name' => 'client_id',
             'label' => 'Client',
@@ -522,6 +528,10 @@ class PaymentCrudController extends CrudController
             'paidAmountGel' => $paidPayments->sum('amount_gel') ?? 0,
             'pendingCount' => $pendingPayments->count(),
             'pendingAmountGel' => $pendingPayments->sum('amount_gel') ?? 0,
+            'cashSum' => $payments->where('method', 'Cash')->sum('amount_gel') ?? 0,
+            'transferSum' => $payments->where('method', 'Transfer')->sum('amount_gel') ?? 0,
+            'terminalSum' => $payments->where('method', 'Terminal')->sum('amount_gel') ?? 0,
+            'pmTransferSum' => $payments->where('method', 'PM Transfer')->sum('amount_gel') ?? 0,
         ];
     }
 
@@ -563,6 +573,42 @@ class PaymentCrudController extends CrudController
                     'value' => number_format($stats['paidCount']) . ' / ' . number_format($stats['pendingCount']),
                     'description' => 'Paid / Pending',
                     'hint' => number_format($stats['paidAmountGel'], 2) . ' ₾ / ' . number_format($stats['pendingAmountGel'], 2) . ' ₾',
+                    'wrapper' => ['class' => 'col-3'],
+                ],
+            ],
+        ])->to('before_content');
+
+        Widget::add([
+            'type' => 'div',
+            'class' => 'row mb-3',
+            'wrapper' => false,
+            'content' => [
+                [
+                    'type' => 'progress',
+                    'class' => 'card text-white bg-success',
+                    'value' => number_format($stats['cashSum'], 2) . ' ₾',
+                    'description' => 'Cash SUM',
+                    'wrapper' => ['class' => 'col-3'],
+                ],
+                [
+                    'type' => 'progress',
+                    'class' => 'card text-white bg-info',
+                    'value' => number_format($stats['transferSum'], 2) . ' ₾',
+                    'description' => 'Transfer SUM',
+                    'wrapper' => ['class' => 'col-3'],
+                ],
+                [
+                    'type' => 'progress',
+                    'class' => 'card text-white bg-warning',
+                    'value' => number_format($stats['terminalSum'], 2) . ' ₾',
+                    'description' => 'Terminal SUM',
+                    'wrapper' => ['class' => 'col-3'],
+                ],
+                [
+                    'type' => 'progress',
+                    'class' => 'card text-white bg-dark',
+                    'value' => number_format($stats['pmTransferSum'], 2) . ' ₾',
+                    'description' => 'PM Transfer SUM',
                     'wrapper' => ['class' => 'col-3'],
                 ],
             ],

@@ -217,8 +217,9 @@ class PaymentCrudController extends CrudController
 
         // Add JavaScript to display client balance on create/update forms
         Widget::add()->type('script')->content('assets/js/payment-client-balance.js');
-        // Add JavaScript to show/populate the Order field when Payment Type = შეკვეთა (Order)
-        Widget::add()->type('script')->content('assets/js/payment-order-select.js');
+        // Show/populate Order when type = შეკვეთა, and auto-fill Amount from order price.
+        // Filename is versioned so browsers pick up fixes (Basset cache-busts via composer.lock only).
+        Widget::add()->type('script')->content('assets/js/payment-create-order.js');
 
         CRUD::addField([
             'name' => 'client_id',
@@ -287,7 +288,7 @@ class PaymentCrudController extends CrudController
 
         // Order selector — only relevant (and only shown by JS) when Payment Type is
         // "Order" (შეკვეთა). Options are populated dynamically from the selected
-        // client's orders via assets/js/payment-order-select.js. On edit, the currently
+        // client's orders via assets/js/payment-create-order.js. On edit, the currently
         // linked order is passed through so JS can pre-select it once options load.
         CRUD::addField([
             'name' => 'order_id',

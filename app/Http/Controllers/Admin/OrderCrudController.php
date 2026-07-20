@@ -1589,14 +1589,18 @@ class OrderCrudController extends CrudController
         $orders = Order::where('client_id', $clientId)
             ->with(['pieces', 'products', 'services'])
             ->get()
-            ->map(function($order) {
+            ->map(function ($order) {
+                // Same figure as order_display (not stored price_gel, which can be stale/truncated).
+                // Send as a 2-decimal string so JSON does not drop fractional digits (150.00 → 150).
+                $price = round((float) $order->calculateTotalPrice(false), 2);
+
                 return [
                     'id' => $order->id,
                     'text' => $order->order_display,
-                    'price' => $order->calculateTotalPrice()
+                    'price' => number_format($price, 2, '.', ''),
                 ];
             });
-        
+
         return response()->json($orders);
     }
 

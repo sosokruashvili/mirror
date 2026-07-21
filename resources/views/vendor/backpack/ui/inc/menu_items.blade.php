@@ -34,7 +34,7 @@
             <x-backpack::menu-dropdown-item title="Stock" icon="la la-boxes" :link="backpack_url('warehouse')" />
         @endif
         @if($u->can('warehouse-expense.list'))
-            <x-backpack::menu-dropdown-item title="Expenses" icon="la la-receipt" :link="backpack_url('warehouse-expense')" />
+            <x-backpack::menu-dropdown-item title="Out" icon="la la-receipt" :link="backpack_url('warehouse-expense')" />
         @endif
         @if($u->can('supplier.list'))
             <x-backpack::menu-dropdown-item title="Suppliers" icon="la la-truck" :link="backpack_url('supplier')" />

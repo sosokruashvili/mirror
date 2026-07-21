@@ -160,6 +160,8 @@
                                     <th>Category</th>
                                     <th>Description</th>
                                     <th class="text-end">Amount</th>
+                                    <th class="text-end">Credit</th>
+                                    <th class="text-end">Paid</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -174,15 +176,21 @@
                                             </span>
                                         </td>
                                         <td>{{ $expense->description ?: '—' }}</td>
-                                        <td class="text-end text-nowrap text-danger">
+                                        <td class="text-end text-nowrap">
                                             {{ number_format((float) $expense->amount_gel, 2) }} ₾
+                                        </td>
+                                        <td class="text-end text-nowrap">
+                                            {{ number_format((float) $expense->credit, 2) }} ₾
+                                        </td>
+                                        <td class="text-end text-nowrap text-danger">
+                                            {{ number_format((float) $expense->paid_amount, 2) }} ₾
                                         </td>
                                     </tr>
                                 @endforeach
                             </tbody>
                             <tfoot>
                                 <tr>
-                                    <th colspan="3">Total cash out</th>
+                                    <th colspan="5">Total cash out</th>
                                     <th class="text-end text-nowrap text-danger">
                                         {{ number_format($cashOut, 2) }} ₾
                                     </th>

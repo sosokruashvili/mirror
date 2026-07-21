@@ -6,6 +6,7 @@ use Backpack\CRUD\app\Models\Traits\CrudTrait;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Facades\DB;
 
@@ -64,6 +65,14 @@ class ExpenseCategory extends Model
     public function expenses(): HasMany
     {
         return $this->hasMany(CashierExpense::class, 'category_id');
+    }
+
+    public function suppliers(): BelongsToMany
+    {
+        return $this->belongsToMany(
+            Supplier::class,
+            'supplier_expense_category'
+        );
     }
 
     public function isLeaf(): bool
@@ -181,6 +190,14 @@ class ExpenseCategory extends Model
         $depth = max(0, ((int) $this->depth) - 1);
 
         return str_repeat('— ', $depth) . $this->name;
+    }
+
+    /**
+     * Label used in Backpack multi-selects so nesting is visible.
+     */
+    public function getSelectLabelAttribute(): string
+    {
+        return $this->indentedName();
     }
 
     /**

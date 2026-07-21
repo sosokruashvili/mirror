@@ -18,6 +18,7 @@ class CashierExpense extends Model
         'category_id',
         'supplier_id',
         'amount_gel',
+        'credit',
         'description',
         'file',
         'expense_date',
@@ -25,10 +26,19 @@ class CashierExpense extends Model
 
     protected $casts = [
         'amount_gel' => 'decimal:2',
+        'credit' => 'decimal:2',
         'expense_date' => 'datetime',
         'category_id' => 'integer',
         'supplier_id' => 'integer',
     ];
+
+    /**
+     * Amount actually paid now (full price minus credit).
+     */
+    public function getPaidAmountAttribute(): float
+    {
+        return round((float) $this->amount_gel - (float) $this->credit, 2);
+    }
 
     public function category(): BelongsTo
     {

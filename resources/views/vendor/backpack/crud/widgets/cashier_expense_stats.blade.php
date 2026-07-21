@@ -1,5 +1,5 @@
 <div class="row mb-3" id="cashier-expense-stats-widget">
-    <div class="col-md-3 mb-3 mb-md-0">
+    <div class="col-md-4 col-lg mb-3 mb-lg-0">
         <div class="card bg-primary text-white mb-0">
             <div class="card-header">
                 <h4 class="mb-0">Expenses Count</h4>
@@ -9,7 +9,7 @@
             </div>
         </div>
     </div>
-    <div class="col-md-3 mb-3 mb-md-0">
+    <div class="col-md-4 col-lg mb-3 mb-lg-0">
         <div class="card bg-warning text-white mb-0">
             <div class="card-header">
                 <h4 class="mb-0">Total Amount</h4>
@@ -19,20 +19,30 @@
             </div>
         </div>
     </div>
-    <div class="col-md-3 mb-3 mb-md-0">
+    <div class="col-md-4 col-lg mb-3 mb-lg-0">
+        <div class="card bg-danger text-white mb-0">
+            <div class="card-header">
+                <h4 class="mb-0">Total Credit</h4>
+            </div>
+            <div class="card-body">
+                <h2 class="mb-0" id="stats-total-credit">{{ number_format($widget['totalCredit'], 2) }} ₾</h2>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6 col-lg mb-3 mb-lg-0">
         <div class="card bg-success text-white mb-0">
             <div class="card-header">
-                <h4 class="mb-0">Cash</h4>
+                <h4 class="mb-0">Cash Paid</h4>
             </div>
             <div class="card-body">
                 <h2 class="mb-0" id="stats-total-cash">{{ number_format($widget['totalCash'], 2) }} ₾</h2>
             </div>
         </div>
     </div>
-    <div class="col-md-3">
+    <div class="col-md-6 col-lg">
         <div class="card bg-info text-white mb-0">
             <div class="card-header">
-                <h4 class="mb-0">Transfer</h4>
+                <h4 class="mb-0">Transfer Paid</h4>
             </div>
             <div class="card-body">
                 <h2 class="mb-0" id="stats-total-transfer">{{ number_format($widget['totalTransfer'], 2) }} ₾</h2>
@@ -57,6 +67,7 @@
         var params = {};
         if (urlParams.get('type')) params.type = urlParams.get('type');
         if (urlParams.get('category_id')) params.category_id = urlParams.get('category_id');
+        if (urlParams.get('supplier_id')) params.supplier_id = urlParams.get('supplier_id');
         if (urlParams.get('expense_date')) params.expense_date = urlParams.get('expense_date');
 
         $.ajax({
@@ -66,6 +77,7 @@
             success: function(response) {
                 $('#stats-expenses-count').text(Number(response.expensesCount).toLocaleString());
                 $('#stats-total-amount').text(parseFloat(response.totalAmount).toFixed(2) + ' ₾');
+                $('#stats-total-credit').text(parseFloat(response.totalCredit).toFixed(2) + ' ₾');
                 $('#stats-total-cash').text(parseFloat(response.totalCash).toFixed(2) + ' ₾');
                 $('#stats-total-transfer').text(parseFloat(response.totalTransfer).toFixed(2) + ' ₾');
             },

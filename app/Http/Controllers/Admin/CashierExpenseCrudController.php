@@ -71,6 +71,14 @@ class CashierExpenseCrudController extends CrudController
         ]);
 
         CRUD::addColumn([
+            'name' => 'credit',
+            'label' => 'Credit',
+            'type' => 'number',
+            'decimals' => 2,
+            'suffix' => ' ₾',
+        ]);
+
+        CRUD::addColumn([
             'name' => 'description',
             'label' => 'Description',
             'type' => 'text',
@@ -181,6 +189,26 @@ class CashierExpenseCrudController extends CrudController
                 'required' => true,
             ],
             'suffix' => '₾',
+            'hint' => 'Full price of the expense.',
+            'wrapper' => [
+                'class' => 'form-group col-md-6',
+            ],
+        ]);
+
+        CRUD::addField([
+            'name' => 'credit',
+            'label' => 'Credit (GEL)',
+            'type' => 'number',
+            'default' => 0,
+            'attributes' => [
+                'step' => '0.01',
+                'min' => '0',
+            ],
+            'suffix' => '₾',
+            'hint' => 'Amount of credit from the full price (unpaid portion).',
+            'wrapper' => [
+                'class' => 'form-group col-md-6',
+            ],
         ]);
 
         CRUD::addField([
@@ -288,8 +316,9 @@ class CashierExpenseCrudController extends CrudController
         return [
             'expensesCount' => (clone $query)->count(),
             'totalAmount' => (float) (clone $query)->sum('amount_gel'),
-            'totalCash' => (float) (clone $query)->where('type', CashierExpense::TYPE_CASH)->sum('amount_gel'),
-            'totalTransfer' => (float) (clone $query)->where('type', CashierExpense::TYPE_TRANSFER)->sum('amount_gel'),
+            'totalCredit' => (float) (clone $query)->sum('credit'),
+            'totalCash' => (float) (clone $query)->where('type', CashierExpense::TYPE_CASH)->sum(\DB::raw('amount_gel - credit')),
+            'totalTransfer' => (float) (clone $query)->where('type', CashierExpense::TYPE_TRANSFER)->sum(\DB::raw('amount_gel - credit')),
         ];
     }
 

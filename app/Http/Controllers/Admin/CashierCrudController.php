@@ -103,7 +103,7 @@ class CashierCrudController extends CrudController
 
         $openingBalance = $service->getPreviousClosingBalance($date);
         $cashIn = (float) $payments->sum('amount_gel');
-        $cashOut = (float) $expenses->sum('amount_gel');
+        $cashOut = (float) $expenses->sum(fn ($expense) => $expense->paid_amount);
 
         return view('vendor.backpack.crud.details_rows.cashier_balance', [
             'crud' => $this->crud,

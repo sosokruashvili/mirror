@@ -40,7 +40,7 @@ class CashierService
 
     public function getCashExpensesForDate(Carbon $date): float
     {
-        return (float) $this->cashExpensesQueryForDate($date)->sum('amount_gel');
+        return (float) $this->cashExpensesQueryForDate($date)->sum(\DB::raw('amount_gel - credit'));
     }
 
     public function getNetChangeForDate(Carbon $date): float

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Requests\SupplierRequest;
+use App\Models\ExpenseCategory;
 use App\Models\Supplier;
 use Backpack\CRUD\app\Http\Controllers\CrudController;
 use Backpack\CRUD\app\Library\CrudPanel\CrudPanelFacade as CRUD;
@@ -58,6 +59,15 @@ class SupplierCrudController extends CrudController
             'label' => 'Email',
             'type' => 'email',
         ]);
+
+        CRUD::addColumn([
+            'name' => 'expenseCategories',
+            'label' => 'Expense categories',
+            'type' => 'select_multiple',
+            'entity' => 'expenseCategories',
+            'attribute' => 'name',
+            'model' => ExpenseCategory::class,
+        ]);
     }
 
     protected function setupCreateOperation(): void
@@ -81,6 +91,23 @@ class SupplierCrudController extends CrudController
             'name' => 'email',
             'label' => 'Email',
             'type' => 'email',
+        ]);
+
+        CRUD::addField([
+            'name' => 'expenseCategories',
+            'label' => 'Expense categories',
+            'type' => 'select_multiple',
+            'entity' => 'expenseCategories',
+            'attribute' => 'select_label',
+            'model' => ExpenseCategory::class,
+            'pivot' => true,
+            'options' => (function ($query) {
+                return $query->orderBy('lft')->orderBy('id')->get();
+            }),
+            'attributes' => [
+                'size' => 30,
+            ],
+            'hint' => 'Select one or more expense categories this supplier covers.',
         ]);
     }
 

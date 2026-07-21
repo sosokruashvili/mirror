@@ -17,6 +17,8 @@ class SupplierRequest extends FormRequest
             'name' => 'required|string|max:255',
             'description' => 'nullable|string|max:5000',
             'email' => 'nullable|email|max:255',
+            'expenseCategories' => 'nullable|array',
+            'expenseCategories.*' => 'exists:expense_categories,id',
         ];
     }
 
@@ -26,6 +28,7 @@ class SupplierRequest extends FormRequest
             'name' => 'name',
             'description' => 'description',
             'email' => 'email',
+            'expenseCategories' => 'expense categories',
         ];
     }
 }

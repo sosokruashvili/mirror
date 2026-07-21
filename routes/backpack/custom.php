@@ -44,6 +44,7 @@ Route::group([
     Route::get('order/get-orders-by-client/{clientId}', 'OrderCrudController@getOrdersByClient')->name('order.getOrdersByClient');
     Route::get('order/{id}/invoice', 'OrderCrudController@invoice')->name('order.invoice');
     Route::crud('warehouse', 'WarehouseCrudController');
+    Route::get('warehouse-expense/get-expense-stats', 'WarehouseExpenseCrudController@getWarehouseExpenseStats')->name('warehouse-expense.getWarehouseExpenseStats');
     Route::crud('warehouse-expense', 'WarehouseExpenseCrudController');
     Route::crud('client-balance', 'ClientBalanceCrudController');
     Route::get('client-balance/get-balance-stats', 'ClientBalanceCrudController@getBalanceStats')->name('client-balance.getBalanceStats');
@@ -51,6 +52,7 @@ Route::group([
     Route::crud('custom-price', 'CustomPriceCrudController');
     Route::crud('cashier', 'CashierCrudController');
     Route::post('cashier/recalculate', 'CashierCrudController@recalculate')->name('cashier.recalculate');
+    Route::get('cashier-expense/get-expense-stats', 'CashierExpenseCrudController@getExpenseStats')->name('cashier-expense.getExpenseStats');
     Route::crud('cashier-expense', 'CashierExpenseCrudController');
     Route::crud('audit-log', 'AuditLogCrudController');
     

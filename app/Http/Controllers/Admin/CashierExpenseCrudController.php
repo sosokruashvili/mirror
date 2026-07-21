@@ -159,12 +159,11 @@ class CashierExpenseCrudController extends CrudController
     }
 
     /**
-     * Add a summary widget totaling expenses for the current list filters.
+     * Apply the list filters (type, category, date range) to a query so the
+     * summary widget totals match exactly what the filtered table shows.
      */
-    protected function addExpenseStatsWidget(): void
+    protected function applyExpenseFilters($query)
     {
-        $query = CashierExpense::query();
-
         if (request()->filled('type')) {
             $query->where('type', request()->get('type'));
         }
@@ -185,14 +184,41 @@ class CashierExpenseCrudController extends CrudController
             }
         }
 
-        Widget::add([
+        return $query;
+    }
+
+    /**
+     * Compute the filter-aware summary totals.
+     */
+    protected function calculateExpenseStats(): array
+    {
+        $query = $this->applyExpenseFilters(CashierExpense::query());
+
+        return [
+            'expensesCount' => (clone $query)->count(),
+            'totalAmount' => (float) (clone $query)->sum('amount_gel'),
+            'totalCash' => (float) (clone $query)->where('type', CashierExpense::TYPE_CASH)->sum('amount_gel'),
+            'totalTransfer' => (float) (clone $query)->where('type', CashierExpense::TYPE_TRANSFER)->sum('amount_gel'),
+        ];
+    }
+
+    /**
+     * Add a summary widget totaling expenses for the current list filters.
+     */
+    protected function addExpenseStatsWidget(): void
+    {
+        Widget::add(array_merge([
             'type' => 'view',
             'view' => 'vendor.backpack.crud.widgets.cashier_expense_stats',
             'wrapper' => ['class' => 'col-12'],
-            'expensesCount' => (clone $query)->count(),
-            'totalAmount' => (clone $query)->sum('amount_gel'),
-            'totalCash' => (clone $query)->where('type', CashierExpense::TYPE_CASH)->sum('amount_gel'),
-            'totalTransfer' => (clone $query)->where('type', CashierExpense::TYPE_TRANSFER)->sum('amount_gel'),
-        ])->to('before_content');
+        ], $this->calculateExpenseStats()))->to('before_content');
+    }
+
+    /**
+     * Return the filter-aware summary totals as JSON (for live widget updates).
+     */
+    public function getExpenseStats(): \Illuminate\Http\JsonResponse
+    {
+        return response()->json($this->calculateExpenseStats());
     }
 }

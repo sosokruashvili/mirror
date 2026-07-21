@@ -104,7 +104,7 @@
     <div class="invoice-title">ინვოისი / Invoice</div>
 
     @php
-        $order->load(['client', 'services', 'products', 'pieces.product']);
+        $order->load(['client', 'services', 'products', 'pieces' => fn ($q) => $q->orderBy('id'), 'pieces.product']);
         $totalGel = (float) ($order->price_gel ?? 0);
         $serviceLineItems = [];
         $productLineItems = [];

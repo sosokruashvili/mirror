@@ -172,27 +172,28 @@ class WarehouseExpenseCrudController extends CrudController
     }
 
     /**
-     * Add a widget summarizing total warehouse expenses for the current filters.
+     * Apply the list filters (client, product type, status, date range) to a
+     * query so the summary widget totals match exactly what the filtered table
+     * shows.
      *
-     * @return void
+     * @param  \Illuminate\Database\Eloquent\Builder  $query
+     * @return \Illuminate\Database\Eloquent\Builder
      */
-    protected function addWarehouseExpenseStatsWidget()
+    protected function applyWarehouseExpenseFilters($query)
     {
-        $query = Order::query();
-
-        if (request()->has('client_id') && request()->get('client_id')) {
+        if (request()->filled('client_id')) {
             $query->where('client_id', request()->get('client_id'));
         }
 
-        if (request()->has('product_type') && request()->get('product_type')) {
+        if (request()->filled('product_type')) {
             $query->where('product_type', request()->get('product_type'));
         }
 
-        if (request()->has('status') && request()->get('status')) {
+        if (request()->filled('status')) {
             $query->where('status', request()->get('status'));
         }
 
-        if (request()->has('created_at') && request()->get('created_at')) {
+        if (request()->filled('created_at')) {
             $dates = json_decode(request()->get('created_at'), true);
             if (is_array($dates)) {
                 if (!empty($dates['from'])) {
@@ -204,15 +205,45 @@ class WarehouseExpenseCrudController extends CrudController
             }
         }
 
-        $ordersCount = $query->count();
-        $totalExpenses = (clone $query)->sum('expenses');
+        return $query;
+    }
 
-        Widget::add([
+    /**
+     * Compute the filter-aware summary totals.
+     *
+     * @return array
+     */
+    protected function calculateWarehouseExpenseStats(): array
+    {
+        $query = $this->applyWarehouseExpenseFilters(Order::query());
+
+        return [
+            'ordersCount' => (clone $query)->count(),
+            'totalExpenses' => (float) (clone $query)->sum('expenses'),
+        ];
+    }
+
+    /**
+     * Add a widget summarizing total warehouse expenses for the current filters.
+     *
+     * @return void
+     */
+    protected function addWarehouseExpenseStatsWidget()
+    {
+        Widget::add(array_merge([
             'type' => 'view',
             'view' => 'vendor.backpack.crud.widgets.warehouse_expense_stats',
             'wrapper' => ['class' => 'col-12'],
-            'ordersCount' => $ordersCount,
-            'totalExpenses' => $totalExpenses,
-        ])->to('before_content');
+        ], $this->calculateWarehouseExpenseStats()))->to('before_content');
+    }
+
+    /**
+     * Return the filter-aware summary totals as JSON (for live widget updates).
+     *
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function getWarehouseExpenseStats(): \Illuminate\Http\JsonResponse
+    {
+        return response()->json($this->calculateWarehouseExpenseStats());
     }
 }

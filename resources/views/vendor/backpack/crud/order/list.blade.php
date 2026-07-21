@@ -90,7 +90,7 @@
                     --}}
 
                     data-visible="{{ $exportOnlyColumn ? 'false' : var_export($visibleInTable) }}"
-                    data-visible-in-table="{{ var_export($visibleInTable) }}"
+                    data-visible-in-table="{{ var_export(($column['visibleInTable'] ?? null) === true) }}"
                     data-can-be-visible-in-table="{{ $exportOnlyColumn ? 'false' : 'true' }}"
                     data-visible-in-modal="{{ var_export($visibleInModal) }}"
                     data-visible-in-export="{{ $exportOnlyColumn ? 'true' : ($visibleInExport ? 'true' : 'false') }}"

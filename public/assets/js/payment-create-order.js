@@ -1,14 +1,12 @@
 // Payment create/update form:
-// 1) Show the Order field only when Payment Type is "Order" (შეკვეთა)
+// 1) The Order field is always visible
 // 2) Populate it with the selected client's orders
 // 3) Auto-fill Amount GEL from the selected order's price (keeps 2 decimals)
 $(document).ready(function() {
-    var ORDER_TYPE = 'Order';
     var orderPrices = {};
     var suppressAmountFill = false;
     var preselectedOrderId = '';
 
-    var $typeSelect = $('select[name="type"], #payment_type_field');
     var $clientSelect = $('select[name="client_id"], #client_id_field');
     var $orderWrapper = $('#order_id_wrapper');
     var $orderSelect = $('#order_id_field, select[name="order_id"]');
@@ -19,10 +17,6 @@ $(document).ready(function() {
 
     $orderSelect = $orderSelect.first();
     preselectedOrderId = $orderSelect.attr('data-selected-order') || '';
-
-    function isOrderType() {
-        return String($typeSelect.val()) === ORDER_TYPE;
-    }
 
     function getOrderValue() {
         try {
@@ -81,16 +75,8 @@ $(document).ready(function() {
         setAmountGel(orderPrices[orderId]);
     }
 
-    function syncOrderFieldVisibility() {
-        if (isOrderType()) {
-            $orderWrapper.show();
-            loadOrders(getClientValue());
-        } else {
-            $orderWrapper.hide();
-            suppressAmountFill = true;
-            $orderSelect.val('').trigger('change');
-            suppressAmountFill = false;
-        }
+    function refreshOrders() {
+        loadOrders(getClientValue());
     }
 
     function loadOrders(clientId) {
@@ -154,27 +140,13 @@ $(document).ready(function() {
         });
     }
 
-    $typeSelect.on('change', syncOrderFieldVisibility);
-
-    $clientSelect.on('change select2:select', function() {
-        if (isOrderType()) {
-            loadOrders(getClientValue());
-        }
-    });
+    $clientSelect.on('change select2:select', refreshOrders);
 
     $orderSelect.on('change select2:select', fillAmountFromSelectedOrder);
 
     try {
-        crud.field('type').onChange(function() {
-            syncOrderFieldVisibility();
-        });
-    } catch (e) { /* ignore */ }
-
-    try {
         crud.field('client_id').onChange(function() {
-            if (isOrderType()) {
-                loadOrders(getClientValue());
-            }
+            refreshOrders();
         });
     } catch (e) { /* ignore */ }
 
@@ -184,5 +156,5 @@ $(document).ready(function() {
         });
     } catch (e) { /* ignore */ }
 
-    setTimeout(syncOrderFieldVisibility, 500);
+    setTimeout(refreshOrders, 500);
 });

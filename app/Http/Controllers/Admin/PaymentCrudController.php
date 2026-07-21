@@ -338,10 +338,9 @@ class PaymentCrudController extends CrudController
             ]
         ]);
 
-        // Order selector — only relevant (and only shown by JS) when Payment Type is
-        // "Order" (შეკვეთა). Options are populated dynamically from the selected
-        // client's orders via assets/js/payment-create-order.js. On edit, the currently
-        // linked order is passed through so JS can pre-select it once options load.
+        // Order selector — always shown. Options are populated dynamically from the
+        // selected client's orders via assets/js/payment-create-order.js. On edit, the
+        // currently linked order is passed through so JS can pre-select it once options load.
         CRUD::addField([
             'name' => 'order_id',
             'label' => 'Order',
@@ -352,7 +351,6 @@ class PaymentCrudController extends CrudController
             'wrapper' => [
                 'class' => 'form-group col-md-6',
                 'id' => 'order_id_wrapper',
-                'style' => 'display: none;',
             ],
             'attributes' => [
                 'id' => 'order_id_field',

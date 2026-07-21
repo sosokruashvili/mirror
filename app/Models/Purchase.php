@@ -11,6 +11,7 @@ class Purchase extends Model
 
     protected $fillable = [
         'product_id',
+        'supplier_id',
         'description',
         'quantity',
         'area',
@@ -25,6 +26,11 @@ class Purchase extends Model
     public function product()
     {
         return $this->belongsTo(Product::class);
+    }
+
+    public function supplier()
+    {
+        return $this->belongsTo(Supplier::class);
     }
 
     public function setFileAttribute($value)

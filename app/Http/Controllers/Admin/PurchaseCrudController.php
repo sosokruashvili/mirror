@@ -50,6 +50,15 @@ class PurchaseCrudController extends CrudController
         ]);
 
         CRUD::addColumn([
+            'name' => 'supplier_id',
+            'label' => 'Supplier',
+            'type' => 'select',
+            'entity' => 'supplier',
+            'attribute' => 'name',
+            'model' => 'App\Models\Supplier',
+        ]);
+
+        CRUD::addColumn([
             'name' => 'description',
             'label' => 'Description',
             'type' => 'text',
@@ -91,6 +100,16 @@ class PurchaseCrudController extends CrudController
         }, function ($value) {
             $this->crud->addClause('where', 'product_id', $value);
         });
+
+        CRUD::addFilter([
+            'name' => 'supplier_id',
+            'type' => 'select2',
+            'label' => 'Supplier',
+        ], function () {
+            return \App\Models\Supplier::all()->pluck('name', 'id')->toArray();
+        }, function ($value) {
+            $this->crud->addClause('where', 'supplier_id', $value);
+        });
     }
 
     protected function setupCreateOperation(): void
@@ -106,6 +125,21 @@ class PurchaseCrudController extends CrudController
             'attribute' => 'title',
             'options' => (function ($query) {
                 return $query->orderBy('title', 'ASC')->get();
+            }),
+            'attributes' => [
+                'required' => true,
+            ],
+        ]);
+
+        CRUD::addField([
+            'name' => 'supplier_id',
+            'label' => 'Supplier',
+            'type' => 'select',
+            'entity' => 'supplier',
+            'model' => 'App\Models\Supplier',
+            'attribute' => 'name',
+            'options' => (function ($query) {
+                return $query->orderBy('name', 'ASC')->get();
             }),
             'attributes' => [
                 'required' => true,

@@ -15,6 +15,7 @@ class PurchaseRequest extends FormRequest
     {
         return [
             'product_id' => 'required|exists:products,id',
+            'supplier_id' => 'required|exists:suppliers,id',
             'description' => 'nullable|string|max:5000',
             'quantity' => 'nullable|integer|min:0',
             'area' => 'nullable|numeric|min:0',
@@ -26,6 +27,7 @@ class PurchaseRequest extends FormRequest
     {
         return [
             'product_id' => 'product',
+            'supplier_id' => 'supplier',
             'description' => 'description',
             'quantity' => 'quantity',
             'area' => 'area',

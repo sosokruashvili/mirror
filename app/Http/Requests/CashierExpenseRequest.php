@@ -23,8 +23,10 @@ class CashierExpenseRequest extends FormRequest
                 'integer',
                 Rule::exists('expense_categories', 'id'),
             ],
+            'supplier_id' => 'nullable|exists:suppliers,id',
             'amount_gel' => 'required|numeric|min:0.01|max:999999999.99',
             'description' => 'nullable|string|max:5000',
+            'file' => 'nullable|file|mimes:pdf,png,jpeg,jpg|max:10240',
             'expense_date' => 'required|date',
         ];
     }
@@ -49,8 +51,10 @@ class CashierExpenseRequest extends FormRequest
         return [
             'type' => 'type',
             'category_id' => 'category',
+            'supplier_id' => 'supplier',
             'amount_gel' => 'amount (GEL)',
             'description' => 'description',
+            'file' => 'file',
             'expense_date' => 'expense date',
         ];
     }

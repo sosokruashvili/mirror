@@ -15,8 +15,8 @@ class Supplier extends Model
         'email',
     ];
 
-    public function purchases()
+    public function cashierExpenses()
     {
-        return $this->hasMany(Purchase::class);
+        return $this->hasMany(CashierExpense::class);
     }
 }

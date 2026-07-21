@@ -16,8 +16,10 @@ class CashierExpense extends Model
     protected $fillable = [
         'type',
         'category_id',
+        'supplier_id',
         'amount_gel',
         'description',
+        'file',
         'expense_date',
     ];
 
@@ -25,11 +27,26 @@ class CashierExpense extends Model
         'amount_gel' => 'decimal:2',
         'expense_date' => 'datetime',
         'category_id' => 'integer',
+        'supplier_id' => 'integer',
     ];
 
     public function category(): BelongsTo
     {
         return $this->belongsTo(ExpenseCategory::class, 'category_id');
+    }
+
+    public function supplier(): BelongsTo
+    {
+        return $this->belongsTo(Supplier::class);
+    }
+
+    public function setFileAttribute($value)
+    {
+        $attributeName = 'file';
+        $disk = 'public';
+        $destinationPath = 'cashier-expenses';
+
+        $this->uploadFileToDisk($value, $attributeName, $disk, $destinationPath);
     }
 
     public static function types(): array

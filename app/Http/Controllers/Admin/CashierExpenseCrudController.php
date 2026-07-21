@@ -29,7 +29,7 @@ class CashierExpenseCrudController extends CrudController
 
     protected function setupListOperation(): void
     {
-        $this->crud->query->with('category');
+        $this->crud->query->with(['category', 'supplier']);
         $this->addExpenseStatsWidget();
 
         CRUD::addColumn([
@@ -54,6 +54,15 @@ class CashierExpenseCrudController extends CrudController
         ]);
 
         CRUD::addColumn([
+            'name' => 'supplier_id',
+            'label' => 'Supplier',
+            'type' => 'select',
+            'entity' => 'supplier',
+            'attribute' => 'name',
+            'model' => \App\Models\Supplier::class,
+        ]);
+
+        CRUD::addColumn([
             'name' => 'amount_gel',
             'label' => 'Amount',
             'type' => 'number',
@@ -66,6 +75,13 @@ class CashierExpenseCrudController extends CrudController
             'label' => 'Description',
             'type' => 'text',
             'limit' => 80,
+        ]);
+
+        CRUD::addColumn([
+            'name' => 'file',
+            'label' => 'File',
+            'type' => 'upload',
+            'disk' => 'public',
         ]);
 
         CRUD::addColumn([
@@ -92,6 +108,16 @@ class CashierExpenseCrudController extends CrudController
             return ExpenseCategory::filterOptions();
         }, function ($value) {
             $this->applyCategoryFilter($this->crud->query, (int) $value);
+        });
+
+        CRUD::addFilter([
+            'name' => 'supplier_id',
+            'type' => 'select2',
+            'label' => 'Supplier',
+        ], function () {
+            return \App\Models\Supplier::query()->orderBy('name')->pluck('name', 'id')->toArray();
+        }, function ($value) {
+            $this->crud->addClause('where', 'supplier_id', $value);
         });
 
         CRUD::addFilter([
@@ -133,6 +159,19 @@ class CashierExpenseCrudController extends CrudController
         ]);
 
         CRUD::addField([
+            'name' => 'supplier_id',
+            'label' => 'Supplier',
+            'type' => 'select',
+            'entity' => 'supplier',
+            'model' => \App\Models\Supplier::class,
+            'attribute' => 'name',
+            'options' => (function ($query) {
+                return $query->orderBy('name', 'ASC')->get();
+            }),
+            'allows_null' => true,
+        ]);
+
+        CRUD::addField([
             'name' => 'amount_gel',
             'label' => 'Amount (GEL)',
             'type' => 'number',
@@ -148,6 +187,18 @@ class CashierExpenseCrudController extends CrudController
             'name' => 'description',
             'label' => 'Description',
             'type' => 'textarea',
+        ]);
+
+        CRUD::addField([
+            'name' => 'file',
+            'label' => 'File',
+            'type' => 'upload',
+            'upload' => true,
+            'disk' => 'public',
+            'attributes' => [
+                'accept' => '.pdf,.png,.jpeg,.jpg',
+            ],
+            'hint' => 'Allowed types: PDF, PNG, JPEG, JPG',
         ]);
 
         CRUD::addField([
@@ -206,6 +257,10 @@ class CashierExpenseCrudController extends CrudController
 
         if (request()->filled('category_id')) {
             $this->applyCategoryFilter($query, (int) request()->get('category_id'));
+        }
+
+        if (request()->filled('supplier_id')) {
+            $query->where('supplier_id', request()->get('supplier_id'));
         }
 
         if (request()->filled('expense_date')) {

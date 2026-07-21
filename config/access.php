@@ -42,9 +42,10 @@ return [
         'supplier'         => ['label' => 'Suppliers',        'actions' => ['list', 'create', 'update', 'delete', 'show']],
 
         'payment'          => ['label' => 'Payments',         'actions' => ['list', 'create', 'update', 'delete', 'show']],
-        'cashier'          => ['label' => 'Cashier Balance',  'actions' => ['list']],
-        'cashier-expense'  => ['label' => 'Cashier Expenses', 'actions' => ['list', 'create', 'update', 'delete', 'show']],
-        'custom-price'     => ['label' => 'Custom Prices',    'actions' => ['list', 'create', 'update', 'delete', 'show']],
+        'cashier'           => ['label' => 'Cashier Balance',     'actions' => ['list']],
+        'cashier-expense'   => ['label' => 'Cashier Expenses',    'actions' => ['list', 'create', 'update', 'delete', 'show']],
+        'expense-category'  => ['label' => 'Expense Categories',  'actions' => ['list', 'create', 'update', 'delete', 'reorder']],
+        'custom-price'      => ['label' => 'Custom Prices',       'actions' => ['list', 'create', 'update', 'delete', 'show']],
 
         // ----- Custom (non-CRUD) pages -----
         'settings'         => ['label' => 'Global Settings',  'actions' => ['view', 'update']],
@@ -67,6 +68,7 @@ return [
         'create'  => 'Create',
         'update'  => 'Edit',
         'delete'  => 'Delete',
+        'reorder' => 'Reorder',
         'view'    => 'View',
         'operate' => 'Operate',
     ],

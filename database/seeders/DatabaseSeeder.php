@@ -15,6 +15,7 @@ class DatabaseSeeder extends Seeder
             PermissionSeeder::class,       // production-stage permissions
             AccessPermissionSeeder::class, // page/action access permissions
             RoleSeeder::class,             // roles + default access matrix
+            ExpenseCategorySeeder::class,  // default cashier expense categories
         ]);
     }
 }

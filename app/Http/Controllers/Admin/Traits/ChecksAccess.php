@@ -25,7 +25,7 @@ trait ChecksAccess
     /**
      * Backpack operations that map 1:1 to a page permission action.
      */
-    protected array $accessControlledOperations = ['list', 'create', 'update', 'delete', 'show'];
+    protected array $accessControlledOperations = ['list', 'create', 'update', 'delete', 'show', 'reorder'];
 
     /**
      * Runs after setup(); the ideal moment to lock down operations.

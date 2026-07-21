@@ -28,6 +28,7 @@ class CashierService
     public function cashExpensesQueryForDate(Carbon $date)
     {
         return CashierExpense::query()
+            ->with('category')
             ->where('type', CashierExpense::TYPE_CASH)
             ->whereDate('expense_date', $date);
     }

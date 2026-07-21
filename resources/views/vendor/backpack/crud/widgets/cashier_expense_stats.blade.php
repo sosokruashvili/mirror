@@ -56,7 +56,7 @@
 
         var params = {};
         if (urlParams.get('type')) params.type = urlParams.get('type');
-        if (urlParams.get('category')) params.category = urlParams.get('category');
+        if (urlParams.get('category_id')) params.category_id = urlParams.get('category_id');
         if (urlParams.get('expense_date')) params.expense_date = urlParams.get('expense_date');
 
         $.ajax({

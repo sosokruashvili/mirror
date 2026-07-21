@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Requests\CashierExpenseRequest;
 use App\Models\CashierExpense;
+use App\Models\ExpenseCategory;
 use Backpack\CRUD\app\Http\Controllers\CrudController;
 use Backpack\CRUD\app\Library\CrudPanel\CrudPanelFacade as CRUD;
 use Backpack\CRUD\app\Library\Widget;
@@ -28,6 +29,7 @@ class CashierExpenseCrudController extends CrudController
 
     protected function setupListOperation(): void
     {
+        $this->crud->query->with('category');
         $this->addExpenseStatsWidget();
 
         CRUD::addColumn([
@@ -43,9 +45,12 @@ class CashierExpenseCrudController extends CrudController
         ]);
 
         CRUD::addColumn([
-            'name' => 'category',
+            'name' => 'category_id',
             'label' => 'Category',
-            'type' => 'text',
+            'type' => 'select',
+            'entity' => 'category',
+            'attribute' => 'name',
+            'model' => ExpenseCategory::class,
         ]);
 
         CRUD::addColumn([
@@ -80,13 +85,13 @@ class CashierExpenseCrudController extends CrudController
         });
 
         CRUD::addFilter([
-            'name' => 'category',
+            'name' => 'category_id',
             'type' => 'select2',
             'label' => 'Category',
         ], function () {
-            return CashierExpense::categories();
+            return ExpenseCategory::filterOptions();
         }, function ($value) {
-            $this->crud->addClause('where', 'category', $value);
+            $this->applyCategoryFilter($this->crud->query, (int) $value);
         });
 
         CRUD::addFilter([
@@ -120,10 +125,10 @@ class CashierExpenseCrudController extends CrudController
         ]);
 
         CRUD::addField([
-            'name' => 'category',
+            'name' => 'category_id',
             'label' => 'Category',
-            'type' => 'select_from_array',
-            'options' => CashierExpense::categories(),
+            'type' => 'select_optgroup_array',
+            'options' => ExpenseCategory::groupedLeafOptions(),
             'allows_null' => false,
         ]);
 
@@ -156,6 +161,37 @@ class CashierExpenseCrudController extends CrudController
     protected function setupUpdateOperation(): void
     {
         $this->setupCreateOperation();
+
+        // Keep the current category visible if it stopped being a leaf after
+        // children were added under it; validation still requires a leaf.
+        $entry = $this->crud->getCurrentEntry();
+        if ($entry && $entry->category_id && $entry->category) {
+            $options = ExpenseCategory::groupedLeafOptions();
+            $flat = [];
+            foreach ($options as $items) {
+                $flat += $items;
+            }
+            if (! array_key_exists($entry->category_id, $flat)) {
+                $options[''][$entry->category_id] = $entry->category->name . ' (has children — pick a leaf)';
+                CRUD::modifyField('category_id', ['options' => $options]);
+            }
+        }
+    }
+
+    /**
+     * Include expenses whose category is the selected node or any descendant.
+     */
+    protected function applyCategoryFilter($query, int $categoryId)
+    {
+        $category = ExpenseCategory::find($categoryId);
+        if (! $category) {
+            return $query->whereRaw('1 = 0');
+        }
+
+        return $query->whereHas('category', function ($q) use ($category) {
+            $q->where('lft', '>=', $category->lft)
+                ->where('rgt', '<=', $category->rgt);
+        });
     }
 
     /**
@@ -168,8 +204,8 @@ class CashierExpenseCrudController extends CrudController
             $query->where('type', request()->get('type'));
         }
 
-        if (request()->filled('category')) {
-            $query->where('category', request()->get('category'));
+        if (request()->filled('category_id')) {
+            $this->applyCategoryFilter($query, (int) request()->get('category_id'));
         }
 
         if (request()->filled('expense_date')) {

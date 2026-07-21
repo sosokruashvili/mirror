@@ -170,7 +170,7 @@
                                         </td>
                                         <td>
                                             <span class="badge bg-secondary-lt">
-                                                {{ \App\Models\CashierExpense::categories()[$expense->category] ?? ($expense->category ?? '—') }}
+                                                {{ $expense->category?->name ?? '—' }}
                                             </span>
                                         </td>
                                         <td>{{ $expense->description ?: '—' }}</td>

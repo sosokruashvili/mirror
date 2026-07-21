@@ -12,11 +12,8 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('payments', function (Blueprint $table) {
-            $table->foreignId('author_id')
-                ->nullable()
-                ->after('id')
-                ->constrained('users')
-                ->nullOnDelete();
+            // Nullable so existing payments remain valid; new rows set author on create.
+            $table->integer('author')->nullable()->after('id');
         });
     }
 
@@ -26,7 +23,7 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('payments', function (Blueprint $table) {
-            $table->dropConstrainedForeignId('author_id');
+            $table->dropColumn('author');
         });
     }
 };

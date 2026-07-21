@@ -67,6 +67,14 @@ class PaymentCrudController extends CrudController
         ]);
 
         CRUD::addColumn([
+            'name' => 'authorUser',
+            'label' => 'Author',
+            'type' => 'relationship',
+            'entity' => 'authorUser',
+            'attribute' => 'name',
+        ]);
+
+        CRUD::addColumn([
             'name' => 'amount_gel',
             'label' => 'Amount GEL',
             'type' => 'number',
@@ -130,6 +138,17 @@ class PaymentCrudController extends CrudController
             return \App\Models\Client::all()->pluck('name', 'id')->toArray();
         }, function($value) {
             $this->crud->addClause('where', 'client_id', $value);
+        });
+
+        // Author filter (payments.author stores the creating user's id)
+        CRUD::addFilter([
+            'type' => 'select2',
+            'name' => 'author',
+            'label' => 'Author',
+        ], function () {
+            return \App\Models\User::orderBy('name')->pluck('name', 'id')->toArray();
+        }, function ($value) {
+            $this->crud->addClause('where', 'author', $value);
         });
 
         CRUD::addFilter([
@@ -209,6 +228,33 @@ class PaymentCrudController extends CrudController
                 $this->crud->addClause('where', 'payment_date', '<=', $toDate);
             }
         });
+    }
+
+    /**
+     * Store a newly created payment, stamping the current admin as author.
+     *
+     * Backpack's stripped request only includes form fields, so author is
+     * injected here (same idea as Order create).
+     *
+     * @return \Illuminate\Http\RedirectResponse
+     */
+    public function store()
+    {
+        $this->crud->hasAccessOrFail('create');
+
+        $request = $this->crud->validateRequest();
+        $this->crud->registerFieldEvents();
+
+        $data = $this->crud->getStrippedSaveRequest($request);
+        $data['author'] = backpack_user()->id;
+
+        $item = $this->crud->create($data);
+        $this->data['entry'] = $this->crud->entry = $item;
+
+        \Alert::success(trans('backpack::crud.insert_success'))->flash();
+        $this->crud->setSaveAction();
+
+        return $this->crud->performSaveAction($item->getKey());
     }
 
     /**
@@ -705,6 +751,8 @@ class PaymentCrudController extends CrudController
             if ($request->hasFile('file')) {
                 $validated['file'] = $request->file('file')->store('payments', 'public');
             }
+
+            $validated['author'] = backpack_user()->id;
 
             $payment = Payment::create($validated);
 

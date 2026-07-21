@@ -18,6 +18,7 @@ class Payment extends Model
     const TYPE_DEBT = 'Debt';
 
     protected $fillable = [
+        'author',
         'client_id',
         'order_id',
         'amount_gel',
@@ -57,6 +58,13 @@ class Payment extends Model
      */
     protected static function booted()
     {
+        // Match orders.author: stamp the creating admin on insert (CRUD + AJAX).
+        static::creating(function (Payment $payment) {
+            if ($payment->author === null && function_exists('backpack_user') && backpack_user()) {
+                $payment->author = backpack_user()->id;
+            }
+        });
+
         static::saved(function (Payment $payment) {
             static::updateOrderPaymentStatus($payment->client_id);
 
@@ -89,6 +97,18 @@ class Payment extends Model
     public function client()
     {
         return $this->belongsTo(Client::class);
+    }
+
+    /**
+     * The user who created the payment (stored on payments.author).
+     *
+     * Named authorUser() rather than author() on purpose: a relationship method
+     * that shares its name with the real `author` column collides, and Eloquent
+     * returns the raw column value instead of loading the relation.
+     */
+    public function authorUser()
+    {
+        return $this->belongsTo(User::class, 'author');
     }
 
     /**

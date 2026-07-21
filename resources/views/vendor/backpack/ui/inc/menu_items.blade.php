@@ -28,13 +28,19 @@
     <x-backpack::menu-item title="Services" icon="la la-cogs" :link="backpack_url('service')" />
 @endif
 
-@if($u && ($u->can('warehouse.list') || $u->can('warehouse-expense.list')))
+@if($u && ($u->can('warehouse.list') || $u->can('warehouse-expense.list') || $u->can('purchase.list') || $u->can('supplier.list')))
     <x-backpack::menu-dropdown title="Warehouse" icon="la la-warehouse">
         @if($u->can('warehouse.list'))
             <x-backpack::menu-dropdown-item title="Stock" icon="la la-boxes" :link="backpack_url('warehouse')" />
         @endif
         @if($u->can('warehouse-expense.list'))
             <x-backpack::menu-dropdown-item title="Expenses" icon="la la-receipt" :link="backpack_url('warehouse-expense')" />
+        @endif
+        @if($u->can('purchase.list'))
+            <x-backpack::menu-dropdown-item title="Purchases" icon="la la-shopping-cart" :link="backpack_url('purchase')" />
+        @endif
+        @if($u->can('supplier.list'))
+            <x-backpack::menu-dropdown-item title="Suppliers" icon="la la-truck" :link="backpack_url('supplier')" />
         @endif
     </x-backpack::menu-dropdown>
 @endif

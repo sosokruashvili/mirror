@@ -46,6 +46,9 @@ Route::group([
     Route::crud('warehouse', 'WarehouseCrudController');
     Route::get('warehouse-expense/get-expense-stats', 'WarehouseExpenseCrudController@getWarehouseExpenseStats')->name('warehouse-expense.getWarehouseExpenseStats');
     Route::crud('warehouse-expense', 'WarehouseExpenseCrudController');
+    Route::crud('purchase', 'PurchaseCrudController');
+    Route::crud('supplier', 'SupplierCrudController');
+
     Route::crud('client-balance', 'ClientBalanceCrudController');
     Route::get('client-balance/get-balance-stats', 'ClientBalanceCrudController@getBalanceStats')->name('client-balance.getBalanceStats');
     Route::post('client-balance/recalculate', 'ClientBalanceCrudController@recalculate')->name('client-balance.recalculate');

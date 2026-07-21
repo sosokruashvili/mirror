@@ -415,9 +415,11 @@ class OrderCrudController extends CrudController
             'entity' => 'client',
             'attribute' => 'name_with_id',
             'model' => \App\Models\Client::class,
-            'allows_null' => false,
+            'allows_null' => true,
+            'default' => null,
             'attributes' => [
                 'required' => true,
+                'data-placeholder' => 'Select a client',
             ],
         ]);
 

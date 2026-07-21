@@ -59,6 +59,15 @@ class PaymentCrudController extends CrudController
         ]);
 
         CRUD::addColumn([
+            'name' => 'author_id',
+            'label' => 'Author',
+            'type' => 'select',
+            'entity' => 'author',
+            'attribute' => 'name',
+            'model' => \App\Models\User::class,
+        ]);
+
+        CRUD::addColumn([
             'name' => 'client_id',
             'label' => 'Client',
             'type' => 'select',

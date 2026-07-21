@@ -18,6 +18,7 @@ class Payment extends Model
     const TYPE_DEBT = 'Debt';
 
     protected $fillable = [
+        'author_id',
         'client_id',
         'order_id',
         'amount_gel',
@@ -57,6 +58,13 @@ class Payment extends Model
      */
     protected static function booted()
     {
+        static::creating(function (Payment $payment) {
+            // Stamp the admin who created the payment, unless one was set explicitly.
+            if (empty($payment->author_id) && backpack_auth()->check()) {
+                $payment->author_id = backpack_auth()->id();
+            }
+        });
+
         static::saved(function (Payment $payment) {
             static::updateOrderPaymentStatus($payment->client_id);
 
@@ -81,6 +89,14 @@ class Payment extends Model
             self::TYPE_ORDER => 'შეკვეთა',
             self::TYPE_DEBT => 'ვალი',
         ];
+    }
+
+    /**
+     * Get the admin user who created the payment.
+     */
+    public function author()
+    {
+        return $this->belongsTo(User::class, 'author_id');
     }
 
     /**

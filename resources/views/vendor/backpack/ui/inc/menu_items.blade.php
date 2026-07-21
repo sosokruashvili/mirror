@@ -73,7 +73,7 @@
     <x-backpack::menu-item title="Custom Prices" icon="la la-tag" :link="backpack_url('custom-price')" />
 @endif
 
-@if($u && ($u->can('settings.view') || $u->can('user.list') || $u->can('role.list') || $u->can('permission.list')))
+@if($u && ($u->can('settings.view') || $u->can('user.list') || $u->can('role.list') || $u->can('permission.list') || $u->can('audit-log.list')))
     <x-backpack::menu-dropdown title="Settings" icon="la la-cog">
         @if($u->can('settings.view'))
             <x-backpack::menu-dropdown-item title="Global Settings" icon="la la-sliders-h" :link="backpack_url('settings')" />
@@ -86,6 +86,9 @@
         @endif
         @if($u->can('permission.list'))
             <x-backpack::menu-dropdown-item title="Permissions" icon="la la-key" :link="backpack_url('permission')" />
+        @endif
+        @if($u->can('audit-log.list'))
+            <x-backpack::menu-dropdown-item title="Activity Log" icon="la la-history" :link="backpack_url('audit-log')" />
         @endif
     </x-backpack::menu-dropdown>
 @endif

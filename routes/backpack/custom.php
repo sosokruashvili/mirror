@@ -52,6 +52,7 @@ Route::group([
     Route::crud('cashier', 'CashierCrudController');
     Route::post('cashier/recalculate', 'CashierCrudController@recalculate')->name('cashier.recalculate');
     Route::crud('cashier-expense', 'CashierExpenseCrudController');
+    Route::crud('audit-log', 'AuditLogCrudController');
     
     // Global settings page (access-controlled: settings.view / settings.update)
     Route::get('settings', 'SettingController@edit')->name('settings.edit')->middleware('backpack.can:settings.view');

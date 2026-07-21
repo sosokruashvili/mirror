@@ -51,6 +51,7 @@ return [
         'user'             => ['label' => 'Users',            'actions' => ['list', 'create', 'update', 'delete', 'show']],
         'role'             => ['label' => 'Roles',            'actions' => ['list', 'create', 'update', 'delete', 'show']],
         'permission'       => ['label' => 'Permissions',      'actions' => ['list', 'create', 'update', 'delete', 'show']],
+        'audit-log'        => ['label' => 'Activity Log',     'actions' => ['list', 'show']],
     ],
 
     /*

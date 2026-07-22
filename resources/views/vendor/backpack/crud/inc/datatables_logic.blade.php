@@ -351,9 +351,21 @@
               localStorage.removeItem('{{ Str::slug($crud->getRoute()) }}_list_url_time');
           }
 
-          //clear the table sorting/ordering/visibility
-          if(localStorage.getItem('DataTables_crudTable_/{{ $crud->getRoute() }}')) {
-              localStorage.removeItem('DataTables_crudTable_/{{ $crud->getRoute() }}');
+          //clear the table sorting/ordering/pagination but PRESERVE column visibility
+          var dtStateKey = 'DataTables_crudTable_/{{ $crud->getRoute() }}';
+          var dtState = JSON.parse(localStorage.getItem(dtStateKey));
+          if (dtState) {
+              // reset ordering, search and pagination while keeping each column's `visible` flag
+              dtState.time = Date.now();
+              dtState.start = 0;
+              dtState.order = [];
+              dtState.search = { search: '', smart: true, regex: false, caseInsensitive: true };
+              if (Array.isArray(dtState.columns)) {
+                  dtState.columns.forEach(function(col) {
+                      if (col.search) { col.search.search = ''; }
+                  });
+              }
+              localStorage.setItem(dtStateKey, JSON.stringify(dtState));
           }
         });
       @endif

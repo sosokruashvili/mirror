@@ -79,6 +79,14 @@ class ProductCrudController extends CrudController
             'prefix' => '$',
         ]);
 
+        $this->crud->addColumn([
+            'name' => 'offcut',
+            'label' => 'Offcut (%)',
+            'type' => 'number',
+            'decimals' => 2,
+            'suffix' => ' %',
+        ]);
+
         // Add Filters
         $this->crud->addFilter([
             'name' => 'product_type',
@@ -217,6 +225,20 @@ class ProductCrudController extends CrudController
             'prefix' => '$',
             'hint' => 'Optional wholesale price for bulk purchases',
         ]);
+
+        CRUD::addField([
+            'name' => 'offcut',
+            'label' => 'Offcut (%)',
+            'type' => 'number',
+            'attributes' => [
+                'step' => '0.01',
+                'min' => '0',
+                'max' => '100',
+            ],
+            'default' => 0,
+            'suffix' => '%',
+            'hint' => 'Percent of piece area added on top when calculating warehouse expenses for orders using this product.',
+        ]);
     }
 
     /**
@@ -281,6 +303,7 @@ class ProductCrudController extends CrudController
         return response()->json([
             'price' => $price,
             'price_w' => $price_w,
+            'offcut' => (float) ($product->offcut ?? 0),
             'is_custom' => $isCustom,
         ]);
     }

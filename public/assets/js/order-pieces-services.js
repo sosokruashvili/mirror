@@ -229,6 +229,21 @@
             var q = parseInt($(this).find('[data-piece-field="quantity"]').val(), 10) || 1;
             if (!isNaN(w) && !isNaN(h)) { total += (w / 100) * (h / 100) * q; }
         });
+
+        // Add product offcut % (max across selected products) on top of piece area.
+        var offcutPercent = 0;
+        $('[data-repeatable-identifier="products"][data-row-number]').each(function () {
+            var $select = $(this).find('select[name*="[product_id]"]');
+            var $opt = $select.find('option:selected');
+            var pct = parseFloat($opt.attr('data-offcut'));
+            if (!isNaN(pct) && pct > offcutPercent) {
+                offcutPercent = pct;
+            }
+        });
+        if (offcutPercent > 0) {
+            total += total * (offcutPercent / 100);
+        }
+
         $('input[name="expenses"]').val(total > 0 ? total.toFixed(2) : '');
     }
 
@@ -389,6 +404,10 @@
 
         // Respect a manual expenses override
         $(document).on('input', 'input[name="expenses"]', function () { expensesManuallyEdited = true; });
+
+        // Product selection (and its offcut %) changed — recalc expenses
+        $(document).on('order-products-changed', calculateExpenses);
+        $(document).on('change', '[data-repeatable-identifier="products"] select[name*="[product_id]"]', calculateExpenses);
 
         // Stamp the flat pieces[]/services[] names just before the form is submitted.
         $('form').on('submit', prepareForSubmit);

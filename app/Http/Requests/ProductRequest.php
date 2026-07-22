@@ -26,6 +26,7 @@ class ProductRequest extends FormRequest
             'product_type' => 'required|in:glass,film,mirror,butyl,extra',
             'price' => 'required|numeric|min:0',
             'price_w' => 'nullable|numeric|min:0',
+            'offcut' => 'nullable|numeric|min:0|max:100',
         ];
     }
 }

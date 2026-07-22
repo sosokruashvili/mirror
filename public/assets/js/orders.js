@@ -44,7 +44,8 @@ function filterProductsForRow(rowNumber, productType) {
                         var opt = $('<option>')
                             .val(product.id)
                             .text(product.title)
-                            .attr('data-product-type', type);
+                            .attr('data-product-type', type)
+                            .attr('data-offcut', product.offcut != null ? product.offcut : 0);
                         $select.append(opt);
                     });
 
@@ -76,7 +77,8 @@ function filterProductsForRow(rowNumber, productType) {
                     var opt = $('<option>')
                         .val(product.id)
                         .text(product.title)
-                        .attr('data-product-type', type);
+                        .attr('data-product-type', type)
+                        .attr('data-offcut', product.offcut != null ? product.offcut : 0);
                     $select.append(opt);
                     });
 
@@ -139,6 +141,8 @@ function setProductPriceForRow(rowNumber, productId) {
             var price = orderType === 'wholesale' && response.price_w ? response.price_w : response.price;
             var isCustom = response.is_custom || false;
 
+            ensureProductOffcutAttr(rowNumber, productId, response.offcut);
+
             var $priceInput = crud.field('products').subfield('price', rowNumber).$input;
             $priceInput.val(price || '');
 
@@ -199,6 +203,27 @@ crud.field('products').subfield('product_id').onChange(function(field) {
 
     setProductPriceForRow(field.rowNumber, field.value);
 });
+
+/**
+ * Ensure the selected product option carries data-offcut (for expense calc),
+ * even when the option came from the initial select2_from_array list.
+ */
+function ensureProductOffcutAttr(rowNumber, productId, offcut) {
+    try {
+        var $select = crud.field('products').subfield('product_id', rowNumber).$input;
+        var $opt = $select.find('option[value="' + productId + '"]');
+        if ($opt.length) {
+            $opt.attr('data-offcut', offcut != null ? offcut : 0);
+        }
+    } catch (e) {
+        var $row = $('[data-repeatable-identifier="products"][data-row-number="' + rowNumber + '"]');
+        var $opt = $row.find('select[name*="[product_id]"] option[value="' + productId + '"]');
+        if ($opt.length) {
+            $opt.attr('data-offcut', offcut != null ? offcut : 0);
+        }
+    }
+    $(document).trigger('order-products-changed');
+}
 
 $(document).ready(function() {
     // Store initial product type

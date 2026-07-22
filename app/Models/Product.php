@@ -14,11 +14,13 @@ class Product extends Model
         'product_type',
         'price',
         'price_w',
+        'offcut',
     ];
 
     protected $casts = [
         'price' => 'decimal:2',
         'price_w' => 'decimal:2',
+        'offcut' => 'decimal:2',
     ];
 
     /**

@@ -203,20 +203,62 @@ class Order extends Model
 
     public function calculateExpenses(): float
     {
-        if (!$this->relationLoaded('pieces')) {
-            $this->load('pieces');
-        }
-
-        // Draft orders are not yet committed to production, so their pieces don't
-        // consume any warehouse material and must be excluded from the expense.
         if ($this->status === 'draft') {
             return 0.0;
         }
 
         return round(
-            $this->pieces->sum(fn ($piece) => $piece->getExpenseArea()),
+            $this->calculateBaseExpenses() + $this->calculateOffcutArea(),
             2
         );
+    }
+
+    /**
+     * Piece area (m²) consumed before applying product offcut %.
+     * Draft orders contribute nothing.
+     */
+    public function calculateBaseExpenses(): float
+    {
+        if (!$this->relationLoaded('pieces')) {
+            $this->load('pieces');
+        }
+
+        if ($this->status === 'draft') {
+            return 0.0;
+        }
+
+        return (float) $this->pieces->sum(fn ($piece) => $piece->getExpenseArea());
+    }
+
+    /**
+     * Highest offcut % among products on this order (0 when none).
+     * Multi-product orders (lamix / glass_pkg) share one sheet area, so a
+     * single offcut rate is applied — the max across selected products.
+     */
+    public function getOffcutPercent(): float
+    {
+        if (!$this->relationLoaded('products')) {
+            $this->load('products');
+        }
+
+        if ($this->products->isEmpty()) {
+            return 0.0;
+        }
+
+        return (float) $this->products->max(fn ($product) => (float) ($product->offcut ?? 0));
+    }
+
+    /**
+     * Extra area (m²) from product offcut % applied to base piece area.
+     */
+    public function calculateOffcutArea(): float
+    {
+        $percent = $this->getOffcutPercent();
+        if ($percent <= 0) {
+            return 0.0;
+        }
+
+        return round($this->calculateBaseExpenses() * ($percent / 100), 2);
     }
 
     /**

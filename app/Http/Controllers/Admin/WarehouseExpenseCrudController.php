@@ -48,6 +48,7 @@ class WarehouseExpenseCrudController extends CrudController
     protected function setupListOperation()
     {
         $this->crud->orderBy('created_at', 'desc');
+        $this->crud->with(['client', 'products', 'pieces.brokenGlasses']);
 
         $this->addWarehouseExpenseStatsWidget();
 
@@ -93,6 +94,38 @@ class WarehouseExpenseCrudController extends CrudController
             'type' => 'number',
             'decimals' => 2,
             'suffix' => ' m²',
+        ]);
+
+        CRUD::addColumn([
+            'name' => 'offcut_percent',
+            'label' => 'Offcut (%)',
+            'type' => 'custom_html',
+            'value' => function ($entry) {
+                $percent = $entry->getOffcutPercent();
+                if ($percent <= 0) {
+                    return '<span class="text-muted">-</span>';
+                }
+
+                return htmlspecialchars(number_format($percent, 2) . ' %', ENT_QUOTES, 'UTF-8');
+            },
+            'orderable' => false,
+            'searchLogic' => false,
+        ]);
+
+        CRUD::addColumn([
+            'name' => 'offcut_area',
+            'label' => 'Offcut (m²)',
+            'type' => 'custom_html',
+            'value' => function ($entry) {
+                $area = $entry->calculateOffcutArea();
+                if ($area <= 0) {
+                    return '<span class="text-muted">-</span>';
+                }
+
+                return htmlspecialchars(number_format($area, 2) . ' m²', ENT_QUOTES, 'UTF-8');
+            },
+            'orderable' => false,
+            'searchLogic' => false,
         ]);
 
         CRUD::addColumn([

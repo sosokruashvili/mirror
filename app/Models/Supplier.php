@@ -15,6 +15,9 @@ class Supplier extends Model
         'name',
         'description',
         'email',
+        'address',
+        'phone',
+        'legal_id',
     ];
 
     public function cashierExpenses(): HasMany

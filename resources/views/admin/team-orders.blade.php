@@ -894,16 +894,23 @@
                                         return $piece->width && $piece->height;
                                     });
 
-                                    // On the team page, the displayed size includes the cutting
-                                    // allowance. The Cutting Size setting is in mm; piece sizes are
-                                    // in cm, so convert (mm / 10) and add it to each dimension.
-                                    $cuttingCm = ((float) setting('cutting_size', 0)) / 10;
-
                                     $sizeGroups = [];
                                     foreach($piecesWithSizes as $piece) {
                                         // Highest completed stage (from the piece_stage pivot) drives
                                         // the tag colour, exactly as the old cache column did.
                                         $pieceStage = $piece->currentStageName();
+
+                                        // Services applied to this piece.
+                                        $pieceServices = $order->services->filter(function($service) use ($piece) {
+                                            return $service->pivot->piece_id == $piece->id;
+                                        })->sortBy('id');
+
+                                        // On the team page, the displayed size includes the cutting
+                                        // loss. Each service defines its own cutting loss (mm); a
+                                        // piece takes the largest among its services. Piece sizes are
+                                        // in cm, so convert (mm / 10) and add it to each dimension.
+                                        $cuttingCm = ((float) $pieceServices->max('cutloss')) / 10;
+
                                         $displayWidth = number_format($piece->width + $cuttingCm, 1);
                                         $displayHeight = number_format($piece->height + $cuttingCm, 1);
                                         $key = $displayWidth . 'x' . $displayHeight;
@@ -933,12 +940,7 @@
                                         $sizeGroups[$key]['quantity'] += $piece->quantity ?? 1;
                                         $sizeGroups[$key]['piece_ids'][] = $piece->id;
                                         $sizeGroups[$key]['broken_count'] += $piece->getBrokenCount();
-                                        
-                                        // Get services associated with this piece
-                                        $pieceServices = $order->services->filter(function($service) use ($piece) {
-                                            return $service->pivot->piece_id == $piece->id;
-                                        })->sortBy('id');
-                                        
+
                                         // Collect unique service shortnames + the stages those
                                         // services belong to (the piece's selectable stages).
                                         foreach($pieceServices as $service) {

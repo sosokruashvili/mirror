@@ -61,6 +61,25 @@ class SupplierCrudController extends CrudController
         ]);
 
         CRUD::addColumn([
+            'name' => 'phone',
+            'label' => 'Phone',
+            'type' => 'phone',
+        ]);
+
+        CRUD::addColumn([
+            'name' => 'address',
+            'label' => 'Address',
+            'type' => 'text',
+            'limit' => 60,
+        ]);
+
+        CRUD::addColumn([
+            'name' => 'legal_id',
+            'label' => 'Legal ID',
+            'type' => 'text',
+        ]);
+
+        CRUD::addColumn([
             'name' => 'expenseCategories',
             'label' => 'Expense categories',
             'type' => 'select_multiple',
@@ -91,6 +110,24 @@ class SupplierCrudController extends CrudController
             'name' => 'email',
             'label' => 'Email',
             'type' => 'email',
+        ]);
+
+        CRUD::addField([
+            'name' => 'address',
+            'label' => 'Address',
+            'type' => 'textarea',
+        ]);
+
+        CRUD::addField([
+            'name' => 'phone',
+            'label' => 'Phone',
+            'type' => 'phone',
+        ]);
+
+        CRUD::addField([
+            'name' => 'legal_id',
+            'label' => 'Legal ID',
+            'type' => 'text',
         ]);
 
         CRUD::addField([

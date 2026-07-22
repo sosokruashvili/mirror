@@ -106,6 +106,14 @@ class ServiceCrudController extends CrudController
         ]);
 
         CRUD::addColumn([
+            'name' => 'cutloss',
+            'label' => 'Cutting Loss (mm)',
+            'type' => 'number',
+            'decimals' => 0,
+            'suffix' => ' mm',
+        ]);
+
+        CRUD::addColumn([
             'name'  => 'extra_field_names',
             'label' => 'Extra Field Names',
             'type'  => 'custom_html',
@@ -234,6 +242,18 @@ class ServiceCrudController extends CrudController
                 'min' => '0',
             ],
             'prefix' => '₾',
+        ]);
+
+        CRUD::addField([
+            'name' => 'cutloss',
+            'label' => 'Cutting Loss (mm)',
+            'type' => 'number',
+            'attributes' => [
+                'step' => '1',
+                'min' => '0',
+            ],
+            'default' => 0,
+            'hint' => 'Extra size (whole mm) added to a piece\'s width and height on the team orders page when this service is applied.',
         ]);
 
         // select2_from_array with value support for updateOperation
@@ -375,6 +395,14 @@ class ServiceCrudController extends CrudController
             'type' => 'number',
             'decimals' => 2,
             'prefix' => '₾',
+        ]);
+
+        CRUD::addColumn([
+            'name' => 'cutloss',
+            'label' => 'Cutting Loss (mm)',
+            'type' => 'number',
+            'decimals' => 0,
+            'suffix' => ' mm',
         ]);
 
         CRUD::addColumn([

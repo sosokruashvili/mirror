@@ -28,6 +28,7 @@ class ServiceRequest extends FormRequest
             'unit' => 'required|string|max:100',
             'price' => 'nullable|numeric|min:0',
             'price_gel' => 'nullable|numeric|min:0',
+            'cutloss' => 'nullable|integer|min:0',
         ];
     }
 }

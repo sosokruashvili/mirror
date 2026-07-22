@@ -24,12 +24,14 @@ class Service extends Model
         'unit',
         'price',
         'price_gel',
+        'cutloss',
         'extra_field_names',
     ];
 
     protected $casts = [
         'price' => 'decimal:2',
         'price_gel' => 'decimal:2',
+        'cutloss' => 'integer',
         'extra_field_names' => 'array',
     ];
 

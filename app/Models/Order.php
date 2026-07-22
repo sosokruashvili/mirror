@@ -32,12 +32,14 @@ class Order extends Model
         'atachment',
         'comment',
         'expenses',
+        'confirm_date',
     ];
     // protected $hidden = [];
-    
+
     protected $casts = [
         'paid' => 'boolean',
         'expenses' => 'decimal:2',
+        'confirm_date' => 'datetime',
     ];
 
     /**

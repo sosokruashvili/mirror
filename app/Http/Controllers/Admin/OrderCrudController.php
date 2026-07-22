@@ -161,6 +161,12 @@ class OrderCrudController extends CrudController
             'type' => 'datetime',
         ]);
 
+        CRUD::addColumn([
+            'name' => 'confirm_date',
+            'label' => 'Confirm Date',
+            'type' => 'datetime',
+        ]);
+
         // Add bulk delete button
         $this->crud->addButton('top', 'bulk_delete', 'view', 'crud::buttons.bulk_delete', 'end');
         
@@ -1376,7 +1382,10 @@ class OrderCrudController extends CrudController
             ], 400);
         }
         
-        $order->update(['status' => 'new']);
+        $order->update([
+            'status' => 'new',
+            'confirm_date' => now(),
+        ]);
         
         return response()->json([
             'success' => true,

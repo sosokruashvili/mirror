@@ -248,7 +248,27 @@ class PaymentCrudController extends CrudController
         $data = $this->crud->getStrippedSaveRequest($request);
         $data['author'] = backpack_user()->id;
 
-        $item = $this->crud->create($data);
+        $idempotencyKey = $data['idempotency_key'] ?? null;
+
+        // Idempotency guard against duplicate submissions of the same create form
+        // (double-click, browser/proxy retry, or a re-POST after a session timeout).
+        // The form carries a token unique to each render, so a duplicate submission
+        // reuses the original payment instead of inserting a second row. The unique
+        // index makes this atomic even if two requests race past the pre-check.
+        if ($idempotencyKey && $existing = Payment::where('idempotency_key', $idempotencyKey)->first()) {
+            $item = $existing;
+        } else {
+            try {
+                $item = $this->crud->create($data);
+            } catch (\Illuminate\Database\QueryException $e) {
+                if ($idempotencyKey && $existing = Payment::where('idempotency_key', $idempotencyKey)->first()) {
+                    $item = $existing;
+                } else {
+                    throw $e;
+                }
+            }
+        }
+
         $this->data['entry'] = $this->crud->entry = $item;
 
         \Alert::success(trans('backpack::crud.insert_success'))->flash();
@@ -272,6 +292,18 @@ class PaymentCrudController extends CrudController
         // Show/populate Order when type = შეკვეთა, and auto-fill Amount from order price.
         // Filename is versioned so browsers pick up fixes (Basset cache-busts via composer.lock only).
         Widget::add()->type('script')->content('assets/js/payment-create-order.js');
+
+        // Idempotency token, unique per form render, that makes the create form
+        // safe against duplicate submissions (double-click, browser/proxy retry,
+        // or a re-POST after a session timeout). Only on create — updates must not
+        // touch the stored key. See store() for how the duplicate is caught.
+        if ($this->crud->getOperation() === 'create') {
+            CRUD::addField([
+                'name' => 'idempotency_key',
+                'type' => 'hidden',
+                'value' => (string) \Illuminate\Support\Str::uuid(),
+            ]);
+        }
 
         CRUD::addField([
             'name' => 'client_id',
@@ -714,43 +746,36 @@ class PaymentCrudController extends CrudController
             'status' => 'required|in:Paid,Pending',
             'payment_date' => 'required|date',
             'file' => 'nullable|file|max:10240',
+            'idempotency_key' => 'nullable|string|max:64',
         ]);
 
         // Empty strings are converted to null by Laravel; guard just in case.
         $validated['order_id'] = $validated['order_id'] ?? null;
 
-        try {
-            // Safety net against duplicate submissions (rapid double-click, an Enter
-            // keypress that slips past the button lock, or a proxy retry). If an
-            // identical payment was created moments ago, return it instead of
-            // inserting a second row. The short window still allows a genuine second
-            // identical payment to be entered a few seconds apart.
-            $recentDuplicate = Payment::where('client_id', $validated['client_id'])
-                ->where('order_id', $validated['order_id'])
-                ->where('amount_gel', $validated['amount_gel'])
-                ->where('currency_rate', $validated['currency_rate'])
-                ->where('method', $validated['method'])
-                ->where('type', $validated['type'])
-                ->where('status', $validated['status'])
-                ->where('payment_date', \Carbon\Carbon::parse($validated['payment_date']))
-                ->where('created_at', '>=', now()->subSeconds(10))
-                ->first();
+        $idempotencyKey = $validated['idempotency_key'] ?? null;
 
-            if ($recentDuplicate) {
+        // Idempotency guard: the form generates a unique token per open, so a
+        // duplicate submission (double-click, an Enter keypress that slips past the
+        // button lock, a proxy retry, or a re-POST after a session timeout) carries
+        // the same token. Return the original payment instead of creating a second.
+        if ($idempotencyKey) {
+            $existing = Payment::where('idempotency_key', $idempotencyKey)->first();
+            if ($existing) {
                 return response()->json([
                     'success' => true,
-                    'payment' => [
-                        'id' => $recentDuplicate->id,
-                    ],
+                    'payment' => ['id' => $existing->id],
                     'duplicate' => true,
                 ]);
             }
+        }
 
+        try {
             if ($request->hasFile('file')) {
                 $validated['file'] = $request->file('file')->store('payments', 'public');
             }
 
             $validated['author'] = backpack_user()->id;
+            $validated['idempotency_key'] = $idempotencyKey;
 
             $payment = Payment::create($validated);
 
@@ -760,6 +785,21 @@ class PaymentCrudController extends CrudController
                     'id' => $payment->id,
                 ]
             ]);
+        } catch (\Illuminate\Database\QueryException $e) {
+            // A concurrent duplicate won the race to insert the same token first;
+            // the unique index rejected this one. Return the original payment.
+            if ($idempotencyKey && ($existing = Payment::where('idempotency_key', $idempotencyKey)->first())) {
+                return response()->json([
+                    'success' => true,
+                    'payment' => ['id' => $existing->id],
+                    'duplicate' => true,
+                ]);
+            }
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to create payment: ' . $e->getMessage()
+            ], 422);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,

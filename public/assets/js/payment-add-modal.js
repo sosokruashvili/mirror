@@ -76,8 +76,23 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
+    // Generate a token unique to this modal open. Sent with the create request so
+    // the server can reject a duplicate submission (double-click, retry, session
+    // re-POST) at the database level instead of inserting a second payment.
+    function generateIdempotencyKey() {
+        const field = form.querySelector('input[name="idempotency_key"]');
+        if (!field) return;
+        if (window.crypto && typeof window.crypto.randomUUID === 'function') {
+            field.value = window.crypto.randomUUID();
+        } else {
+            field.value = 'p-' + Date.now() + '-' + Math.random().toString(36).slice(2) +
+                Math.random().toString(36).slice(2);
+        }
+    }
+
     // Pre-fill from order form and set defaults when opening
     function initFormForOpen() {
+        generateIdempotencyKey();
         const orderClientSelect = document.querySelector('form[action*="order"] select[name="client_id"]');
         if (orderClientSelect && orderClientSelect.value && clientSelect) {
             const opt = clientSelect.querySelector('option[value="' + orderClientSelect.value + '"]');

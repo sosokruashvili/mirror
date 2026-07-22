@@ -27,7 +27,8 @@ class Payment extends Model
         'type',
         'status',
         'file',
-        'payment_date'
+        'payment_date',
+        'idempotency_key'
     ];
     
     protected $casts = [

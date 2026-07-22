@@ -156,12 +156,6 @@ class OrderCrudController extends CrudController
         ]);
 
         CRUD::addColumn([
-            'name' => 'created_at',
-            'label' => 'Created At',
-            'type' => 'datetime',
-        ]);
-
-        CRUD::addColumn([
             'name' => 'confirm_date',
             'label' => 'Confirm Date',
             'type' => 'datetime',

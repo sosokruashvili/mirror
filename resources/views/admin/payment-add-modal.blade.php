@@ -14,6 +14,9 @@
                 {{-- Set on the edit page (order already exists). On the create page it stays empty
                      and the payment is linked to the order right after it is saved. --}}
                 <input type="hidden" name="order_id" id="paymentAddOrderId" value="{{ isset($entry) && $entry ? $entry->getKey() : '' }}">
+                {{-- Regenerated in JS each time the modal opens; makes creation idempotent
+                     so a double-submit cannot create two payments. --}}
+                <input type="hidden" name="idempotency_key" id="paymentAddIdempotencyKey" value="">
                 <div class="modal-body">
                     <div class="row">
                         <div class="col-md-6 mb-3">

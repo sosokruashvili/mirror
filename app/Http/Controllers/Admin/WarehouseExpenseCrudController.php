@@ -163,10 +163,11 @@ class WarehouseExpenseCrudController extends CrudController
         function ($value) {
             $dates = json_decode($value, true);
             if (!empty($dates['from'])) {
-                CRUD::addClause('where', 'created_at', '>=', $dates['from'] . ' 00:00:00');
+                // Filter may already include a time; normalize to start of day
+                CRUD::addClause('where', 'created_at', '>=', date('Y-m-d', strtotime($dates['from'])) . ' 00:00:00');
             }
             if (!empty($dates['to'])) {
-                CRUD::addClause('where', 'created_at', '<=', $dates['to'] . ' 23:59:59');
+                CRUD::addClause('where', 'created_at', '<=', date('Y-m-d', strtotime($dates['to'])) . ' 23:59:59');
             }
         });
     }
@@ -197,10 +198,11 @@ class WarehouseExpenseCrudController extends CrudController
             $dates = json_decode(request()->get('created_at'), true);
             if (is_array($dates)) {
                 if (!empty($dates['from'])) {
-                    $query->where('created_at', '>=', $dates['from'] . ' 00:00:00');
+                    // Filter may already include a time; normalize to start of day
+                    $query->where('created_at', '>=', date('Y-m-d', strtotime($dates['from'])) . ' 00:00:00');
                 }
                 if (!empty($dates['to'])) {
-                    $query->where('created_at', '<=', $dates['to'] . ' 23:59:59');
+                    $query->where('created_at', '<=', date('Y-m-d', strtotime($dates['to'])) . ' 23:59:59');
                 }
             }
         }

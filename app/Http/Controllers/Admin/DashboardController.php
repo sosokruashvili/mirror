@@ -109,7 +109,7 @@ class DashboardController
         return match ($period) {
             'months' => ['keyFormat' => 'Y-m', 'labelFormat' => 'M Y', 'step' => 'month'],
             'years' => ['keyFormat' => 'Y', 'labelFormat' => 'Y', 'step' => 'year'],
-            default => ['keyFormat' => 'Y-m-d', 'labelFormat' => 'd M', 'step' => 'day'],
+            default => ['keyFormat' => 'Y-m-d', 'labelFormat' => 'D d M', 'step' => 'day'],
         };
     }
 
@@ -232,6 +232,112 @@ class DashboardController
             return null;
         }
     }
+
+    /**
+     * Top 10 order authors by order count for the selected preset range.
+     *
+     * Returns each author's order count and total order value (second series).
+     * Draft orders are excluded; values use calculateTotalPriceExcludingDraftPieces().
+     *
+     * Range presets via `range` query param: this_week | this_month | last_month | last_year.
+     */
+    public function getTopUsersChart(Request $request): JsonResponse
+    {
+        $range = $this->resolveTopUsersRangeKey($request);
+        [$from, $to] = $this->resolveTopUsersRange($range);
+
+        $orders = Order::query()
+            ->where('status', '!=', 'draft')
+            ->whereNotNull('author')
+            ->whereBetween('created_at', [$from, $to->copy()->endOfDay()])
+            ->with(['pieces', 'products', 'services', 'authorUser'])
+            ->get();
+
+        $byUser = [];
+        foreach ($orders as $order) {
+            $userId = (int) $order->author;
+            if (! isset($byUser[$userId])) {
+                $byUser[$userId] = [
+                    'name' => $order->authorUser?->name ?? ('User #'.$userId),
+                    'count' => 0,
+                    'value' => 0.0,
+                ];
+            }
+
+            $byUser[$userId]['count']++;
+            $byUser[$userId]['value'] += $order->calculateTotalPriceExcludingDraftPieces();
+        }
+
+        uasort($byUser, function (array $a, array $b): int {
+            return $b['count'] <=> $a['count'] ?: $b['value'] <=> $a['value'];
+        });
+
+        $top = array_slice($byUser, 0, 10, true);
+
+        $labels = [];
+        $counts = [];
+        $values = [];
+        foreach ($top as $row) {
+            $labels[] = $row['name'];
+            $counts[] = $row['count'];
+            $values[] = round($row['value'], 2);
+        }
+
+        return response()->json([
+            'range' => $range,
+            'from' => $from->toDateString(),
+            'to' => $to->toDateString(),
+            'labels' => $labels,
+            'counts' => $counts,
+            'values' => $values,
+            'totalOrders' => array_sum($counts),
+            'totalValue' => round(array_sum($values), 2),
+        ]);
+    }
+
+    /**
+     * Validate the top-users `range` query param.
+     */
+    private function resolveTopUsersRangeKey(Request $request): string
+    {
+        $range = $request->query('range', 'this_month');
+
+        return in_array($range, ['this_week', 'this_month', 'last_month', 'last_year'], true)
+            ? $range
+            : 'this_month';
+    }
+
+    /**
+     * Resolve [from, to] for a top-users preset range.
+     *
+     * Weeks start on Monday. "Last year" is the previous calendar year.
+     *
+     * @return array{0: Carbon, 1: Carbon}
+     */
+    private function resolveTopUsersRange(string $range): array
+    {
+        $now = now();
+
+        return match ($range) {
+            'this_week' => [
+                $now->copy()->startOfWeek(Carbon::MONDAY),
+                $now->copy()->endOfDay(),
+            ],
+            'last_month' => [
+                $now->copy()->subMonthNoOverflow()->startOfMonth(),
+                $now->copy()->subMonthNoOverflow()->endOfMonth(),
+            ],
+            'last_year' => [
+                $now->copy()->subYear()->startOfYear(),
+                $now->copy()->subYear()->endOfYear(),
+            ],
+            default => [
+                $now->copy()->startOfMonth(),
+                $now->copy()->endOfDay(),
+            ],
+        };
+    }
+
     /**
      * Orders area chart data grouped by day, month, or year.
      * Excludes draft orders and draft pieces from all totals.

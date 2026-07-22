@@ -44,7 +44,7 @@
                     <div class="h3 mb-0 text-danger" id="daily-stats-total-credit">—</div>
                 </div>
             </div>
-            <div style="position: relative; height: 340px;">
+            <div style="position: relative; height: 400px;">
                 <canvas id="daily-stats-chart"></canvas>
             </div>
         </div>
@@ -90,6 +90,8 @@
         if (chartInstance) {
             chartInstance.destroy();
         }
+
+        var isDaily = (data.period || 'days') === 'days';
 
         chartInstance = new Chart(canvas, {
             type: 'bar',
@@ -138,6 +140,17 @@
                     },
                     tooltip: {
                         callbacks: {
+                            // Total income (paid + credit) sits under the date, above the series rows.
+                            beforeBody: function (tooltipItems) {
+                                if (!tooltipItems.length) {
+                                    return '';
+                                }
+                                var chart = tooltipItems[0].chart;
+                                var i = tooltipItems[0].dataIndex;
+                                var paid = Number(chart.data.datasets[0].data[i] || 0);
+                                var credit = Number(chart.data.datasets[1].data[i] || 0);
+                                return 'Income: ' + formatMoney(paid + credit);
+                            },
                             label: function (context) {
                                 var value = context.parsed.y || 0;
                                 if (context.dataset.yAxisID === 'yCount') {
@@ -151,12 +164,20 @@
                 scales: {
                     x: {
                         grid: { display: false },
-                        ticks: {
-                            maxRotation: 45,
-                            minRotation: 0,
-                            autoSkip: true,
-                            maxTicksLimit: 15
-                        }
+                        ticks: isDaily
+                            ? {
+                                // Show every day; rotate labels vertically so they fit.
+                                autoSkip: false,
+                                maxRotation: 90,
+                                minRotation: 90,
+                                font: { size: 10 }
+                            }
+                            : {
+                                maxRotation: 45,
+                                minRotation: 0,
+                                autoSkip: true,
+                                maxTicksLimit: 15
+                            }
                     },
                     yMoney: {
                         position: 'left',

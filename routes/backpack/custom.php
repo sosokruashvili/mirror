@@ -19,6 +19,7 @@ Route::group([
     Route::get('dashboard/orders-area-chart', 'DashboardController@getOrdersAreaChart')->name('dashboard.ordersAreaChart');
     Route::get('dashboard/daily-stats-chart', 'DashboardController@getDailyStatsChart')->name('dashboard.dailyStatsChart');
     Route::get('dashboard/product-type-stats-chart', 'DashboardController@getProductTypeStatsChart')->name('dashboard.productTypeStatsChart');
+    Route::get('dashboard/top-users-chart', 'DashboardController@getTopUsersChart')->name('dashboard.topUsersChart');
     Route::crud('order', 'OrderCrudController');
     Route::post('order/bulk-delete', 'OrderCrudController@bulkDelete')->name('order.bulkDelete');
     Route::post('order/calculate-service-price', 'OrderCrudController@calculate_order_service_price')->name('order.calculateServicePrice');

@@ -74,9 +74,10 @@
         @include('vendor.backpack.ui.widgets.orders_area_chart')
     </div>
 
-    {{-- Orders by Product Type Pie Chart Widget --}}
+    {{-- Product Type Pie & Top Users Chart Widgets --}}
     <div class="row mt-4">
         @include('vendor.backpack.ui.widgets.product_type_pie_chart')
+        @include('vendor.backpack.ui.widgets.top_users_chart')
     </div>
 
     {{-- Second Row --}}

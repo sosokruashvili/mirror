@@ -296,6 +296,109 @@ class DashboardController
     }
 
     /**
+     * Per-user production stage-completion stats for the User Stats page.
+     *
+     * Ranks users by how many piece stages they marked complete in the range,
+     * broken down per stage (a stacked bar). Data comes from the piece_stage
+     * pivot's `user_id` / `completed_at` — the authoritative record of who
+     * finished what.
+     *
+     * Excluded so the numbers reflect real per-worker effort:
+     *  - rows with no `user_id` (historical backfill, no known actor);
+     *  - pieces of draft orders (not in production);
+     *  - the auto-closed final 'completion' stage — no worker is responsible for
+     *    it (it auto-completes once the real stages are done), so counting it
+     *    would double-credit whoever finished the last gating stage.
+     *
+     * Reuses the same range presets as the top-users chart.
+     */
+    public function getStageCompletionsChart(Request $request): JsonResponse
+    {
+        $range = $this->resolveTopUsersRangeKey($request);
+        [$from, $to] = $this->resolveTopUsersRange($range);
+
+        $rows = DB::table('piece_stage as ps')
+            ->join('stages as s', 's.id', '=', 'ps.stage_id')
+            ->join('pieces as p', 'p.id', '=', 'ps.piece_id')
+            ->join('orders as o', 'o.id', '=', 'p.order_id')
+            ->join('users as u', 'u.id', '=', 'ps.user_id')
+            ->whereNotNull('ps.user_id')
+            ->where('o.status', '!=', 'draft')
+            ->where('s.name', '!=', 'completion')
+            ->whereBetween('ps.completed_at', [$from, $to->copy()->endOfDay()])
+            ->groupBy('ps.user_id', 'u.name', 's.id', 's.title', 's.color', 's.position')
+            ->select(
+                'ps.user_id',
+                'u.name as user_name',
+                's.id as stage_id',
+                's.title as stage_title',
+                's.color as stage_color',
+                's.position as stage_position',
+                DB::raw('COUNT(*) as completions')
+            )
+            ->get();
+
+        // Pivot the flat rows into per-user totals and per-stage breakdowns.
+        $stages = [];   // stage_id => ['title','color','position']
+        $byUser = [];   // user_id  => ['name','total','counts'=>[stage_id=>n]]
+
+        foreach ($rows as $row) {
+            $stages[$row->stage_id] ??= [
+                'title' => $row->stage_title,
+                'color' => $row->stage_color,
+                'position' => (int) $row->stage_position,
+            ];
+
+            if (! isset($byUser[$row->user_id])) {
+                $byUser[$row->user_id] = [
+                    'name' => $row->user_name ?? ('User #'.$row->user_id),
+                    'total' => 0,
+                    'counts' => [],
+                ];
+            }
+
+            $count = (int) $row->completions;
+            $byUser[$row->user_id]['counts'][$row->stage_id] = $count;
+            $byUser[$row->user_id]['total'] += $count;
+        }
+
+        // Stages ordered by production position so the stacked segments read
+        // left-to-right in the real flow.
+        uasort($stages, fn (array $a, array $b): int => $a['position'] <=> $b['position']);
+
+        // Top 10 users by total completions.
+        uasort($byUser, fn (array $a, array $b): int => $b['total'] <=> $a['total']);
+        $top = array_slice($byUser, 0, 10, true);
+
+        $labels = array_map(fn (array $u): string => $u['name'], array_values($top));
+
+        // One dataset per stage (a stacked-bar series), in production order.
+        $datasets = [];
+        foreach ($stages as $stageId => $stage) {
+            $data = [];
+            foreach ($top as $user) {
+                $data[] = $user['counts'][$stageId] ?? 0;
+            }
+
+            $datasets[] = [
+                'label' => $stage['title'],
+                'color' => $stage['color'],
+                'data' => $data,
+            ];
+        }
+
+        return response()->json([
+            'range' => $range,
+            'from' => $from->toDateString(),
+            'to' => $to->toDateString(),
+            'labels' => $labels,
+            'datasets' => $datasets,
+            'totalCompletions' => array_sum(array_map(fn (array $u): int => $u['total'], $top)),
+            'userCount' => count($byUser),
+        ]);
+    }
+
+    /**
      * Validate the top-users `range` query param.
      */
     private function resolveTopUsersRangeKey(Request $request): string

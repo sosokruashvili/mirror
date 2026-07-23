@@ -17,5 +17,6 @@
 @section('content')
     <div class="row">
         @include('vendor.backpack.ui.widgets.top_users_chart')
+        @include('vendor.backpack.ui.widgets.user_stage_completions_chart')
     </div>
 @endsection

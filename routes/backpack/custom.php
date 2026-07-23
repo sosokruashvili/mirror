@@ -23,6 +23,7 @@ Route::group([
     // User Stats dashboard (access-controlled: user-stats.view)
     Route::get('user-stats', 'UserStatsController@index')->name('user-stats.index')->middleware('backpack.can:user-stats.view');
     Route::get('user-stats/top-users-chart', 'DashboardController@getTopUsersChart')->name('user-stats.topUsersChart')->middleware('backpack.can:user-stats.view');
+    Route::get('user-stats/stage-completions-chart', 'DashboardController@getStageCompletionsChart')->name('user-stats.stageCompletionsChart')->middleware('backpack.can:user-stats.view');
     Route::crud('order', 'OrderCrudController');
     Route::post('order/bulk-delete', 'OrderCrudController@bulkDelete')->name('order.bulkDelete');
     Route::post('order/calculate-service-price', 'OrderCrudController@calculate_order_service_price')->name('order.calculateServicePrice');

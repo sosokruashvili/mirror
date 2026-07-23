@@ -31,8 +31,17 @@
 @if($u && $u->can('product.list'))
     <x-backpack::menu-item title="Products" icon="la la-box" :link="backpack_url('product')" />
 @endif
-@if($u && $u->can('service.list'))
-    <x-backpack::menu-item title="Services" icon="la la-cogs" :link="backpack_url('service')" />
+@if($u && ($u->can('service.list') || $u->can('service-stats.view')))
+    @if($u->can('service-stats.view'))
+        <x-backpack::menu-dropdown title="Services" icon="la la-cogs">
+            @if($u->can('service.list'))
+                <x-backpack::menu-dropdown-item title="Services" icon="la la-cogs" :link="backpack_url('service')" />
+            @endif
+            <x-backpack::menu-dropdown-item title="Service Stats" icon="la la-chart-pie" :link="backpack_url('service-stats')" />
+        </x-backpack::menu-dropdown>
+    @else
+        <x-backpack::menu-item title="Services" icon="la la-cogs" :link="backpack_url('service')" />
+    @endif
 @endif
 
 @if($u && ($u->can('warehouse.list') || $u->can('warehouse-expense.list') || $u->can('supplier.list')))

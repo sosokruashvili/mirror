@@ -24,6 +24,9 @@ Route::group([
     Route::get('user-stats', 'UserStatsController@index')->name('user-stats.index')->middleware('backpack.can:user-stats.view');
     Route::get('user-stats/top-users-chart', 'DashboardController@getTopUsersChart')->name('user-stats.topUsersChart')->middleware('backpack.can:user-stats.view');
     Route::get('user-stats/stage-completions-chart', 'DashboardController@getStageCompletionsChart')->name('user-stats.stageCompletionsChart')->middleware('backpack.can:user-stats.view');
+
+    // Service Stats page (admin-only via service-stats.view — granted to no role)
+    Route::get('service-stats', 'ServiceStatsController@index')->name('service-stats.index')->middleware('backpack.can:service-stats.view');
     Route::crud('order', 'OrderCrudController');
     Route::post('order/bulk-delete', 'OrderCrudController@bulkDelete')->name('order.bulkDelete');
     Route::post('order/calculate-service-price', 'OrderCrudController@calculate_order_service_price')->name('order.calculateServicePrice');

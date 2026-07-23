@@ -50,6 +50,7 @@ return [
         'settings'         => ['label' => 'Global Settings',  'actions' => ['view', 'update']],
         'team-order'       => ['label' => 'Team Orders',      'actions' => ['view', 'operate']],
         'user-stats'       => ['label' => 'User Stats',       'actions' => ['view']],
+        'service-stats'    => ['label' => 'Service Stats',    'actions' => ['view']],
 
         // ----- Administration pages -----
         'user'             => ['label' => 'Users',            'actions' => ['list', 'create', 'update', 'delete', 'show']],

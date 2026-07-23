@@ -49,6 +49,7 @@ return [
         // ----- Custom (non-CRUD) pages -----
         'settings'         => ['label' => 'Global Settings',  'actions' => ['view', 'update']],
         'team-order'       => ['label' => 'Team Orders',      'actions' => ['view', 'operate']],
+        'user-stats'       => ['label' => 'User Stats',       'actions' => ['view']],
 
         // ----- Administration pages -----
         'user'             => ['label' => 'Users',            'actions' => ['list', 'create', 'update', 'delete', 'show']],

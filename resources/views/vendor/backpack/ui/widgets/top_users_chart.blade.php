@@ -41,7 +41,7 @@
 <script>
 (function () {
     var chartInstance = null;
-    var chartUrl = @json(url(config('backpack.base.route_prefix') . '/dashboard/top-users-chart'));
+    var chartUrl = @json(route('user-stats.topUsersChart'));
     var canvas = document.getElementById('top-users-chart');
     var $card = $(canvas).closest('.card');
     var $buttons = $card.find('[data-range]');

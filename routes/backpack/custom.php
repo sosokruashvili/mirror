@@ -19,7 +19,10 @@ Route::group([
     Route::get('dashboard/orders-area-chart', 'DashboardController@getOrdersAreaChart')->name('dashboard.ordersAreaChart');
     Route::get('dashboard/daily-stats-chart', 'DashboardController@getDailyStatsChart')->name('dashboard.dailyStatsChart');
     Route::get('dashboard/product-type-stats-chart', 'DashboardController@getProductTypeStatsChart')->name('dashboard.productTypeStatsChart');
-    Route::get('dashboard/top-users-chart', 'DashboardController@getTopUsersChart')->name('dashboard.topUsersChart');
+
+    // User Stats dashboard (access-controlled: user-stats.view)
+    Route::get('user-stats', 'UserStatsController@index')->name('user-stats.index')->middleware('backpack.can:user-stats.view');
+    Route::get('user-stats/top-users-chart', 'DashboardController@getTopUsersChart')->name('user-stats.topUsersChart')->middleware('backpack.can:user-stats.view');
     Route::crud('order', 'OrderCrudController');
     Route::post('order/bulk-delete', 'OrderCrudController@bulkDelete')->name('order.bulkDelete');
     Route::post('order/calculate-service-price', 'OrderCrudController@calculate_order_service_price')->name('order.calculateServicePrice');

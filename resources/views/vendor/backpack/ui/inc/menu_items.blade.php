@@ -8,7 +8,14 @@
 --}}
 @php($u = backpack_user())
 
-<li class="nav-item"><a class="nav-link" href="{{ backpack_url('dashboard') }}"><i class="la la-home nav-icon"></i> {{ trans('backpack::base.dashboard') }}</a></li>
+@if($u && $u->can('user-stats.view'))
+    <x-backpack::menu-dropdown title="{{ trans('backpack::base.dashboard') }}" icon="la la-home">
+        <x-backpack::menu-dropdown-item title="{{ trans('backpack::base.dashboard') }}" icon="la la-home" :link="backpack_url('dashboard')" />
+        <x-backpack::menu-dropdown-item title="User Stats" icon="la la-chart-bar" :link="backpack_url('user-stats')" />
+    </x-backpack::menu-dropdown>
+@else
+    <li class="nav-item"><a class="nav-link" href="{{ backpack_url('dashboard') }}"><i class="la la-home nav-icon"></i> {{ trans('backpack::base.dashboard') }}</a></li>
+@endif
 
 @if($u && $u->can('team-order.view'))
     <x-backpack::menu-item title="Team Orders" icon="la la-hammer" :link="backpack_url('team/orders')" />

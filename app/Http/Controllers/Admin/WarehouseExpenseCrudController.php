@@ -89,11 +89,18 @@ class WarehouseExpenseCrudController extends CrudController
         ]);
 
         CRUD::addColumn([
-            'name' => 'expenses',
-            'label' => 'Expenses (m²)',
-            'type' => 'number',
-            'decimals' => 2,
-            'suffix' => ' m²',
+            'name' => 'base_expense',
+            'label' => 'Base Expense (m²)',
+            'type' => 'custom_html',
+            'value' => function ($entry) {
+                // Stored `expenses` already includes offcut, so subtract the
+                // offcut portion back out to show the original base expense.
+                $base = (float) $entry->expenses - $entry->calculateOffcutArea();
+
+                return htmlspecialchars(number_format($base, 2) . ' m²', ENT_QUOTES, 'UTF-8');
+            },
+            'orderable' => false,
+            'searchLogic' => false,
         ]);
 
         CRUD::addColumn([
@@ -126,6 +133,15 @@ class WarehouseExpenseCrudController extends CrudController
             },
             'orderable' => false,
             'searchLogic' => false,
+        ]);
+
+        // Total expense (base + offcut) — this is the stored `expenses` value.
+        CRUD::addColumn([
+            'name' => 'expenses',
+            'label' => 'Expense SUM (m²)',
+            'type' => 'number',
+            'decimals' => 2,
+            'suffix' => ' m²',
         ]);
 
         CRUD::addColumn([

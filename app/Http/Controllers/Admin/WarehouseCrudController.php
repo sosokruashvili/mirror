@@ -3,13 +3,13 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Requests\WarehouseRequest;
-use App\Models\Order;
 use App\Models\Product;
-use App\Models\Warehouse;
+use App\Services\WarehouseSnapshotService;
+use App\Support\SimpleXlsxWriter;
 use Backpack\CRUD\app\Http\Controllers\CrudController;
 use Backpack\CRUD\app\Library\CrudPanel\CrudPanelFacade as CRUD;
 use Backpack\CRUD\app\Library\Widget;
-use Illuminate\Support\Facades\DB;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 /**
  * Class WarehouseCrudController
@@ -170,57 +170,48 @@ class WarehouseCrudController extends CrudController
     }
 
     /**
-     * Build the per-product remaining stock summary.
+     * Resolve which daily snapshot to display and its rows.
      *
-     * For each product, remaining area (m²) = total warehouse area
-     * minus the total expenses (m²) of every order that contains the product.
-     * Quantity of lists is informational only and is not used in the math.
+     * The table is served from the stored daily warehouse snapshot (generated at
+     * 00:00). The date picker (snapshot_date) chooses which day to show, defaulting
+     * to the most recent snapshot. Before the first snapshot ever runs, we fall back
+     * to a live "as of now" calculation so the page is never empty.
      *
-     * Narrowed by this table's own product filter, which uses summary_product_id
-     * so it stays independent of the CRUD list's product_id filter below.
+     * The summary_product_id filter narrows the visible rows and stays independent
+     * of the CRUD list's own product_id filter below.
      *
-     * @return \Illuminate\Support\Collection
+     * @return array{rows: \Illuminate\Support\Collection, selected_date: ?string, available_dates: \Illuminate\Support\Collection, is_live: bool}
      */
-    protected function getRemainingStock()
+    protected function resolveSnapshot(): array
     {
-        // Total warehouse area per product.
-        $warehouseAreas = Warehouse::query()
-            ->select('product_id', DB::raw('SUM(area) as total_area'))
-            ->groupBy('product_id')
-            ->pluck('total_area', 'product_id');
+        $service = app(WarehouseSnapshotService::class);
 
-        // Total expenses per product, counting each order once even if a
-        // product appears multiple times on the same order.
-        $orderExpenses = Order::query()->pluck('expenses', 'id');
+        $availableDates = $service->availableSnapshotDates();
+        $requested = request('snapshot_date');
+        $selectedDate = ($requested && $availableDates->contains($requested))
+            ? $requested
+            : $availableDates->first();
 
-        $expensesByProduct = [];
-        DB::table('order_product')
-            ->select('order_id', 'product_id')
-            ->distinct()
-            ->get()
-            ->each(function ($row) use (&$expensesByProduct, $orderExpenses) {
-                $expensesByProduct[$row->product_id] =
-                    ($expensesByProduct[$row->product_id] ?? 0) + (float) ($orderExpenses[$row->order_id] ?? 0);
-            });
+        if ($selectedDate) {
+            $rows = $service->rowsForDate($selectedDate);
+            $isLive = false;
+        } else {
+            // No snapshot has been generated yet — show a live calculation.
+            $rows = $service->calculateAsOf(now());
+            $isLive = true;
+        }
 
-        return Product::query()
-            ->when(request('summary_product_id'), function ($query, $productId) {
-                $query->where('id', $productId);
-            })
-            ->orderBy('title')
-            ->get()
-            ->map(function (Product $product) use ($warehouseAreas, $expensesByProduct) {
-                $warehouseArea = (float) ($warehouseAreas[$product->id] ?? 0);
-                $expenses = (float) ($expensesByProduct[$product->id] ?? 0);
+        // This table's own product filter (independent of the CRUD list filter).
+        if ($productId = request('summary_product_id')) {
+            $rows = $rows->where('id', (int) $productId)->values();
+        }
 
-                return (object) [
-                    'id' => $product->id,
-                    'title' => $product->title,
-                    'warehouse_area' => $warehouseArea,
-                    'expenses' => $expenses,
-                    'remaining' => $warehouseArea - $expenses,
-                ];
-            });
+        return [
+            'rows' => $rows,
+            'selected_date' => $selectedDate,
+            'available_dates' => $availableDates,
+            'is_live' => $isLive,
+        ];
     }
 
     /**
@@ -230,13 +221,79 @@ class WarehouseCrudController extends CrudController
      */
     protected function addRemainingStockWidget()
     {
+        $snapshot = $this->resolveSnapshot();
+
         Widget::add([
             'type' => 'view',
             'view' => 'vendor.backpack.crud.widgets.warehouse_remaining',
             'wrapper' => ['class' => 'col-12'],
-            'rows' => $this->getRemainingStock(),
+            'rows' => $snapshot['rows'],
             'products' => Product::query()->orderBy('title')->pluck('title', 'id'),
             'selected_product' => request('summary_product_id'),
+            'available_dates' => $snapshot['available_dates'],
+            'selected_date' => $snapshot['selected_date'],
+            'is_live' => $snapshot['is_live'],
         ])->to('before_content');
+    }
+
+    /**
+     * Export the per-product remaining stock summary as an .xlsx file.
+     *
+     * Honours the same snapshot_date and summary_product_id the on-page table is
+     * showing, so the download always matches what the user is currently looking at.
+     *
+     * @return \Symfony\Component\HttpFoundation\StreamedResponse
+     */
+    public function exportRemainingStock(): StreamedResponse
+    {
+        $this->crud->hasAccessOrFail('list');
+
+        $snapshot = $this->resolveSnapshot();
+
+        $headings = ['Product', 'Offcut (%)', 'Offcut (m²)', 'In warehouse (m²)', 'Expenses (m²)', 'Remaining (m²)'];
+
+        $rows = $snapshot['rows']->map(function ($row) {
+            return [
+                $row->title,
+                round($row->offcut, 2),
+                round($row->offcut_area, 3),
+                round($row->warehouse_area, 3),
+                round($row->expenses, 3),
+                round($row->remaining, 3),
+            ];
+        })->all();
+
+        $contents = SimpleXlsxWriter::build($headings, $rows);
+        $filename = 'warehouse-remaining-stock-' . ($snapshot['selected_date'] ?? now()->format('Y-m-d')) . '.xlsx';
+
+        return response()->streamDownload(function () use ($contents) {
+            echo $contents;
+        }, $filename, [
+            'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        ]);
+    }
+
+    /**
+     * Manually (re)generate today's warehouse snapshot on demand, instead of
+     * waiting for the scheduled 00:00 run. Overwrites today's snapshot if it
+     * already exists, then returns to the list showing the fresh values.
+     *
+     * @return \Illuminate\Http\RedirectResponse
+     */
+    public function recalculate(WarehouseSnapshotService $service)
+    {
+        $this->crud->hasAccessOrFail('list');
+
+        $date = now();
+        $count = $service->snapshotDailyStock($date);
+
+        \Alert::success("Recalculated warehouse stock for {$count} product(s) on {$date->format('Y-m-d')}.")->flash();
+
+        $params = ['snapshot_date' => $date->toDateString()];
+        if (request()->filled('summary_product_id')) {
+            $params['summary_product_id'] = request('summary_product_id');
+        }
+
+        return redirect()->route('warehouse.index', $params);
     }
 }

@@ -44,6 +44,8 @@ Route::group([
     Route::get('payment/get-client-balance/{clientId}', 'PaymentCrudController@getClientBalance')->name('payment.getClientBalance');
     Route::get('order/get-orders-by-client/{clientId}', 'OrderCrudController@getOrdersByClient')->name('order.getOrdersByClient');
     Route::get('order/{id}/invoice', 'OrderCrudController@invoice')->name('order.invoice');
+    Route::get('warehouse/remaining-stock/export', 'WarehouseCrudController@exportRemainingStock')->name('warehouse.exportRemainingStock');
+    Route::post('warehouse/recalculate', 'WarehouseCrudController@recalculate')->name('warehouse.recalculate');
     Route::crud('warehouse', 'WarehouseCrudController');
     Route::get('warehouse-expense/get-expense-stats', 'WarehouseExpenseCrudController@getWarehouseExpenseStats')->name('warehouse-expense.getWarehouseExpenseStats');
     Route::crud('warehouse-expense', 'WarehouseExpenseCrudController');

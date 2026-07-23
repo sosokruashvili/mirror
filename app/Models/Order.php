@@ -95,6 +95,31 @@ class Order extends Model
         };
     }
 
+    /**
+     * Whether the given user may edit this order, based on its status.
+     *
+     * Mirrors the delete rule: new orders are already committed to production,
+     * so only administrators may edit them. Draft orders are not yet committed
+     * and may be edited by any user who otherwise holds update access (i.e.
+     * role-based). Orders past the "new" stage can never be edited.
+     *
+     * This encodes only the status/role rule; whether the user holds the
+     * "order.update" capability at all is enforced separately by the CRUD
+     * access checks.
+     */
+    public function canBeEditedBy(?User $user): bool
+    {
+        if (! $user) {
+            return false;
+        }
+
+        return match ($this->status) {
+            'draft' => true,
+            'new' => $user->hasRole('admin'),
+            default => false,
+        };
+    }
+
     /*
     |--------------------------------------------------------------------------
     | RELATIONS

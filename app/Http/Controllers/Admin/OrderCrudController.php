@@ -602,10 +602,12 @@ class OrderCrudController extends CrudController
         
         $entry = $this->crud->getCurrentEntry();
 
-        if ($entry && !in_array($entry->status, ['draft', 'new'], true)) {
+        // Edit is allowed while draft (role-based) or new (administrators only);
+        // any other status is not editable. See Order::canBeEditedBy().
+        if ($entry && !$entry->canBeEditedBy(backpack_user())) {
             $this->crud->denyAccess('update');
         }
-        
+
         // Make product_type readonly on edit page
         $this->crud->modifyField('product_type', [
             'attributes' => [
@@ -691,12 +693,11 @@ class OrderCrudController extends CrudController
         // Invoice button (opens in new tab)
         $this->crud->addButton('line', 'invoice', 'view', 'crud::buttons.invoice', 'end');
         
-        // Conditionally show edit/delete buttons.
-        // Update is available while the order is draft or new; delete is
-        // restricted by status and role (draft: anyone with delete access,
-        // new: administrators only).
+        // Conditionally show edit/delete buttons. Both are restricted by status
+        // and role (draft: anyone with the respective access, new: administrators
+        // only, other statuses: no one). See Order::canBeEditedBy()/canBeDeletedBy().
         $entry = $this->crud->getCurrentEntry();
-        if ($entry && !in_array($entry->status, ['draft', 'new'], true)) {
+        if ($entry && !$entry->canBeEditedBy(backpack_user())) {
             $this->crud->denyAccess('update');
         }
         if ($entry && !$entry->canBeDeletedBy(backpack_user())) {
@@ -1079,8 +1080,10 @@ class OrderCrudController extends CrudController
             $fields = request()->all();
             $order = $this->crud->getCurrentEntry();
 
-            if (!in_array($order->status, ['draft', 'new'], true)) {
-                abort(403, 'Only draft or new orders can be edited.');
+            // Draft orders are editable by anyone with update access; new orders
+            // only by administrators; any other status not at all.
+            if (!$order->canBeEditedBy(backpack_user())) {
+                abort(403, 'You do not have permission to edit this order.');
             }
 
             // Update order basic fields

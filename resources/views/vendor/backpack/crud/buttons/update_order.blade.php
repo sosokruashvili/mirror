@@ -1,4 +1,4 @@
-@if ($crud->hasAccess('update', $entry) && in_array($entry->status, ['draft', 'new'], true))
+@if ($crud->hasAccess('update', $entry) && $entry->canBeEditedBy(backpack_user()))
 	@if (!$crud->model->translationEnabled())
 
 	{{-- Single edit button --}}

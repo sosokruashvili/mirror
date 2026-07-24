@@ -12,6 +12,7 @@ class CashierExpense extends Model
 
     public const TYPE_CASH = 'Cash';
     public const TYPE_TRANSFER = 'Transfer';
+    public const TYPE_PM_TRANSFER = 'PM Transfer';
 
     protected $fillable = [
         'type',
@@ -64,6 +65,7 @@ class CashierExpense extends Model
         return [
             self::TYPE_CASH => 'Cash',
             self::TYPE_TRANSFER => 'Transfer',
+            self::TYPE_PM_TRANSFER => 'PM Transfer',
         ];
     }
 }

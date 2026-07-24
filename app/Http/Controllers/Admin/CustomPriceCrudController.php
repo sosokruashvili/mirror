@@ -86,10 +86,9 @@ class CustomPriceCrudController extends CrudController
 
         CRUD::addColumn([
             'name' => 'actual_price',
-            'label' => 'Original Price',
+            'label' => 'Original Price ($)',
             'type' => 'number',
             'decimals' => 2,
-            'prefix' => '$',
             'value' => function ($entry) {
                 return $entry->product ? $entry->product->price : null;
             },
@@ -97,10 +96,9 @@ class CustomPriceCrudController extends CrudController
 
         CRUD::addColumn([
             'name' => 'price_usd',
-            'label' => 'Custom Price',
+            'label' => 'Custom Price ($)',
             'type' => 'number',
             'decimals' => 2,
-            'prefix' => '$',
         ]);
 
         CRUD::addColumn([

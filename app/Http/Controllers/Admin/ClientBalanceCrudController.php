@@ -113,13 +113,13 @@ class ClientBalanceCrudController extends CrudController
             'searchLogic' => false,
         ]);
 
-        // Starting balance (manually entered opening balance on the client)
+        // Starting balance (manually entered opening balance on the client).
+        // ₾ stays in the column title only so Excel export cells are plain numbers.
         CRUD::addColumn([
             'name' => 'starting_balance',
-            'label' => 'Starting Balance',
+            'label' => 'Starting Balance (₾)',
             'type' => 'number',
             'decimals' => 0,
-            'suffix' => ' ₾',
             'searchLogic' => false,
             'value' => function ($entry) {
                 return $this->resolveRowComponents($entry)['starting_balance'];
@@ -129,10 +129,9 @@ class ClientBalanceCrudController extends CrudController
         // Payments total (from the latest daily snapshot)
         CRUD::addColumn([
             'name' => 'payments_total',
-            'label' => 'Payments Total',
+            'label' => 'Payments Total (₾)',
             'type' => 'number',
             'decimals' => 0,
-            'suffix' => ' ₾',
             'searchLogic' => false,
             'value' => function ($entry) {
                 return $this->resolveRowComponents($entry)['payments_total'];
@@ -142,10 +141,9 @@ class ClientBalanceCrudController extends CrudController
         // Orders total (from the latest daily snapshot)
         CRUD::addColumn([
             'name' => 'orders_total',
-            'label' => 'Orders Total',
+            'label' => 'Orders Total (₾)',
             'type' => 'number',
             'decimals' => 0,
-            'suffix' => ' ₾',
             'searchLogic' => false,
             'value' => function ($entry) {
                 return $this->resolveRowComponents($entry)['orders_total'];
@@ -155,10 +153,9 @@ class ClientBalanceCrudController extends CrudController
         // Balance (from the latest daily snapshot)
         CRUD::addColumn([
             'name' => 'balance',
-            'label' => 'Balance',
+            'label' => 'Balance (₾)',
             'type' => 'number',
             'decimals' => 0,
-            'suffix' => ' ₾',
             'searchLogic' => false,
             'value' => function ($entry) {
                 return $this->resolveRowComponents($entry)['balance'];

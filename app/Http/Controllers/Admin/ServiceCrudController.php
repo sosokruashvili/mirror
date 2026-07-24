@@ -91,18 +91,16 @@ class ServiceCrudController extends CrudController
 
         CRUD::addColumn([
             'name' => 'price',
-            'label' => 'Price (USD)',
+            'label' => 'Price ($)',
             'type' => 'number',
             'decimals' => 2,
-            'prefix' => '$',
         ]);
 
         CRUD::addColumn([
             'name' => 'price_gel',
-            'label' => 'Price (GEL)',
+            'label' => 'Price (₾)',
             'type' => 'number',
             'decimals' => 2,
-            'prefix' => '₾',
         ]);
 
         CRUD::addColumn([
@@ -110,7 +108,6 @@ class ServiceCrudController extends CrudController
             'label' => 'Cutting Loss (mm)',
             'type' => 'number',
             'decimals' => 0,
-            'suffix' => ' mm',
         ]);
 
         CRUD::addColumn([
@@ -383,18 +380,16 @@ class ServiceCrudController extends CrudController
 
         CRUD::addColumn([
             'name' => 'price',
-            'label' => 'Price (USD)',
+            'label' => 'Price ($)',
             'type' => 'number',
             'decimals' => 2,
-            'prefix' => '$',
         ]);
 
         CRUD::addColumn([
             'name' => 'price_gel',
-            'label' => 'Price (GEL)',
+            'label' => 'Price (₾)',
             'type' => 'number',
             'decimals' => 2,
-            'prefix' => '₾',
         ]);
 
         CRUD::addColumn([
@@ -402,7 +397,6 @@ class ServiceCrudController extends CrudController
             'label' => 'Cutting Loss (mm)',
             'type' => 'number',
             'decimals' => 0,
-            'suffix' => ' mm',
         ]);
 
         CRUD::addColumn([

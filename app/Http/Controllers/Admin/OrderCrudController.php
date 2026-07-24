@@ -141,17 +141,17 @@ class OrderCrudController extends CrudController
         
         CRUD::addColumn([
             'name' => 'price_gel',
-            'label' => 'Price (GEL)',
+            'label' => 'Price (₾)',
             'type' => 'number',
             'decimals' => 0
         ]);
 
         CRUD::addColumn([
             'name' => 'paid_amount',
-            'label' => 'Paid Amount',
+            'label' => 'Paid Amount (₾)',
             'type' => 'custom_html',
             'value' => function ($entry) {
-                return number_format($entry->calculatePaidAmount(), 2) . ' ₾';
+                return number_format($entry->calculatePaidAmount(), 2);
             },
         ]);
 

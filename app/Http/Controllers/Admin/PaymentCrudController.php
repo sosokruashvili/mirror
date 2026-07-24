@@ -76,10 +76,9 @@ class PaymentCrudController extends CrudController
 
         CRUD::addColumn([
             'name' => 'amount_gel',
-            'label' => 'Amount GEL',
+            'label' => 'Amount (₾)',
             'type' => 'number',
             'decimals' => 2,
-            'suffix' => ' ₾',
         ]);
 
         CRUD::addColumn([

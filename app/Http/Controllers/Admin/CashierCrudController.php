@@ -46,10 +46,9 @@ class CashierCrudController extends CrudController
 
         CRUD::addColumn([
             'name' => 'amount',
-            'label' => 'Closing Balance',
+            'label' => 'Closing Balance (₾)',
             'type' => 'number',
             'decimals' => 2,
-            'suffix' => ' ₾',
         ]);
 
         CRUD::addColumn([

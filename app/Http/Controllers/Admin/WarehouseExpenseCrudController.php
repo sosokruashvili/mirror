@@ -97,7 +97,7 @@ class WarehouseExpenseCrudController extends CrudController
                 // offcut portion back out to show the original base expense.
                 $base = (float) $entry->expenses - $entry->calculateOffcutArea();
 
-                return htmlspecialchars(number_format($base, 2) . ' m²', ENT_QUOTES, 'UTF-8');
+                return htmlspecialchars(number_format($base, 2), ENT_QUOTES, 'UTF-8');
             },
             'orderable' => false,
             'searchLogic' => false,
@@ -113,7 +113,7 @@ class WarehouseExpenseCrudController extends CrudController
                     return '<span class="text-muted">-</span>';
                 }
 
-                return htmlspecialchars(number_format($percent, 2) . ' %', ENT_QUOTES, 'UTF-8');
+                return htmlspecialchars(number_format($percent, 2), ENT_QUOTES, 'UTF-8');
             },
             'orderable' => false,
             'searchLogic' => false,
@@ -129,7 +129,7 @@ class WarehouseExpenseCrudController extends CrudController
                     return '<span class="text-muted">-</span>';
                 }
 
-                return htmlspecialchars(number_format($area, 2) . ' m²', ENT_QUOTES, 'UTF-8');
+                return htmlspecialchars(number_format($area, 2), ENT_QUOTES, 'UTF-8');
             },
             'orderable' => false,
             'searchLogic' => false,
@@ -141,7 +141,6 @@ class WarehouseExpenseCrudController extends CrudController
             'label' => 'Expense SUM (m²)',
             'type' => 'number',
             'decimals' => 2,
-            'suffix' => ' m²',
         ]);
 
         CRUD::addColumn([

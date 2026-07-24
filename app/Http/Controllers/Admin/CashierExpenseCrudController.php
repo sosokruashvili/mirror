@@ -64,18 +64,16 @@ class CashierExpenseCrudController extends CrudController
 
         CRUD::addColumn([
             'name' => 'amount_gel',
-            'label' => 'Amount',
+            'label' => 'Amount (₾)',
             'type' => 'number',
             'decimals' => 2,
-            'suffix' => ' ₾',
         ]);
 
         CRUD::addColumn([
             'name' => 'credit',
-            'label' => 'Credit',
+            'label' => 'Credit (₾)',
             'type' => 'number',
             'decimals' => 2,
-            'suffix' => ' ₾',
         ]);
 
         CRUD::addColumn([

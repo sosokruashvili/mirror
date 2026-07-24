@@ -65,18 +65,16 @@ class ProductCrudController extends CrudController
 
         $this->crud->addColumn([
             'name' => 'price',
-            'label' => 'Price (USD)',
+            'label' => 'Price ($)',
             'type' => 'number',
             'decimals' => 2,
-            'prefix' => '$',
         ]);
 
         $this->crud->addColumn([
             'name' => 'price_w',
-            'label' => 'Wholesale Price (USD)',
+            'label' => 'Wholesale Price ($)',
             'type' => 'number',
             'decimals' => 2,
-            'prefix' => '$',
         ]);
 
         $this->crud->addColumn([
@@ -84,7 +82,6 @@ class ProductCrudController extends CrudController
             'label' => 'Offcut (%)',
             'type' => 'number',
             'decimals' => 2,
-            'suffix' => ' %',
         ]);
 
         // Add Filters

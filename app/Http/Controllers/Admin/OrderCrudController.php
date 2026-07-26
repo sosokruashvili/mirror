@@ -67,7 +67,12 @@ class OrderCrudController extends CrudController
     {
         // Enable bulk actions (checkboxes)
         $this->crud->enableBulkActions();
-        
+
+        // The paid_amount column below sums each order's payments, and the client
+        // and author columns resolve a name per row; without eager loading the
+        // list fires three extra queries for every row on the page.
+        CRUD::addClause('with', ['payments', 'client', 'authorUser']);
+
         // Add widgets for orders count and total price
         $this->addOrderStatsWidgets();
         
@@ -866,6 +871,9 @@ class OrderCrudController extends CrudController
                 };
                 
                 $html = '<div class="pieces-list">';
+
+                // currentStageName() below reads the piece_stage pivot per piece.
+                $entry->loadMissing(['pieces.stages', 'services']);
 
                 // Lookups for filtering each piece's stage dropdown to only the
                 // stages relevant to it: the universal stages plus the stages of

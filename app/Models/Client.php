@@ -100,7 +100,10 @@ class Client extends Model
             ['balance_date' => 'max'],
             function ($query) {
                 if (static::$balanceAsOfDate) {
-                    $query->whereDate('balance_date', '<=', static::$balanceAsOfDate);
+                    // balance_date is a date column, so this is equivalent to
+                    // whereDate() without emitting a cast the planner has to
+                    // see through before it can use the index.
+                    $query->where('balance_date', '<=', static::$balanceAsOfDate);
                 }
             }
         );

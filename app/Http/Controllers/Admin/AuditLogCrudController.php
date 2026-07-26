@@ -1,10 +1,12 @@
 <?php
 
 namespace App\Http\Controllers\Admin;
+//test
 
 use App\Models\AuditLog;
 use Backpack\CRUD\app\Http\Controllers\CrudController;
 use Backpack\CRUD\app\Library\CrudPanel\CrudPanelFacade as CRUD;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Str;
 
 /**
@@ -159,14 +161,16 @@ class AuditLogCrudController extends CrudController
             'type' => 'select2',
             'label' => 'Record type',
         ], function () {
-            return AuditLog::query()
+            // Distinct over the whole audit table; cached so it does not run on
+            // every list render, when the set of types changes only on deploy.
+            return Cache::remember('audit_logs.filter.subject_types', now()->addHour(), fn () => AuditLog::query()
                 ->select('subject_type')
                 ->whereNotNull('subject_type')
                 ->distinct()
                 ->orderBy('subject_type')
                 ->pluck('subject_type')
                 ->mapWithKeys(fn ($type) => [$type => class_basename($type)])
-                ->toArray();
+                ->toArray());
         }, function ($value) {
             $this->crud->addClause('where', 'subject_type', $value);
         });
@@ -176,13 +180,13 @@ class AuditLogCrudController extends CrudController
             'type' => 'select2',
             'label' => 'Performed by',
         ], function () {
-            return AuditLog::query()
+            return Cache::remember('audit_logs.filter.causers', now()->addHour(), fn () => AuditLog::query()
                 ->select('causer_id', 'causer_name')
                 ->whereNotNull('causer_id')
                 ->distinct()
                 ->orderBy('causer_name')
                 ->pluck('causer_name', 'causer_id')
-                ->toArray();
+                ->toArray());
         }, function ($value) {
             $this->crud->addClause('where', 'causer_id', $value);
         });

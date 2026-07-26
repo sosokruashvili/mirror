@@ -42,6 +42,8 @@ class PieceCrudController extends CrudController
         $this->crud->addClause('with', [
             'order.products',
             'brokenGlasses' => fn ($query) => $query->orderBy('id'),
+            // currentStageName() reads the piece_stage pivot for every row.
+            'stages',
         ]);
 
         CRUD::addColumn([

@@ -262,7 +262,7 @@
 @section('content')
 @php
     $order = $entry;
-    $order->load(['pieces' => function ($q) { $q->withCount('brokenGlasses')->with('product'); }, 'services', 'client']);
+    $order->load(['pieces' => function ($q) { $q->withCount('brokenGlasses')->with(['product', 'stages']); }, 'services', 'client']);
     
     // Sort pieces by ID
     $pieces = $order->pieces->sortBy('id');

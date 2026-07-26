@@ -571,6 +571,9 @@ class TeamOrderController extends Controller
                 $order->save();
             }
 
+            // Counted after the insert above so the new break is included.
+            $pieces->loadCount('brokenGlasses');
+
             $brokenTotal = $pieces->sum(fn ($piece) => $piece->getBrokenCount());
 
             return response()->json(['success' => true, 'broken' => $brokenTotal]);

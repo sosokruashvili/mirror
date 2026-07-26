@@ -245,7 +245,7 @@ class Order extends Model
     public function calculateBaseExpenses(): float
     {
         if (!$this->relationLoaded('pieces')) {
-            $this->load('pieces');
+            $this->load(['pieces' => fn ($q) => $q->withCount('brokenGlasses')]);
         }
 
         if ($this->status === 'draft') {

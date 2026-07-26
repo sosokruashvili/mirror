@@ -303,9 +303,16 @@ class Piece extends Model
      */
     public function getBrokenCount(): int
     {
-        $recordCount = $this->relationLoaded('brokenGlasses')
-            ? $this->brokenGlasses->count()
-            : $this->brokenGlasses()->count();
+        // withCount('brokenGlasses') sets this attribute but leaves the relation
+        // unloaded, so it has to be checked before relationLoaded() or every
+        // eager-counted piece still fires its own query.
+        if (array_key_exists('broken_glasses_count', $this->attributes)) {
+            $recordCount = (int) $this->attributes['broken_glasses_count'];
+        } elseif ($this->relationLoaded('brokenGlasses')) {
+            $recordCount = $this->brokenGlasses->count();
+        } else {
+            $recordCount = $this->brokenGlasses()->count();
+        }
 
         return max($recordCount, (int) ($this->broken ?? 0));
     }

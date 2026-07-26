@@ -90,10 +90,12 @@
                             display: false
                         },
                         ticks: {
-                            maxRotation: 45,
-                            minRotation: 0,
-                            autoSkip: true,
-                            maxTicksLimit: 15
+                            maxRotation: 90,
+                            minRotation: 45,
+                            autoSkip: false,
+                            font: {
+                                size: 10
+                            }
                         }
                     },
                     y: {

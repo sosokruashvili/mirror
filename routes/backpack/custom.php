@@ -29,6 +29,7 @@ Route::group([
     Route::get('service-stats', 'ServiceStatsController@index')->name('service-stats.index')->middleware('backpack.can:service-stats.view');
     Route::crud('order', 'OrderCrudController');
     Route::post('order/bulk-delete', 'OrderCrudController@bulkDelete')->name('order.bulkDelete');
+    Route::get('order/stats', 'OrderCrudController@stats')->name('order.stats');
     Route::post('order/calculate-service-price', 'OrderCrudController@calculate_order_service_price')->name('order.calculateServicePrice');
     Route::post('order/{id}/confirm', 'OrderCrudController@confirm')->name('order.confirm');
     Route::post('order/{id}/finish', 'OrderCrudController@finish')->name('order.finish');

@@ -52,8 +52,9 @@ class OrderCrudController extends CrudController
         // orders.js is loaded directly in the create/edit views with a cache-busting
         // version string (see order/create.blade.php and order/edit.blade.php) so that
         // browsers always pick up the latest version instead of a stale cached copy.
-        // Add JavaScript to reload page on filter change (so widgets update)
-        Widget::add()->type('script')->content('assets/js/payment-filters-reload.js');
+        // Refresh the stats widgets via AJAX whenever the list table redraws
+        // (filter change, pagination, etc.) so they always match the list.
+        Widget::add()->type('script')->content('assets/js/order-stats-refresh.js');
     }
 
     /**
@@ -1488,6 +1489,40 @@ class OrderCrudController extends CrudController
      */
     protected function addOrderStatsWidgets()
     {
+        // The DataTables /search AJAX endpoint runs setupListOperation() too but
+        // only returns row JSON — widgets are never rendered there, so skip the
+        // (expensive) stats computation entirely for those requests. The widgets
+        // are kept in sync with the list via the order/stats endpoint instead
+        // (see order-stats-refresh.js).
+        if (request()->ajax()) {
+            return;
+        }
+
+        $stats = $this->computeOrderStats();
+
+        // Add stats cards - pass data to view
+        Widget::add([
+            'type' => 'view',
+            'view' => 'vendor.backpack.crud.widgets.order_stats',
+            'wrapper' => ['class' => 'col-12'],
+            'ordersCount' => $stats['ordersCount'],
+            'totalPriceGel' => $stats['totalPriceGel'],
+            'totalExpenses' => $stats['totalExpenses'],
+            'totalPaid' => $stats['totalPaid'],
+            'totalUnpaid' => $stats['totalUnpaid'],
+        ])->to('before_content');
+    }
+
+    /**
+     * Stats for the order list widgets (count / price / paid / unpaid /
+     * expenses), honoring the same filter parameters the list filters apply.
+     * Returned as raw numbers; formatting happens in the widget view and in
+     * order-stats-refresh.js.
+     *
+     * @return array{ordersCount: int, totalPriceGel: float, totalExpenses: float, totalPaid: float, totalUnpaid: float}
+     */
+    protected function computeOrderStats(): array
+    {
         // Get the model and start building query
         $query = Order::query();
         
@@ -1505,7 +1540,15 @@ class OrderCrudController extends CrudController
         if (request()->has('client_id') && request()->get('client_id')) {
             $query->where('client_id', request()->get('client_id'));
         }
-        
+
+        if (request()->has('author') && request()->get('author')) {
+            $query->where('author', request()->get('author'));
+        }
+
+        if (request()->has('paid') && request()->get('paid') !== null && request()->get('paid') !== '') {
+            $query->where('paid', (bool) request()->get('paid'));
+        }
+
         if (request()->has('order_type') && request()->get('order_type')) {
             $query->where('order_type', request()->get('order_type'));
         }
@@ -1552,11 +1595,11 @@ class OrderCrudController extends CrudController
             }
         }
         
-        // Get all filtered orders with relationships for price calculation
-        $orders = $query->with(['pieces', 'products', 'services', 'payments'])->get();
-
-        // Calculate orders count
-        $ordersCount = $orders->count();
+        // Get all filtered orders with relationships for price calculation.
+        // pieces.brokenGlasses is needed by calculateExpenses() (via
+        // Piece::getBrokenCount()) — without it every piece fires its own
+        // count query, turning this into thousands of queries per page load.
+        $orders = $query->with(['pieces.brokenGlasses', 'products', 'services', 'payments'])->get();
 
         // Payment summary: how much has been paid across the filtered orders and
         // how much is still left to pay. Paid amount comes from the payments
@@ -1565,30 +1608,41 @@ class OrderCrudController extends CrudController
         // orders don't offset the underpaid ones.
         $totalPaid = 0.0;
         $totalUnpaid = 0.0;
+        $totalPriceGel = 0.0;
+        $totalExpenses = 0.0;
 
         foreach ($orders as $order) {
             $orderValue = $order->calculateTotalPriceExcludingDraftPieces();
             $paid = $order->calculatePaidAmount();
 
+            $totalPriceGel += $orderValue;
+            $totalExpenses += $order->calculateExpenses();
             $totalPaid += $paid;
             $totalUnpaid += max(0, $orderValue - $paid);
         }
 
-        // Add stats cards - pass data to view
-        Widget::add([
-            'type' => 'view',
-            'view' => 'vendor.backpack.crud.widgets.order_stats',
-            'wrapper' => ['class' => 'col-12'],
-            'ordersCount' => $ordersCount,
-            'totalPriceGel' => $orders->sum(function($order) {
-                return $order->calculateTotalPriceExcludingDraftPieces();
-            }),
-            'totalExpenses' => $orders->sum(function($order) {
-                return $order->calculateExpenses();
-            }),
+        return [
+            'ordersCount' => $orders->count(),
+            'totalPriceGel' => $totalPriceGel,
+            'totalExpenses' => $totalExpenses,
             'totalPaid' => $totalPaid,
             'totalUnpaid' => $totalUnpaid,
-        ])->to('before_content');
+        ];
+    }
+
+    /**
+     * Stats for the order list widgets as JSON (AJAX). Called by
+     * order-stats-refresh.js on every list table redraw, with the same filter
+     * query parameters the list uses, so the widgets stay in sync with the
+     * filtered list without a full page reload.
+     *
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function stats()
+    {
+        $this->crud->hasAccessOrFail('list');
+
+        return response()->json($this->computeOrderStats());
     }
 
     /**

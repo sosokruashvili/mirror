@@ -374,6 +374,15 @@
         white-space: nowrap;
         border: 1px solid rgba(255, 255, 255, 0.2);
     }
+    /* Order-level services (product_type = service) have no size pill to sit inside. */
+    .service-shortname-tag--standalone {
+        padding: 8px 12px;
+        border-radius: 12px;
+        font-size: 13px;
+        min-height: 40px;
+        display: inline-flex;
+        align-items: center;
+    }
     .piece-dots-btn {
         background: none;
         border: none;
@@ -988,7 +997,28 @@
                                         @endforeach
                                     </div>
                                 @else
-                                    <div class="size-tags-empty">No sizes available</div>
+                                    {{-- Service-only orders have no pieces; services live on the order
+                                         with piece_id null. Show them the same way shortnames appear
+                                         on size tags so the card is not empty. --}}
+                                    @php
+                                        $orderLevelServices = $order->services
+                                            ->filter(fn ($service) => is_null($service->pivot->piece_id))
+                                            ->sortBy('id');
+                                        $orderServiceLabels = $orderLevelServices
+                                            ->map(fn ($service) => $service->shortname ?: $service->title)
+                                            ->filter()
+                                            ->unique()
+                                            ->values();
+                                    @endphp
+                                    @if($orderServiceLabels->isNotEmpty())
+                                        <div class="size-tags">
+                                            @foreach($orderServiceLabels as $label)
+                                                <span class="service-shortname-tag service-shortname-tag--standalone">{{ $label }}</span>
+                                            @endforeach
+                                        </div>
+                                    @else
+                                        <div class="size-tags-empty">No sizes available</div>
+                                    @endif
                                 @endif
                             </div>
                             

@@ -6,6 +6,8 @@ use App\Http\Controllers\Controller;
 use App\Models\Setting;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Prologue\Alerts\Facades\Alert;
 
@@ -57,10 +59,30 @@ class SettingController extends Controller
         if ($exitCode === 0) {
             Alert::success('Database synced from production.')->flash();
         } else {
-            Alert::error('Database sync failed: ' . $output)->flash();
+            Log::error('db:sync-from-prod failed', ['output' => $output]);
+            Alert::error('Database sync failed: ' . $this->flashable($output))->flash();
         }
 
         return redirect()->route('settings.edit');
+    }
+
+    /**
+     * Reduce raw command output to something Backpack can actually display.
+     *
+     * Alerts are rendered as JSON.parse('@json(...)') — inside a single-quoted
+     * JS string, so the payload is unescaped twice. Newlines and quotes in the
+     * message survive as real control characters, JSON.parse throws, and the
+     * handler dies taking *every* alert on the page with it. Keep the flashed
+     * text to one plain line; the full output goes to the log.
+     */
+    private function flashable(string $output): string
+    {
+        $lines = array_filter(array_map('trim', explode("\n", $output)), fn ($line) => $line !== '');
+
+        // The last line is the failure reason; earlier ones are progress noise.
+        $message = (string) (end($lines) ?: 'no output — see the log for details');
+
+        return Str::limit(str_replace(['"', "'"], '', preg_replace('/\s+/', ' ', $message)), 300);
     }
 
     /**

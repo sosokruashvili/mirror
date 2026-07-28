@@ -41,6 +41,7 @@ Route::group([
     Route::crud('permission', 'PermissionCrudController');
     Route::crud('product', 'ProductCrudController');
     Route::crud('piece', 'PieceCrudController');
+    Route::get('service/generate-slug', 'ServiceCrudController@generateSlug')->name('service.generateSlug');
     Route::crud('service', 'ServiceCrudController');
     Route::get('service/get-extra-fields/{id}', 'ServiceCrudController@getExtraFields')->name('service.getExtraFields');
     Route::crud('stage', 'StageCrudController');

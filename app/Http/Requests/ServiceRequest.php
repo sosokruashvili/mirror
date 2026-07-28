@@ -23,7 +23,8 @@ class ServiceRequest extends FormRequest
     {
         return [
             'title' => 'required|string|max:255',
-            'stage_id' => 'nullable|integer|exists:stages,id',
+            'slug' => 'required|string|max:255',
+            'stage' => 'required|integer|exists:stages,id',
             'description' => 'nullable|string',
             'unit' => 'required|string|max:100',
             'price' => 'nullable|numeric|min:0',

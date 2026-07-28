@@ -173,6 +173,7 @@ class ServiceCrudController extends CrudController
             'attributes' => [
                 'required' => true,
             ],
+            'wrapper' => ['class' => 'form-group col-md-6'],
         ]);
 
         CRUD::addField([
@@ -180,13 +181,19 @@ class ServiceCrudController extends CrudController
             'label' => 'Short Name',
             'type' => 'text',
             'hint' => 'Short name or abbreviation for this service',
+            'wrapper' => ['class' => 'form-group col-md-6'],
         ]);
 
         CRUD::addField([
             'name' => 'slug',
             'label' => 'Slug',
-            'type' => 'text',
+            'type' => 'slug',
+            'source' => 'title',
+            'attributes' => [
+                'required' => true,
+            ],
             'hint' => 'URL-friendly version of the title',
+            'wrapper' => ['class' => 'form-group col-md-6'],
         ]);
 
         CRUD::addField([
@@ -195,8 +202,12 @@ class ServiceCrudController extends CrudController
             'type' => 'relationship',
             'attribute' => 'title',
             'placeholder' => '-',
-            'allows_null' => true,
+            'allows_null' => false,
+            'attributes' => [
+                'required' => true,
+            ],
             'hint' => 'Which production stage this service belongs to.',
+            'wrapper' => ['class' => 'form-group col-md-6'],
         ]);
 
         CRUD::addField([
@@ -206,6 +217,7 @@ class ServiceCrudController extends CrudController
             'attributes' => [
                 'rows' => 4,
             ],
+            'wrapper' => ['class' => 'form-group col-md-6'],
         ]);
 
         CRUD::addField([
@@ -217,6 +229,7 @@ class ServiceCrudController extends CrudController
                 'placeholder' => 'e.g., hour, piece, sq ft',
             ],
             'hint' => 'Unit of measurement for this service',
+            'wrapper' => ['class' => 'form-group col-md-6'],
         ]);
 
         CRUD::addField([
@@ -228,6 +241,7 @@ class ServiceCrudController extends CrudController
                 'min' => '0',
             ],
             'prefix' => '$',
+            'wrapper' => ['class' => 'form-group col-md-6'],
         ]);
 
         CRUD::addField([
@@ -239,6 +253,7 @@ class ServiceCrudController extends CrudController
                 'min' => '0',
             ],
             'prefix' => '₾',
+            'wrapper' => ['class' => 'form-group col-md-6'],
         ]);
 
         CRUD::addField([
@@ -251,6 +266,7 @@ class ServiceCrudController extends CrudController
             ],
             'default' => 0,
             'hint' => 'Extra size (whole mm) added to a piece\'s width and height on the team orders page when this service is applied.',
+            'wrapper' => ['class' => 'form-group col-md-6'],
         ]);
 
         // select2_from_array with value support for updateOperation
@@ -279,6 +295,7 @@ class ServiceCrudController extends CrudController
             'allows_null' => true,
             'default'     => [],
             'allows_multiple' => true,
+            'wrapper' => ['class' => 'form-group col-md-6'],
             // For update operation, try to load the previously selected value
             'value' => function () {
                 $entry = backpack_crud()->getCurrentEntry();
@@ -496,11 +513,11 @@ class ServiceCrudController extends CrudController
     public function getExtraFields($id)
     {
         $service = \App\Models\Service::find($id);
-        
+
         if (!$service) {
             return response()->json(['error' => 'Service not found'], 404);
         }
-        
+
         $extraFieldNames = $service->extra_field_names ?? [];
         if (is_string($extraFieldNames)) {
             $extraFieldNames = json_decode($extraFieldNames, true) ?? [];
@@ -508,9 +525,22 @@ class ServiceCrudController extends CrudController
         if (!is_array($extraFieldNames)) {
             $extraFieldNames = [];
         }
-        
+
         return response()->json([
             'extra_field_names' => $extraFieldNames
         ]);
     }
+
+    /**
+     * Generate a URL-friendly slug from a title (supports Georgian transliteration).
+     */
+    public function generateSlug(\Illuminate\Http\Request $request)
+    {
+        $title = (string) $request->query('title', '');
+
+        return response()->json([
+            'slug' => \Illuminate\Support\Str::slug($title),
+        ]);
+    }
 }
+

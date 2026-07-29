@@ -549,12 +549,18 @@ class OrderCrudController extends CrudController
             'default' => false,
         ]);
 
+        // Lists the payments already attached to this order next to the Add Payment
+        // button. Without that list the page looked identical before and after adding a
+        // payment, so users re-added it (to fix a wrong method/status) and ended up with
+        // duplicates. Rendered by resources/views/vendor/backpack/crud/fields/order_payments.blade.php.
         CRUD::addField([
-            'name' => 'add_payment_button',
-            'type' => 'custom_html',
-            'value' => '<button type="button" id="addPaymentBtn" class="btn btn-sm btn-outline-primary">
-                <i class="la la-plus"></i> Add Payment
-            </button>',
+            'name'  => 'order_payments',
+            'label' => 'Payments',
+            'type'  => 'order_payments',
+            'wrapper' => [
+                'class' => 'form-group col-md-12'
+            ],
+            'hint' => 'A payment is saved the moment you add it, and is linked to this order when you save the order. Check the list above before adding another one — to fix a payment, edit or delete it instead of creating a second one.',
         ]);
 
         CRUD::addField([
@@ -652,6 +658,12 @@ class OrderCrudController extends CrudController
             })->toArray()
         ]);
         
+        // On edit the payment is linked to the order straight away, so the "linked when
+        // you save" note from the create form does not apply here.
+        $this->crud->modifyField('order_payments', [
+            'hint' => 'Payments already on this order are listed above. To correct one, edit or delete it — adding a second payment leaves the wrong one behind.',
+        ]);
+
         // Pieces & services are hydrated directly from the entry inside the
         // pieces_services custom field view.
         $this->crud->modifyField('expenses', [

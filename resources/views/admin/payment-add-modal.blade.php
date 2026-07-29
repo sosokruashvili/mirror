@@ -3,7 +3,9 @@
     $defaultCurrencyRate = \App\Models\Currency::exchangeRate();
 @endphp
 <!-- Payment Add Modal -->
-<div class="modal fade" id="paymentAddModal" tabindex="-1" aria-labelledby="paymentAddModalLabel" aria-hidden="true" data-bs-backdrop="true" data-bs-keyboard="true">
+{{-- data-app-timezone: the JS re-stamps Payment Date each time the modal opens, and must
+     format it in the application timezone rather than whatever the workstation is set to. --}}
+<div class="modal fade" id="paymentAddModal" tabindex="-1" aria-labelledby="paymentAddModalLabel" aria-hidden="true" data-bs-backdrop="true" data-bs-keyboard="true" data-app-timezone="{{ config('app.timezone') }}">
     <div class="modal-dialog modal-lg modal-dialog-centered">
         <div class="modal-content">
             <div class="modal-header">
@@ -38,7 +40,11 @@
 
                         <div class="col-md-6 mb-3">
                             <label class="form-label">Payment Method <span class="text-danger">*</span></label>
+                            {{-- No pre-selected method on purpose: it used to default to Cash, so a
+                                 form submitted before the user got to this field saved a payment with
+                                 the wrong method, which was then "fixed" by adding a second payment. --}}
                             <select name="method" class="form-control" required>
+                                <option value="">Select Method</option>
                                 <option value="Cash">Cash</option>
                                 <option value="Transfer">Transfer</option>
                                 <option value="Terminal">Terminal</option>
@@ -67,9 +73,12 @@
 
                         <div class="col-md-6 mb-3">
                             <label class="form-label">Status <span class="text-danger">*</span></label>
+                            {{-- Same reason as Payment Method: a silent "Pending" default produced
+                                 payments the user then re-created as "Paid". Make it an explicit choice. --}}
                             <select name="status" class="form-control" required>
+                                <option value="">Select Status</option>
                                 <option value="Paid">Paid</option>
-                                <option value="Pending" selected>Pending</option>
+                                <option value="Pending">Pending</option>
                             </select>
                         </div>
 

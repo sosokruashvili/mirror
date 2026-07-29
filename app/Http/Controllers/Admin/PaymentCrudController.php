@@ -762,7 +762,7 @@ class PaymentCrudController extends CrudController
             if ($existing) {
                 return response()->json([
                     'success' => true,
-                    'payment' => ['id' => $existing->id],
+                    'payment' => $this->ajaxPaymentPayload($existing),
                     'duplicate' => true,
                 ]);
             }
@@ -780,9 +780,7 @@ class PaymentCrudController extends CrudController
 
             return response()->json([
                 'success' => true,
-                'payment' => [
-                    'id' => $payment->id,
-                ]
+                'payment' => $this->ajaxPaymentPayload($payment),
             ]);
         } catch (\Illuminate\Database\QueryException $e) {
             // A concurrent duplicate won the race to insert the same token first;
@@ -790,7 +788,7 @@ class PaymentCrudController extends CrudController
             if ($idempotencyKey && ($existing = Payment::where('idempotency_key', $idempotencyKey)->first())) {
                 return response()->json([
                     'success' => true,
-                    'payment' => ['id' => $existing->id],
+                    'payment' => $this->ajaxPaymentPayload($existing),
                     'duplicate' => true,
                 ]);
             }
@@ -805,6 +803,25 @@ class PaymentCrudController extends CrudController
                 'message' => 'Failed to create payment: ' . $e->getMessage()
             ], 422);
         }
+    }
+
+    /**
+     * The payment as the order form's payments list needs it — same shape the
+     * order_payments field view hands to the JS for already-stored payments, so both
+     * render through one code path.
+     *
+     * @return array<string, mixed>
+     */
+    private function ajaxPaymentPayload(Payment $payment): array
+    {
+        return [
+            'id' => $payment->id,
+            'amount_gel' => (float) $payment->amount_gel,
+            'method' => $payment->method,
+            'status' => $payment->status,
+            'type' => $payment->type,
+            'payment_date' => optional($payment->payment_date)->format('d M Y H:i'),
+        ];
     }
 }
 

@@ -1081,11 +1081,14 @@ class OrderCrudController extends CrudController
             // Link payments that were created from the modal on this create page. The order did
             // not exist when those payments were made, so the JS stored their ids and we now
             // attach them to the freshly created order. Only claim still-unlinked payments.
+            // Mass update skips Eloquent events, so sync paid status explicitly afterwards.
             $createdPaymentIds = array_filter((array) ($fields['created_payment_ids'] ?? []));
             if (!empty($createdPaymentIds)) {
                 Payment::whereIn('id', $createdPaymentIds)
                     ->whereNull('order_id')
                     ->update(['order_id' => $order->id]);
+
+                Payment::updateOrderPaymentStatus($order->client_id);
             }
 
             return $this->crud->performSaveAction($order->getKey());

@@ -121,7 +121,11 @@ class Payment extends Model
     }
 
     /**
-     * Mark the given client's unpaid orders as paid when their balance covers them.
+     * Sync orders.paid for the client's non-draft orders from linked payments.
+     *
+     * An order is paid when it has at least one Paid payment attached and the
+     * shortfall vs the order total is at most 1 GEL (covers rounding). Larger
+     * overpayments still count as paid.
      *
      * @param  int|null  $clientId
      * @return void
@@ -132,23 +136,22 @@ class Payment extends Model
             return;
         }
 
-        $client = Client::find($clientId);
-        if (!$client) {
-            return;
-        }
-
-        $balance = $client->calculateBalance();
-
         $orders = Order::where('client_id', $clientId)
-            ->where('paid', false)
             ->where('status', '!=', 'draft')
-            ->with(['services', 'products', 'pieces'])
+            ->with(['payments', 'services', 'products', 'pieces'])
             ->get();
 
         foreach ($orders as $order) {
-            if ($balance >= $order->calculateTotalPrice(false)) {
-                $order->paid = true;
-                $order->save();
+            $paidAmount = (float) $order->payments
+                ->where('status', 'Paid')
+                ->sum('amount_gel');
+
+            $orderTotal = (float) $order->calculateTotalPrice(false);
+            $isPaid = $paidAmount > 0 && ($orderTotal - $paidAmount) <= 1.0;
+
+            if ((bool) $order->paid !== $isPaid) {
+                $order->paid = $isPaid;
+                $order->saveQuietly();
             }
         }
     }

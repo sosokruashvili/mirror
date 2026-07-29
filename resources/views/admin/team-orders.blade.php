@@ -898,12 +898,15 @@
                                 </div>
 
                                 @php
-                                    // Get unique piece sizes with quantities and service shortnames for this order
+                                    // One tag per piece. Pieces are NOT grouped/merged by size:
+                                    // even when two pieces share the same width/height, they may
+                                    // differ (stage, broken state, services), so each piece must
+                                    // stay visible and actionable on its own tag.
                                     $piecesWithSizes = $order->pieces->filter(function($piece) {
                                         return $piece->width && $piece->height;
                                     });
 
-                                    $sizeGroups = [];
+                                    $uniqueSizes = [];
                                     foreach($piecesWithSizes as $piece) {
                                         // Highest completed stage (from the piece_stage pivot) drives
                                         // the tag colour, exactly as the old cache column did.
@@ -922,48 +925,33 @@
 
                                         $displayWidth = number_format($piece->width + $cuttingCm, 1);
                                         $displayHeight = number_format($piece->height + $cuttingCm, 1);
-                                        $key = $displayWidth . 'x' . $displayHeight;
-                                        if (!isset($sizeGroups[$key])) {
-                                            $sizeGroups[$key] = [
-                                                'width' => $displayWidth,
-                                                'height' => $displayHeight,
-                                                'quantity' => 0,
-                                                'piece_ids' => [],
-                                                'service_shortnames' => [],
-                                                'stage_slugs' => [],
-                                                'completed_slugs' => $piece->completedStageNames(),
-                                                'broken_count' => 0,
-                                                'stage' => $pieceStage,
-                                                'stage_mixed' => false,
-                                            ];
-                                        } else {
-                                            if ($sizeGroups[$key]['stage'] !== $pieceStage) {
-                                                $sizeGroups[$key]['stage_mixed'] = true;
-                                            }
-                                            // A stage checkbox is only "checked" for the group when
-                                            // every piece in it has completed that stage.
-                                            $sizeGroups[$key]['completed_slugs'] = array_values(
-                                                array_intersect($sizeGroups[$key]['completed_slugs'], $piece->completedStageNames())
-                                            );
-                                        }
-                                        $sizeGroups[$key]['quantity'] += $piece->quantity ?? 1;
-                                        $sizeGroups[$key]['piece_ids'][] = $piece->id;
-                                        $sizeGroups[$key]['broken_count'] += $piece->getBrokenCount();
 
-                                        // Collect unique service shortnames + the stages those
-                                        // services belong to (the piece's selectable stages).
+                                        $serviceShortnames = [];
+                                        $stageSlugs = [];
                                         foreach($pieceServices as $service) {
-                                            if ($service->shortname && !in_array($service->shortname, $sizeGroups[$key]['service_shortnames'])) {
-                                                $sizeGroups[$key]['service_shortnames'][] = $service->shortname;
+                                            if ($service->shortname && !in_array($service->shortname, $serviceShortnames)) {
+                                                $serviceShortnames[] = $service->shortname;
                                             }
 
                                             $stageSlug = $stageNameById[$service->stage_id] ?? null;
-                                            if ($stageSlug && !in_array($stageSlug, $sizeGroups[$key]['stage_slugs'])) {
-                                                $sizeGroups[$key]['stage_slugs'][] = $stageSlug;
+                                            if ($stageSlug && !in_array($stageSlug, $stageSlugs)) {
+                                                $stageSlugs[] = $stageSlug;
                                             }
                                         }
+
+                                        $uniqueSizes[] = [
+                                            'width' => $displayWidth,
+                                            'height' => $displayHeight,
+                                            'quantity' => $piece->quantity ?? 1,
+                                            'piece_ids' => [$piece->id],
+                                            'service_shortnames' => $serviceShortnames,
+                                            'stage_slugs' => $stageSlugs,
+                                            'completed_slugs' => $piece->completedStageNames(),
+                                            'broken_count' => $piece->getBrokenCount(),
+                                            'stage' => $pieceStage,
+                                            'stage_mixed' => false,
+                                        ];
                                     }
-                                    $uniqueSizes = array_values($sizeGroups);
                                 @endphp
                                 
                                 @if(count($uniqueSizes) > 0)

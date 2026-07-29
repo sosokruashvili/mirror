@@ -188,6 +188,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             })
             .then(function(response) {
+                // A denied delete redirects to the dashboard, which fetch follows and
+                // reports as a perfectly fine 200 — the row must not disappear for that.
+                if (response.redirected) throw new Error('You are not allowed to delete this payment');
                 if (!response.ok) throw new Error('Failed to delete payment');
                 row.remove();
                 // A payment created on the order create page is linked by a hidden input

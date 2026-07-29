@@ -814,6 +814,11 @@ class PaymentCrudController extends CrudController
      */
     private function ajaxPaymentPayload(Payment $payment): array
     {
+        // Read back what was actually stored: amount_gel is numeric(10,0), so the value
+        // the model still holds in memory (12.34) is not the value the order form must
+        // show for that payment (12).
+        $payment = $payment->fresh() ?? $payment;
+
         return [
             'id' => $payment->id,
             'amount_gel' => (float) $payment->amount_gel,

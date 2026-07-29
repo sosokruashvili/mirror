@@ -320,7 +320,8 @@ class Order extends Model
 
     public function calculateOrderPrice() {
         $priceGel = $this->calculateTotalPrice();
-        $this->price_gel = $priceGel;
+        // Order total is stored as a whole GEL amount (no decimals).
+        $this->price_gel = round($priceGel);
         $this->save();
     }
 

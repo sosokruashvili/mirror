@@ -1107,17 +1107,26 @@ class OrderCrudController extends CrudController
                 abort(403, 'You do not have permission to edit this order.');
             }
 
-            // Update order basic fields
-            $order->update([
+            // Update order basic fields. Attachment is omitted unless a new file is
+            // uploaded or the user cleared it — otherwise `$fields['atachment'] ?? null`
+            // would pass null into the mutator and wipe the existing file on every save.
+            $updateData = [
                 'order_type' => $fields['order_type'],
                 'client_id' => $fields['client_id'],
                 'status' => $fields['status'],
                 'currency_rate' => $fields['currency_rate'],
                 'paid' => isset($fields['paid']) ? (bool)$fields['paid'] : false,
-                'atachment' => $fields['atachment'] ?? null,
                 'comment' => $fields['comment'] ?? null,
                 'expenses' => $fields['expenses'] ?? null,
-            ]);
+            ];
+
+            if (request()->hasFile('atachment')) {
+                $updateData['atachment'] = $fields['atachment'];
+            } elseif (array_key_exists('atachment', $fields) && blank($fields['atachment'])) {
+                $updateData['atachment'] = null;
+            }
+
+            $order->update($updateData);
 
             // Attach products (one pivot row per line so identical products can appear multiple times)
             $order->products()->detach();

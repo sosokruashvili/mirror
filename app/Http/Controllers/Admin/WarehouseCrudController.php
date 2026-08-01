@@ -233,7 +233,20 @@ class WarehouseCrudController extends CrudController
             'available_dates' => $snapshot['available_dates'],
             'selected_date' => $snapshot['selected_date'],
             'is_live' => $snapshot['is_live'],
+            'can_recalculate' => $this->canRecalculate(),
         ])->to('before_content');
+    }
+
+    /**
+     * Whether the current user may rebuild the snapshots.
+     *
+     * Recalculating rewrites the stored history for every product on every
+     * snapshot date, so it is limited to administrators (super roles) — the same
+     * rule the recalculate() endpoint enforces server-side.
+     */
+    protected function canRecalculate(): bool
+    {
+        return backpack_user()?->isSuperAdmin() ?? false;
     }
 
     /**
@@ -274,9 +287,16 @@ class WarehouseCrudController extends CrudController
     }
 
     /**
-     * Manually (re)generate today's warehouse snapshot on demand, instead of
-     * waiting for the scheduled 00:00 run. Overwrites today's snapshot if it
-     * already exists, then returns to the list showing the fresh values.
+     * Manually (re)generate warehouse snapshots on demand, instead of waiting for
+     * the scheduled 00:00 run.
+     *
+     * This replays every stored snapshot date, not just today: correcting a
+     * warehouse item edits the row in place, keeping its original created_at, so
+     * the correction applies retroactively to every day from that date onward.
+     * Rebuilding only today would leave the earlier snapshots stuck on the
+     * pre-correction numbers. Returns to the list showing the fresh values.
+     *
+     * Administrators only — see canRecalculate().
      *
      * @return \Illuminate\Http\RedirectResponse
      */
@@ -284,10 +304,14 @@ class WarehouseCrudController extends CrudController
     {
         $this->crud->hasAccessOrFail('list');
 
-        $date = now();
-        $count = $service->snapshotDailyStock($date);
+        if (! $this->canRecalculate()) {
+            abort(403, 'Only administrators may recalculate warehouse stock.');
+        }
 
-        \Alert::success("Recalculated warehouse stock for {$count} product(s) on {$date->format('Y-m-d')}.")->flash();
+        $date = now();
+        $result = $service->rebuildStoredSnapshots();
+
+        \Alert::success("Recalculated warehouse stock across {$result['dates']} snapshot date(s), up to {$date->format('Y-m-d')}.")->flash();
 
         $params = ['snapshot_date' => $date->toDateString()];
         if (request()->filled('summary_product_id')) {

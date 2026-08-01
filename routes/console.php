@@ -20,7 +20,10 @@ app()->booted(function () {
 
     app(Schedule::class)->command('clients:snapshot-balances')->dailyAt('23:59');
 
-    app(Schedule::class)->command('warehouse:snapshot-daily')->dailyAt('00:00');
+    // Must run at the END of the day, like the snapshots above: the service
+    // computes each product's position as of the end of the given date, so a
+    // 00:00 run stored the previous day's state under today's label.
+    app(Schedule::class)->command('warehouse:snapshot-daily')->dailyAt('23:57');
 });
 
 

@@ -5,6 +5,7 @@
     $availableDates = $widget['available_dates'] ?? collect();
     $selectedDate = $widget['selected_date'] ?? null;
     $isLive = $widget['is_live'] ?? false;
+    $canRecalculate = $widget['can_recalculate'] ?? false;
 
     // Keep the CRUD list's own query params (its filters, sorting) intact when this
     // table's own controls submit, so they don't disturb the table below.
@@ -31,15 +32,19 @@
                 @endif
             </small>
 
-            <form method="POST" action="{{ route('warehouse.recalculate') }}" class="mb-0 mt-2">
-                @csrf
-                @if($selectedProduct)
-                    <input type="hidden" name="summary_product_id" value="{{ $selectedProduct }}">
-                @endif
-                <button type="submit" class="btn btn-sm btn-primary">
-                    <i class="la la-sync"></i> Recalculate now
-                </button>
-            </form>
+            @if($canRecalculate)
+                <form method="POST" action="{{ route('warehouse.recalculate') }}" class="mb-0 mt-2">
+                    @csrf
+                    @if($selectedProduct)
+                        <input type="hidden" name="summary_product_id" value="{{ $selectedProduct }}">
+                    @endif
+                    <button type="submit" class="btn btn-sm btn-primary"
+                            title="Rebuilds every snapshot date from the current warehouse items and orders, so corrections apply to past days too.">
+                        <i class="la la-sync"></i> Recalculate now
+                    </button>
+                    <small class="text-muted d-block mt-1">Rebuilds all dates, so corrections apply retroactively.</small>
+                </form>
+            @endif
         </div>
 
         <form method="GET" action="{{ url()->current() }}" class="d-flex flex-wrap align-items-center gap-2 mb-0">

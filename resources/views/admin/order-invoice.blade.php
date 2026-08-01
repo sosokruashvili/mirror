@@ -70,6 +70,7 @@
         line-height: 1.35;
     }
     .invoice-table th { background: #f0f0f0; font-weight: 600; color: #000; }
+    .invoice-table tfoot td { background: #f7f7f7; font-weight: 700; color: #000; }
     .invoice-table .text-right { text-align: right; }
     .invoice-total { margin-top: 8px; text-align: right; font-size: 14px; font-weight: bold; color: #000; }
     .print-btn { margin-bottom: 10px; }
@@ -186,6 +187,32 @@
                 'piece' => $piece,
             ];
         }
+
+        // Per-table summaries. Pieces carry the area; services are priced per
+        // measure (metres, pieces, …) that cannot be summed, so they only get a
+        // price total.
+        $pieceTotalArea = 0.0;
+        $pieceTotalQty = 0.0;
+        $pieceTotalPrice = 0.0;
+        foreach ($order->pieces as $piece) {
+            $pieceTotalArea += (float) $piece->getArea();
+            $pieceTotalQty += (float) ($piece->quantity ?? 1);
+            $pieceTotalPrice += (float) ($piece->price ?? 0);
+        }
+
+        // Every product on the order is billed over the same sheet area (multi
+        // product orders such as lamix / glass_pkg share the pieces), so the
+        // products summary shows that shared area, not a per-product sum.
+        $productTotalArea = $pieceTotalArea;
+        $productTotalPrice = 0.0;
+        foreach ($productLineItems as $item) {
+            $productTotalPrice += (float) ($item['price_gel'] ?? 0);
+        }
+
+        $serviceTotalPrice = 0.0;
+        foreach ($serviceLineItems as $item) {
+            $serviceTotalPrice += (float) ($item['total_gel'] ?? 0);
+        }
     @endphp
 
     <div class="invoice-meta">
@@ -253,6 +280,14 @@
                 </tr>
                 @endforelse
             </tbody>
+            @if(count($productLineItems))
+            <tfoot>
+                <tr>
+                    <td>სულ (ფართობი: {{ number_format($productTotalArea, 2) }} m²)</td>
+                    <td class="text-right">{{ number_format($productTotalPrice, 2) }}</td>
+                </tr>
+            </tfoot>
+            @endif
         </table>
     </div>
 
@@ -273,8 +308,8 @@
                 <tr>
                     <td>{{ $item['description'] }}</td>
                     <td class="text-right">{{ $item['qty'] !== null ? (is_numeric($item['qty']) && $item['qty'] == (int)$item['qty'] ? (int)$item['qty'] : $item['qty']) : '—' }}</td>
-                    <td> {{ $item['piece']->getArea() }} m²</td>
-                    <td class="text-right">{{ $item['piece']->price }}</td>
+                    <td class="text-right">{{ number_format($item['piece']->getArea(), 2) }} m²</td>
+                    <td class="text-right">{{ number_format((float) ($item['piece']->price ?? 0), 2) }}</td>
                 </tr>
                 @empty
                 <tr>
@@ -282,6 +317,16 @@
                 </tr>
                 @endforelse
             </tbody>
+            @if(count($pieceLineItems))
+            <tfoot>
+                <tr>
+                    <td>სულ</td>
+                    <td class="text-right">{{ $pieceTotalQty == (int) $pieceTotalQty ? (int) $pieceTotalQty : number_format($pieceTotalQty, 2) }}</td>
+                    <td class="text-right">{{ number_format($pieceTotalArea, 2) }} m²</td>
+                    <td class="text-right">{{ number_format($pieceTotalPrice, 2) }}</td>
+                </tr>
+            </tfoot>
+            @endif
         </table>
     </div>
 
@@ -313,6 +358,14 @@
                 </tr>
                 @endforelse
             </tbody>
+            @if(count($serviceLineItems))
+            <tfoot>
+                <tr>
+                    <td colspan="4">სულ</td>
+                    <td class="text-right">{{ number_format($serviceTotalPrice, 2) }}</td>
+                </tr>
+            </tfoot>
+            @endif
         </table>
     </div>
 

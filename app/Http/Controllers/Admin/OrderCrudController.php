@@ -608,7 +608,6 @@ class OrderCrudController extends CrudController
             ],
         ]);
 
-        
     }
 
     /**
@@ -775,6 +774,13 @@ class OrderCrudController extends CrudController
         CRUD::addColumn([
             'name' => 'comment',
             'label' => 'Comment',
+            'type' => 'text',
+            'limit' => 1000,
+        ]);
+
+        CRUD::addColumn([
+            'name' => 'finish_comment',
+            'label' => 'Finish Comment',
             'type' => 'text',
             'limit' => 1000,
         ]);

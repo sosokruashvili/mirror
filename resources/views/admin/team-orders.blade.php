@@ -1104,6 +1104,28 @@
     </div>
 </div>
 
+{{-- "Handed out" note modal (optional comment saved on the order) --}}
+@if(!$showArchived)
+<div class="modal fade" id="orderFinishModal" tabindex="-1" aria-labelledby="orderFinishModalLabel" aria-hidden="true" data-bs-backdrop="true" data-bs-keyboard="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="orderFinishModalLabel">გატანილია – შენიშვნა</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <label for="orderFinishComment" class="form-label">შენიშვნა (არასავალდებულო)</label>
+                <textarea id="orderFinishComment" class="form-control" rows="3"></textarea>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">გაუქმება</button>
+                <button type="button" class="btn btn-success" id="orderFinishModalSubmit"><i class="la la-sign-out-alt"></i> გატანილია</button>
+            </div>
+        </div>
+    </div>
+</div>
+@endif
+
 {{-- Order card context menu --}}
 @if(!$showArchived)
 <div id="orderCtxMenu" class="piece-ctx-menu">
@@ -1415,8 +1437,64 @@ jQuery(function($) {
 
         var orderId = _orderCtxCard.getAttribute('data-order-id');
         closeCtxMenus();
-        finishOrder(orderId, e.currentTarget);
+        openOrderFinishModal(orderId);
     });
+
+    // Order id awaiting confirmation in the "handed out" note modal.
+    var _finishOrderId = null;
+
+    // Ask for an optional note before handing the order out. Without a usable
+    // modal, fall back to the plain confirm + note-less finish.
+    function openOrderFinishModal(orderId) {
+        var modalEl = document.getElementById('orderFinishModal');
+        var commentEl = document.getElementById('orderFinishComment');
+
+        if (!modalEl || typeof bootstrap === 'undefined') {
+            if (confirm('დარწმუნებული ხართ რომ შეკვეთა გატანილია?')) {
+                finishOrder(orderId, null, '');
+            }
+            return;
+        }
+
+        _finishOrderId = orderId;
+        if (commentEl) commentEl.value = '';
+
+        if (modalEl.parentElement !== document.body) {
+            document.body.appendChild(modalEl);
+        }
+
+        var modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+
+        modalEl.addEventListener('shown.bs.modal', function () {
+            // Keep the modal above the order-preview overlay, and focus the field.
+            modalEl.style.zIndex = '10050';
+            var backdrops = document.querySelectorAll('.modal-backdrop');
+            if (backdrops.length) {
+                backdrops[backdrops.length - 1].style.zIndex = '10040';
+            }
+            if (commentEl) commentEl.focus();
+        }, { once: true });
+
+        modal.show();
+    }
+
+    var _orderFinishSubmitBtn = document.getElementById('orderFinishModalSubmit');
+    if (_orderFinishSubmitBtn) {
+        _orderFinishSubmitBtn.addEventListener('click', function(e) {
+            if (_finishOrderId === null) return;
+
+            var modalEl = document.getElementById('orderFinishModal');
+            if (modalEl && typeof bootstrap !== 'undefined') {
+                bootstrap.Modal.getOrCreateInstance(modalEl).hide();
+            }
+
+            var commentEl = document.getElementById('orderFinishComment');
+            var orderId = _finishOrderId;
+            _finishOrderId = null;
+
+            finishOrder(orderId, e.currentTarget, commentEl ? commentEl.value : '');
+        });
+    }
 
     // Toggle a single stage's completion for every piece in the size group.
     // `stage` empty + completed omitted clears all stages. Otherwise `completed`
@@ -1570,11 +1648,9 @@ jQuery(function($) {
     }
 
 @endif
-    function finishOrder(orderId, triggerEl) {
-        if (!confirm('დარწმუნებული ხართ რომ შეკვეთა გატანილია?')) {
-            return;
-        }
-
+    // `comment` is the team's optional "handed out" note; it is stored on the
+    // order as finish_comment and left untouched when blank.
+    function finishOrder(orderId, triggerEl, comment) {
         var button = triggerEl || (typeof event !== 'undefined' ? event.target : null);
         if (button && button.tagName === 'BUTTON') {
             button.disabled = true;
@@ -1593,6 +1669,12 @@ jQuery(function($) {
         csrfInput.name = '_token';
         csrfInput.value = token;
         form.appendChild(csrfInput);
+
+        const commentInput = document.createElement('input');
+        commentInput.type = 'hidden';
+        commentInput.name = 'finish_comment';
+        commentInput.value = comment || '';
+        form.appendChild(commentInput);
 
         document.body.appendChild(form);
         form.submit();

@@ -401,22 +401,35 @@ class TeamOrderController extends Controller
     /**
      * Finish an order by updating its status to 'finished'.
      *
+     * The team may leave an optional note when handing the order out; it is
+     * stored in `finish_comment`, separate from `comment` (the manager's note
+     * FOR the team), so neither overwrites the other.
+     *
      * @param  int  $id
      * @return \Illuminate\Http\RedirectResponse
      */
     public function finish(Request $request, $id)
     {
         try {
+            $data = $request->validate([
+                'finish_comment' => 'nullable|string|max:5000',
+            ]);
+
             $order = Order::findOrFail($id);
 
             if ($response = $this->rejectIfArchived($order, $request)) {
                 return $response;
             }
-            
+
+            $comment = trim((string) ($data['finish_comment'] ?? ''));
+            if ($comment !== '') {
+                $order->finish_comment = $comment;
+            }
+
             // Update order status to finished
             $order->status = 'finished';
             $order->save();
-            
+
             // Flash success message using Backpack's Alert system
             Alert::success('Order #' . $order->id . ' has been marked as finished.')->flash();
             

@@ -31,6 +31,7 @@ class Order extends Model
         'paid',
         'atachment',
         'comment',
+        'finish_comment',
         'expenses',
         'confirm_date',
     ];

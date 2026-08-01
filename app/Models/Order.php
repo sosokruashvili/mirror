@@ -73,8 +73,8 @@ class Order extends Model
     /**
      * Whether the given user may delete this order, based on its status.
      *
-     * New orders are already committed to production, so only administrators
-     * may delete them. Draft orders are not yet committed and may be deleted
+     * New orders are already committed to production, so only the limitless
+     * roles may delete them. Draft orders are not yet committed and may be deleted
      * by any user who otherwise holds delete access (e.g. operators). Orders
      * past the "new" stage can never be deleted.
      *
@@ -90,7 +90,7 @@ class Order extends Model
 
         return match ($this->status) {
             'draft' => true,
-            'new' => $user->hasRole('admin'),
+            'new' => $user->isSuperAdmin(),
             default => false,
         };
     }
@@ -99,7 +99,7 @@ class Order extends Model
      * Whether the given user may edit this order, based on its status.
      *
      * Mirrors the delete rule: new orders are already committed to production,
-     * so only administrators may edit them. Draft orders are not yet committed
+     * so only the limitless roles may edit them. Draft orders are not yet committed
      * and may be edited by any user who otherwise holds update access (i.e.
      * role-based). Orders past the "new" stage can never be edited.
      *
@@ -115,7 +115,7 @@ class Order extends Model
 
         return match ($this->status) {
             'draft' => true,
-            'new' => $user->hasRole('admin'),
+            'new' => $user->isSuperAdmin(),
             default => false,
         };
     }

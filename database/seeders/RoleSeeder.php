@@ -9,9 +9,10 @@ use Spatie\Permission\PermissionRegistrar;
 /**
  * Seeds the default roles and their page-access matrix.
  *
- * Re-runnable. Administrator is limitless via the Gate::before() rule in
- * AppServiceProvider; we also sync it with every page permission so access is
- * correct even if that bypass is ever removed.
+ * Re-runnable. Administrator and Developer are limitless via the Gate::before()
+ * rule in AppServiceProvider (see "super_roles" in config/access.php); we also
+ * sync them with every page permission so access is correct even if that bypass
+ * is ever removed.
  *
  * NOTE: run AccessPermissionSeeder before this so the page permissions exist.
  */
@@ -21,6 +22,7 @@ class RoleSeeder extends Seeder
     {
         $roles = [
             ['name' => 'Administrator', 'slug' => 'admin',    'description' => 'Full, unrestricted system access'],
+            ['name' => 'Developer',     'slug' => 'developer', 'description' => 'Full, unrestricted access for technical maintenance'],
             ['name' => 'Manager',       'slug' => 'manager',  'description' => 'Runs day-to-day operations; cannot manage roles'],
             ['name' => 'Employee',      'slug' => 'employee', 'description' => 'Office staff: orders, clients and pieces'],
             ['name' => 'Viewer',        'slug' => 'viewer',   'description' => 'Read-only access to operational pages'],
@@ -67,17 +69,18 @@ class RoleSeeder extends Seeder
         $manager['user'] = ['list', 'show'];
 
         $matrix = [
-            'admin'    => $allFull,
-            'manager'  => $manager,
-            'employee' => [
+            'admin'     => $allFull,
+            'developer' => $allFull,
+            'manager'   => $manager,
+            'employee'  => [
                 'order'   => ['list', 'create', 'update'],
                 'client'  => ['list', 'create', 'update'],
                 'piece'   => ['list', 'update'],
                 'product' => ['list', 'show'],
                 'service' => ['list', 'show'],
             ],
-            'viewer'   => $readOnly,
-            'team'     => [
+            'viewer'    => $readOnly,
+            'team'      => [
                 'team-order' => ['view', 'operate'],
             ],
         ];

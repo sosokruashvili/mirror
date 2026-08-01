@@ -26,12 +26,12 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        // Administrators are limitless: every ability check passes for them,
-        // so no page or action ever needs an explicit admin exception.
-        // Returning null (not false) lets non-admins fall through to the
-        // normal permission checks.
+        // The super roles (config/access.php) are limitless: every ability
+        // check passes for them, so no page or action ever needs an explicit
+        // exception. Returning null (not false) lets everyone else fall through
+        // to the normal permission checks.
         Gate::before(function ($user) {
-            return $user?->hasRole('admin') ? true : null;
+            return $user?->isSuperAdmin() ? true : null;
         });
     }
 }

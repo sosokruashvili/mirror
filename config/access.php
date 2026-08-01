@@ -16,8 +16,8 @@
 |   - Custom pages are guarded by the `can:{page}.{action}` route middleware.
 |   - The sidebar hides items the user cannot access (@can('order.list') ...).
 |
-| Administrators bypass all of this via the Gate::before() rule in
-| AppServiceProvider, so they are always limitless.
+| The "super roles" listed below bypass all of this via the Gate::before()
+| rule in AppServiceProvider, so they are always limitless.
 |
 | Add a new page = add one line here, then `php artisan db:seed
 | --class=AccessPermissionSeeder`.
@@ -25,6 +25,15 @@
 */
 
 return [
+
+    /*
+    | Role slugs that are limitless: every ability check passes for them via the
+    | Gate::before() rule, and they are exempt from the status/role rules that
+    | restrict individual records. These roles cannot be deleted or have their
+    | slug changed from the admin panel, since renaming one would silently
+    | revoke the bypass from everyone holding it.
+    */
+    'super_roles' => ['admin', 'developer'],
 
     'pages' => [
 

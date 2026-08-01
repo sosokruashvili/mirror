@@ -106,7 +106,7 @@ class RoleCrudController extends CrudController
             'model' => \App\Models\Permission::class,
             'pivot' => true,
             'number_of_columns' => 2,
-            'hint' => 'Page permissions (grouped by page) are listed first, followed by production-stage capabilities. Administrators always have full access regardless of these boxes.',
+            'hint' => 'Page permissions (grouped by page) are listed first, followed by production-stage capabilities. Administrators and Developers always have full access regardless of these boxes.',
             // Group page permissions together (by page), stage permissions last.
             // Return an id => label array (label is an accessor, not a column),
             // preserving the ordering.
@@ -126,30 +126,32 @@ class RoleCrudController extends CrudController
     {
         $this->setupCreateOperation();
 
-        // The Administrator role is the anchor of the whole access system
-        // (see the Gate::before bypass, which matches its "admin" slug). Never
-        // let its slug be changed, or admins would silently lose their bypass.
-        if ($this->isAdminRole($this->crud->getCurrentEntryId())) {
+        // The super roles are the anchor of the whole access system (see the
+        // Gate::before bypass, which matches them by slug). Never let their
+        // slug be changed, or their holders would silently lose the bypass.
+        if ($this->isSuperRole($this->crud->getCurrentEntryId())) {
             CRUD::modifyField('slug', ['attributes' => ['readonly' => 'readonly']]);
         }
     }
 
     /**
-     * Prevent deletion of the Administrator role.
+     * Prevent deletion of the Administrator and Developer roles.
      */
     public function destroy($id)
     {
         $this->crud->hasAccessOrFail('delete');
 
-        if ($this->isAdminRole($id)) {
-            abort(403, 'The Administrator role cannot be deleted.');
+        if ($this->isSuperRole($id)) {
+            abort(403, 'This role grants unrestricted access and cannot be deleted.');
         }
 
         return $this->crud->delete($id);
     }
 
-    private function isAdminRole($id): bool
+    private function isSuperRole($id): bool
     {
-        return $id && \App\Models\Role::whereKey($id)->where('slug', 'admin')->exists();
+        return $id && \App\Models\Role::whereKey($id)
+            ->whereIn('slug', config('access.super_roles', ['admin']))
+            ->exists();
     }
 }

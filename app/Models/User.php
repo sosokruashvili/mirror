@@ -78,6 +78,19 @@ class User extends Authenticatable
     }
 
     /**
+     * Whether the user holds one of the limitless roles listed in
+     * config/access.php ("super_roles", e.g. Administrator and Developer).
+     *
+     * Ability checks are already covered by the Gate::before() bypass; use this
+     * for the few rules that are not expressed as abilities, such as the order
+     * status restrictions.
+     */
+    public function isSuperAdmin(): bool
+    {
+        return $this->hasAnyRole(config('access.super_roles', ['admin']));
+    }
+
+    /**
      * Check if user has any of the given roles (slugs or names).
      */
     public function hasAnyRole(...$roles): bool

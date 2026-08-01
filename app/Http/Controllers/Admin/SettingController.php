@@ -86,11 +86,15 @@ class SettingController extends Controller
     }
 
     /**
-     * DB sync is available only when the current database differs from the
-     * configured production source (i.e. we are on dev, not prod).
+     * DB sync is available only on non-production environments, and only when
+     * the current database differs from the configured production source.
      */
     private function isDbSyncAvailable(): bool
     {
+        if (app()->isProduction()) {
+            return false;
+        }
+
         $default = config('database.default');
         $current = config('database.connections.' . $default);
 

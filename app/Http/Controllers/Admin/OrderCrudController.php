@@ -482,6 +482,19 @@ class OrderCrudController extends CrudController
             ],
         ]);
 
+        // Price (USD) is auto-filled from the product / client custom price.
+        // Only administrators (super roles) may override it; everyone else sees
+        // a read-only field. Server-side store()/update() enforce the same rule.
+        $canEditProductPrice = backpack_user()?->isSuperAdmin() ?? false;
+        $priceAttributes = [
+            'step' => '0.01',
+            'min' => '0',
+            'required' => true,
+        ];
+        if (!$canEditProductPrice) {
+            $priceAttributes['readonly'] = 'readonly';
+        }
+
         CRUD::addField([
             'name'       => 'products',
             'label'      => 'Products',
@@ -509,11 +522,10 @@ class OrderCrudController extends CrudController
                     'name'    => 'price',
                     'label'   => 'Price (USD)',
                     'type'    => 'number',
-                    'attributes' => [
-                        'step' => '0.01',
-                        'min' => '0',
-                        'required' => true,
-                    ],
+                    'attributes' => $priceAttributes,
+                    'hint' => $canEditProductPrice
+                        ? null
+                        : 'Auto-filled from the product (or client custom price). Only administrators can change it.',
                     'wrapper' => [
                         'class' => 'form-group col-md-2'
                     ],
@@ -986,17 +998,12 @@ class OrderCrudController extends CrudController
                     if (empty($product['product_id'])) {
                         continue;
                     }
-                    if ($product['price'] !== Product::find($product['product_id'])->price) {
-                        CustomPrice::updateOrCreate([
-                            'client_id' => $order->client_id,
-                            'product_id' => $product['product_id'],
-                        ], [
-                            'price_usd' => $product['price'],
-                        ]);
-                    }
-                    $order->products()->attach($product['product_id'], [
-                        'price' => $product['price'] ?? null,
-                    ]);
+                    $this->attachOrderProduct(
+                        $order,
+                        (int) $product['product_id'],
+                        $product['price'] ?? null,
+                        $fields['order_type'] ?? $order->order_type
+                    );
                 }
             }
 
@@ -1138,17 +1145,12 @@ class OrderCrudController extends CrudController
                     if (empty($product['product_id'])) {
                         continue;
                     }
-                    if ($product['price'] !== Product::find($product['product_id'])->price) {
-                        CustomPrice::updateOrCreate([
-                            'client_id' => $order->client_id,
-                            'product_id' => $product['product_id'],
-                        ], [
-                            'price_usd' => $product['price'],
-                        ]);
-                    }
-                    $order->products()->attach($product['product_id'], [
-                        'price' => $product['price'] ?? null,
-                    ]);
+                    $this->attachOrderProduct(
+                        $order,
+                        (int) $product['product_id'],
+                        $product['price'] ?? null,
+                        $fields['order_type'] ?? $order->order_type
+                    );
                 }
             }
 
@@ -1319,6 +1321,76 @@ class OrderCrudController extends CrudController
             'deleted' => $deleted,
             'skipped' => $skipped,
         ]);
+    }
+
+    /**
+     * Attach a product line to an order, honouring the Price (USD) permission rule.
+     *
+     * Administrators may submit any price (and that also writes/updates a client
+     * CustomPrice when it differs from the catalog). Everyone else is forced to
+     * the catalog / existing custom price for the client + order type.
+     */
+    private function attachOrderProduct(Order $order, int $productId, $submittedPrice, string $orderType): void
+    {
+        $price = $this->resolveProductPriceUsd($productId, $order->client_id, $orderType, $submittedPrice);
+        $product = Product::find($productId);
+
+        if (
+            backpack_user()?->isSuperAdmin()
+            && $product
+            && $price !== null
+            && (float) $price !== (float) $product->price
+        ) {
+            CustomPrice::updateOrCreate([
+                'client_id' => $order->client_id,
+                'product_id' => $productId,
+            ], [
+                'price_usd' => $price,
+            ]);
+        }
+
+        $order->products()->attach($productId, [
+            'price' => $price,
+        ]);
+    }
+
+    /**
+     * Resolve the USD price stored on the order-product pivot.
+     *
+     * Non-administrators cannot override catalog/custom prices via the form.
+     */
+    private function resolveProductPriceUsd(int $productId, ?int $clientId, string $orderType, $submittedPrice): ?float
+    {
+        if (backpack_user()?->isSuperAdmin()) {
+            if ($submittedPrice === null || $submittedPrice === '') {
+                return null;
+            }
+
+            return (float) $submittedPrice;
+        }
+
+        $product = Product::find($productId);
+        if (!$product) {
+            return null;
+        }
+
+        $price = $product->price;
+        $priceW = $product->price_w;
+
+        if ($clientId) {
+            $customPrice = CustomPrice::where('client_id', $clientId)
+                ->where('product_id', $productId)
+                ->first();
+
+            if ($customPrice && $customPrice->price_usd !== null) {
+                $price = $customPrice->price_usd;
+                $priceW = $customPrice->price_usd;
+            }
+        }
+
+        return (float) ($orderType === 'wholesale' && $priceW !== null && $priceW !== ''
+            ? $priceW
+            : $price);
     }
 
     /**

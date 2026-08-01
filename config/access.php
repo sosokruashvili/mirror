@@ -47,6 +47,7 @@ return [
         'stage'            => ['label' => 'Stages',           'actions' => ['list', 'create', 'update', 'delete', 'show']],
         'warehouse'        => ['label' => 'Warehouse Stock',  'actions' => ['list', 'create', 'update', 'delete', 'show']],
         'warehouse-expense' => ['label' => 'Warehouse Expenses', 'actions' => ['list']],
+        'warehouse-correction' => ['label' => 'Warehouse Corrections', 'actions' => ['list', 'create', 'update', 'delete', 'show']],
         'supplier'         => ['label' => 'Suppliers',        'actions' => ['list', 'create', 'update', 'delete', 'show']],
 
         'payment'          => ['label' => 'Payments',         'actions' => ['list', 'create', 'update', 'delete', 'show']],

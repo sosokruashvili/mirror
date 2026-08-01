@@ -44,13 +44,16 @@
     @endif
 @endif
 
-@if($u && ($u->can('warehouse.list') || $u->can('warehouse-expense.list') || $u->can('supplier.list')))
+@if($u && ($u->can('warehouse.list') || $u->can('warehouse-expense.list') || $u->can('warehouse-correction.list') || $u->can('supplier.list')))
     <x-backpack::menu-dropdown title="Warehouse" icon="la la-warehouse">
         @if($u->can('warehouse.list'))
             <x-backpack::menu-dropdown-item title="Stock" icon="la la-boxes" :link="backpack_url('warehouse')" />
         @endif
         @if($u->can('warehouse-expense.list'))
             <x-backpack::menu-dropdown-item title="Out" icon="la la-receipt" :link="backpack_url('warehouse-expense')" />
+        @endif
+        @if($u->can('warehouse-correction.list'))
+            <x-backpack::menu-dropdown-item title="Corrections" icon="la la-balance-scale" :link="backpack_url('warehouse-correction')" />
         @endif
         @if($u->can('supplier.list'))
             <x-backpack::menu-dropdown-item title="Suppliers" icon="la la-truck" :link="backpack_url('supplier')" />

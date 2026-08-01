@@ -103,6 +103,7 @@
                         <th class="text-end">Offcut (m²)</th>
                         <th class="text-end">In warehouse (m²)</th>
                         <th class="text-end">Expenses (m²)</th>
+                        <th class="text-end">Corrections (m²)</th>
                         <th class="text-end">Remaining (m²)</th>
                     </tr>
                 </thead>
@@ -126,13 +127,22 @@
                             </td>
                             <td class="text-end">{{ number_format($row->warehouse_area, 3) }}</td>
                             <td class="text-end">{{ number_format($row->expenses, 3) }}</td>
+                            <td class="text-end">
+                                @if(($row->corrections ?? 0) != 0)
+                                    <span class="{{ $row->corrections < 0 ? 'text-danger' : 'text-success' }}">
+                                        {{ ($row->corrections > 0 ? '+' : '') . number_format($row->corrections, 3) }}
+                                    </span>
+                                @else
+                                    <span class="text-muted">-</span>
+                                @endif
+                            </td>
                             <td class="text-end fw-bold {{ $row->remaining < 0 ? 'text-danger' : 'text-success' }}">
                                 {{ number_format($row->remaining, 3) }}
                             </td>
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="6" class="text-center text-muted py-3">No products found.</td>
+                            <td colspan="7" class="text-center text-muted py-3">No products found.</td>
                         </tr>
                     @endforelse
                 </tbody>

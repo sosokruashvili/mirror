@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\Order;
 use App\Models\Product;
 use App\Models\Warehouse;
+use App\Models\WarehouseCorrection;
 use App\Models\WarehouseSnapshot;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
@@ -64,10 +65,18 @@ class WarehouseSnapshotService
             }
         }
 
+        // Hand-entered stock adjustments in effect by the date (signed: negative
+        // writes stock off, positive adds it back).
+        $correctionsByProduct = $source['corrections']
+            ->filter(fn (array $row) => $row['at'] <= $end)
+            ->groupBy('product_id')
+            ->map(fn (Collection $rows) => $rows->sum('area'));
+
         return $source['products']
-            ->map(function (Product $product) use ($warehouseAreas, $expensesByProduct) {
+            ->map(function (Product $product) use ($warehouseAreas, $expensesByProduct, $correctionsByProduct) {
                 $warehouseArea = (float) ($warehouseAreas[$product->id] ?? 0);
                 $expenses = (float) ($expensesByProduct[$product->id] ?? 0);
+                $corrections = (float) ($correctionsByProduct[$product->id] ?? 0);
                 $offcutPercent = (float) ($product->offcut ?? 0);
                 // Expenses already include offcut, so peel the offcut portion back out:
                 // expenses = base * (1 + pct/100)  →  offcut = expenses * pct/(100+pct)
@@ -82,7 +91,8 @@ class WarehouseSnapshotService
                     'offcut_area' => $offcutArea,
                     'warehouse_area' => $warehouseArea,
                     'expenses' => $expenses,
-                    'remaining' => $warehouseArea - $expenses,
+                    'corrections' => $corrections,
+                    'remaining' => $warehouseArea - $expenses + $corrections,
                 ];
             });
     }
@@ -132,10 +142,22 @@ class WarehouseSnapshotService
             ->groupBy('order_id')
             ->map(fn (Collection $rows) => $rows->pluck('product_id')->map(fn ($id) => (int) $id)->all());
 
+        $corrections = WarehouseCorrection::query()
+            ->select('product_id', 'area', 'effective_date')
+            ->get()
+            ->map(fn (WarehouseCorrection $row) => [
+                'product_id' => (int) $row->product_id,
+                'area' => (float) $row->area,
+                'at' => $row->effective_date,
+            ])
+            ->filter(fn (array $row) => $row['at'] !== null)
+            ->values();
+
         return $this->source = [
             'warehouse' => $warehouse,
             'orders' => $orders,
             'products_by_order' => $productsByOrder,
+            'corrections' => $corrections,
             'products' => Product::query()->orderBy('title')->get(),
         ];
     }
@@ -207,6 +229,7 @@ class WarehouseSnapshotService
                 [
                     'warehouse_area' => round($row->warehouse_area, 3),
                     'expenses' => round($row->expenses, 3),
+                    'corrections' => round($row->corrections, 3),
                     'remaining' => round($row->remaining, 3),
                     'offcut_percent' => round($row->offcut, 2),
                     'offcut_area' => round($row->offcut_area, 3),
@@ -255,6 +278,7 @@ class WarehouseSnapshotService
                     'offcut_area' => (float) $snapshot->offcut_area,
                     'warehouse_area' => (float) $snapshot->warehouse_area,
                     'expenses' => (float) $snapshot->expenses,
+                    'corrections' => (float) $snapshot->corrections,
                     'remaining' => (float) $snapshot->remaining,
                 ];
             })

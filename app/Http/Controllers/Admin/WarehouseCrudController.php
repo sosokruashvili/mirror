@@ -263,7 +263,7 @@ class WarehouseCrudController extends CrudController
 
         $snapshot = $this->resolveSnapshot();
 
-        $headings = ['Product', 'Offcut (%)', 'Offcut (m²)', 'In warehouse (m²)', 'Expenses (m²)', 'Remaining (m²)'];
+        $headings = ['Product', 'Offcut (%)', 'Offcut (m²)', 'In warehouse (m²)', 'Expenses (m²)', 'Corrections (m²)', 'Remaining (m²)'];
 
         $rows = $snapshot['rows']->map(function ($row) {
             return [
@@ -272,6 +272,7 @@ class WarehouseCrudController extends CrudController
                 round($row->offcut_area, 3),
                 round($row->warehouse_area, 3),
                 round($row->expenses, 3),
+                round($row->corrections ?? 0, 3),
                 round($row->remaining, 3),
             ];
         })->all();

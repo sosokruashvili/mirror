@@ -41,6 +41,12 @@ class UserCrudController extends CrudController
     protected function setupListOperation()
     {
         CRUD::addColumn([
+            'name' => 'id',
+            'label' => 'ID',
+            'type' => 'number',
+        ]);
+
+        CRUD::addColumn([
             'name' => 'name',
             'label' => 'Name',
             'type' => 'text',

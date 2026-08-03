@@ -6,7 +6,9 @@ use App\Http\Controllers\Controller;
 use App\Models\BrokenGlass;
 use App\Models\Order;
 use App\Models\Piece;
+use App\Services\OrderPieceStatusSync;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Http\Request;
 use Prologue\Alerts\Facades\Alert;
 
@@ -426,9 +428,15 @@ class TeamOrderController extends Controller
                 $order->finish_comment = $comment;
             }
 
-            // Update order status to finished
-            $order->status = 'finished';
-            $order->save();
+            DB::transaction(function () use ($order) {
+                // Update order status to finished
+                $order->status = 'finished';
+                $order->save();
+
+                // The whole order is handed out, so its pieces move onto the
+                // გატანილია stage with it.
+                OrderPieceStatusSync::markPiecesFinished($order);
+            });
 
             // Flash success message using Backpack's Alert system
             Alert::success('Order #' . $order->id . ' has been marked as finished.')->flash();

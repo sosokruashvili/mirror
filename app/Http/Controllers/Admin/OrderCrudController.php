@@ -1533,6 +1533,9 @@ class OrderCrudController extends CrudController
 
         DB::transaction(function () use ($order) {
             $order->update(['status' => 'finished']);
+
+            // Handing the order out moves its pieces onto the გატანილია stage.
+            \App\Services\OrderPieceStatusSync::markPiecesFinished($order);
         });
 
         return response()->json([

@@ -113,9 +113,11 @@ class Piece extends Model
             return false;
         }
 
-        // The stages that gate completion — everything relevant except the
-        // final stage itself. Nothing to gate on → don't auto-complete.
-        $gatingStages = $relevant->reject(fn (Stage $stage) => $stage->name === 'completion');
+        // The stages that gate completion — the relevant production stages that
+        // come BEFORE it. Stages positioned after 'completion' (handing the
+        // order out) must not hold it back. Nothing to gate on → don't
+        // auto-complete.
+        $gatingStages = $relevant->filter(fn (Stage $stage) => $stage->position < $completion->position);
         if ($gatingStages->isEmpty()) {
             return false;
         }
@@ -171,6 +173,12 @@ class Piece extends Model
      */
     public function syncOrderStatus(): void
     {
+        // The stage change came FROM an order status change (e.g. handing the
+        // order out): the order status is the input, not the result.
+        if (\App\Services\OrderPieceStatusSync::isSyncingFromOrder()) {
+            return;
+        }
+
         if ($order = $this->order) {
             \App\Services\OrderPieceStatusSync::syncOrderStatusFromPieces($order);
         }

@@ -3,9 +3,15 @@
 namespace App\Services;
 
 use App\Models\Order;
+use App\Models\Stage;
 
 class OrderPieceStatusSync
 {
+    /**
+     * Slug of the stage a piece lands on once its order is handed out.
+     */
+    public const FINISHED_STAGE = 'finished';
+
     private static bool $syncingFromOrder = false;
 
     public static function isSyncingFromOrder(): bool
@@ -98,6 +104,46 @@ class OrderPieceStatusSync
         $order->save();
 
         return true;
+    }
+
+    /**
+     * Move every piece of a handed-out order onto the გატანილია stage.
+     *
+     * Handing an order out is a whole-order action, so each of its pieces must
+     * end up on the matching final stage — otherwise the pieces keep showing
+     * the stage they were left on. Only the 'finished' stage is recorded here:
+     * earlier stages stay as they are so the piece_stage pivot keeps crediting
+     * the people who actually did that work (the user and service stats read
+     * it). Completing this last stage still auto-closes 'completion' for pieces
+     * whose production stages are all done.
+     *
+     * The piece→order direction is suppressed while running: the order status
+     * is the input here, so it must not be recalculated from the pieces.
+     *
+     * @return int Number of pieces moved onto the stage.
+     */
+    public static function markPiecesFinished(Order $order): int
+    {
+        $stage = Stage::ordered()->firstWhere('name', self::FINISHED_STAGE);
+
+        if ($stage === null) {
+            return 0;
+        }
+
+        return self::withoutPieceToOrderSync(function () use ($order, $stage) {
+            $updated = 0;
+
+            foreach (self::productionPieces($order) as $piece) {
+                if ($piece->stages->contains('id', $stage->id)) {
+                    continue;
+                }
+
+                $piece->setStageCompleted($stage, true);
+                $updated++;
+            }
+
+            return $updated;
+        });
     }
 
     /**

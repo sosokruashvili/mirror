@@ -29,7 +29,7 @@
             </div>
         </div>
     </div>
-    <div class="col-md-6 col-lg">
+    <div class="col-md-6 col-lg mb-3 mb-lg-0">
         <div class="card bg-info text-white mb-0">
             <div class="card-header">
                 <h4 class="mb-0">Transfer Paid</h4>
@@ -39,10 +39,29 @@
             </div>
         </div>
     </div>
+    <div class="col-md-6 col-lg">
+        <div class="card bg-primary text-white mb-0">
+            <div class="card-header">
+                <h4 class="mb-0">PM Transfer Paid</h4>
+            </div>
+            <div class="card-body">
+                <h2 class="mb-0" id="stats-total-pm-transfer">{{ number_format($widget['totalPmTransfer'], 2) }} ₾</h2>
+            </div>
+        </div>
+    </div>
 </div>
 
 @push('after_scripts')
 <script>
+    // Match PHP's number_format(): comma thousands, two decimals. Pinned to en-US
+    // so a redraw can't switch separators on the values Blade already rendered.
+    function formatCashierExpenseAmount(value) {
+        return (parseFloat(value) || 0).toLocaleString('en-US', {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2
+        }) + ' ₾';
+    }
+
     // Refresh the summary widget whenever the list filters change (AJAX redraw),
     // so the totals always match the currently filtered table.
     function updateCashierExpenseStats() {
@@ -66,10 +85,11 @@
             method: 'GET',
             data: params,
             success: function(response) {
-                $('#stats-total-amount').text(parseFloat(response.totalAmount).toFixed(2) + ' ₾');
-                $('#stats-total-credit').text(parseFloat(response.totalCredit).toFixed(2) + ' ₾');
-                $('#stats-total-cash').text(parseFloat(response.totalCash).toFixed(2) + ' ₾');
-                $('#stats-total-transfer').text(parseFloat(response.totalTransfer).toFixed(2) + ' ₾');
+                $('#stats-total-amount').text(formatCashierExpenseAmount(response.totalAmount));
+                $('#stats-total-credit').text(formatCashierExpenseAmount(response.totalCredit));
+                $('#stats-total-cash').text(formatCashierExpenseAmount(response.totalCash));
+                $('#stats-total-transfer').text(formatCashierExpenseAmount(response.totalTransfer));
+                $('#stats-total-pm-transfer').text(formatCashierExpenseAmount(response.totalPmTransfer));
             },
             error: function() {
                 console.error('Failed to update cashier expense stats');

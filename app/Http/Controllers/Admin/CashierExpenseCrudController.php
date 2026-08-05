@@ -96,6 +96,63 @@ class CashierExpenseCrudController extends CrudController
         ]);
 
         CRUD::addColumn([
+            'name' => 'payment_progress',
+            'label' => 'Paid (%)',
+            'type' => 'custom_html',
+            'value' => function ($entry) {
+                $amount = (float) $entry->amount_gel;
+                $credit = max(0, min((float) $entry->credit, $amount));
+
+                if ($amount <= 0) {
+                    return '<span class="text-muted">-</span>';
+                }
+
+                // Credit is the unpaid portion, so the rest is already paid:
+                // green = paid share, red = outstanding credit share.
+                $paid = $amount - $credit;
+                $paidPercent = $paid / $amount * 100;
+
+                $title = sprintf(
+                    'Paid %s ₾ · Credit %s ₾ · Total %s ₾',
+                    number_format($paid, 2),
+                    number_format($credit, 2),
+                    number_format($amount, 2)
+                );
+
+                return sprintf(
+                    '<div class="d-flex align-items-center" style="min-width: 110px;" title="%s">'
+                        . '<div class="progress flex-grow-1 me-2" style="height: 6px; min-width: 60px;">'
+                            . '<div class="progress-bar bg-success" role="progressbar" style="width: %s%%;"></div>'
+                            . '<div class="progress-bar bg-danger" role="progressbar" style="width: %s%%;"></div>'
+                        . '</div>'
+                        . '<small class="text-muted">%s%%</small>'
+                    . '</div>',
+                    htmlspecialchars($title, ENT_QUOTES, 'UTF-8'),
+                    round($paidPercent, 2),
+                    round(100 - $paidPercent, 2),
+                    round($paidPercent)
+                );
+            },
+            'orderable' => true,
+            'orderLogic' => function ($query, $column, $columnDirection) {
+                $direction = strtoupper($columnDirection) === 'ASC' ? 'ASC' : 'DESC';
+
+                // Sort by the same paid share the bar draws: (amount - credit) / amount,
+                // clamped to 0..1. Rows without an amount have no percentage, so they
+                // sort as 0% (and the CASE keeps Postgres from dividing by zero).
+                return $query->orderByRaw(
+                    'CASE WHEN COALESCE(cashier_expenses.amount_gel, 0) <= 0 THEN 0'
+                    . ' ELSE GREATEST(0, LEAST(1, (COALESCE(cashier_expenses.amount_gel, 0) - COALESCE(cashier_expenses.credit, 0))'
+                    . ' / COALESCE(cashier_expenses.amount_gel, 0)))'
+                    . ' END ' . $direction
+                );
+            },
+            'searchLogic' => false,
+            // The bar is markup; the CSV/Excel export already has amount + credit.
+            'visibleInExport' => false,
+        ]);
+
+        CRUD::addColumn([
             'name' => 'description',
             'label' => 'Description',
             'type' => 'text',
@@ -426,6 +483,7 @@ class CashierExpenseCrudController extends CrudController
             'totalCredit' => (float) (clone $query)->sum('credit'),
             'totalCash' => (float) (clone $query)->where('type', CashierExpense::TYPE_CASH)->sum(\DB::raw('amount_gel - credit')),
             'totalTransfer' => (float) (clone $query)->where('type', CashierExpense::TYPE_TRANSFER)->sum(\DB::raw('amount_gel - credit')),
+            'totalPmTransfer' => (float) (clone $query)->where('type', CashierExpense::TYPE_PM_TRANSFER)->sum(\DB::raw('amount_gel - credit')),
         ];
     }
 

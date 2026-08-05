@@ -153,7 +153,8 @@ class CashierExpenseCrudController extends CrudController
             'view' => 'vendor.backpack.crud.widgets.cashier_expense_supplier_config',
             'supplierOptions' => ExpenseCategory::supplierOptionsMap(),
         ]);
-        Widget::add()->type('script')->content('assets/js/cashier-expense-supplier.js');
+        // Filename is versioned so browsers pick up fixes (Basset cache-busts via composer.lock only).
+        Widget::add()->type('script')->content('assets/js/cashier-expense-supplier-v2.js');
 
         CRUD::addField([
             'name' => 'type',

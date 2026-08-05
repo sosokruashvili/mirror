@@ -52,6 +52,7 @@ class WarehouseCrudController extends CrudController
         CRUD::setEntityNameStrings('warehouse item', 'warehouses');
         
         $this->crud->orderBy('id', 'desc');
+        $this->crud->query->with(['product', 'supplier']);
 
         $this->addRemainingStockWidget();
 
@@ -68,6 +69,15 @@ class WarehouseCrudController extends CrudController
             'entity' => 'product',
             'attribute' => 'title',
             'model' => 'App\Models\Product',
+        ]);
+
+        $this->crud->addColumn([
+            'name' => 'supplier_id',
+            'label' => 'Supplier',
+            'type' => 'select',
+            'entity' => 'supplier',
+            'attribute' => 'name',
+            'model' => 'App\Models\Supplier',
         ]);
 
         $this->crud->addColumn([
@@ -99,6 +109,16 @@ class WarehouseCrudController extends CrudController
         }, function($value) {
             $this->crud->addClause('where', 'product_id', $value);
         });
+
+        $this->crud->addFilter([
+            'name' => 'supplier_id',
+            'type' => 'select2',
+            'label' => 'Supplier'
+        ], function() {
+            return \App\Models\Supplier::query()->orderBy('name')->pluck('name', 'id')->toArray();
+        }, function($value) {
+            $this->crud->addClause('where', 'supplier_id', $value);
+        });
     }
 
     /**
@@ -127,6 +147,19 @@ class WarehouseCrudController extends CrudController
             'attributes' => [
                 'required' => true,
             ],
+        ]);
+
+        CRUD::addField([
+            'name' => 'supplier_id',
+            'label' => 'Supplier',
+            'type' => 'select',
+            'entity' => 'supplier',
+            'model' => 'App\Models\Supplier',
+            'attribute' => 'name',
+            'options' => (function ($query) {
+                return $query->orderBy('name', 'ASC')->get();
+            }),
+            'allows_null' => true,
         ]);
 
         CRUD::addField([

@@ -11,6 +11,7 @@ class Warehouse extends Model
 
     protected $fillable = [
         'product_id',
+        'supplier_id',
         'quantity',
         'area',
     ];
@@ -26,5 +27,14 @@ class Warehouse extends Model
     public function product()
     {
         return $this->belongsTo(Product::class);
+    }
+
+    /**
+     * The supplier the material was bought from. Optional — older rows and
+     * stock of unknown origin have none.
+     */
+    public function supplier()
+    {
+        return $this->belongsTo(Supplier::class);
     }
 }

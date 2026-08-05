@@ -342,7 +342,13 @@ class Order extends Model
             // price); fall back to the catalog price only when no pivot price is set.
             $unitPrice = $product->pivot->price ?? $product->price;
             foreach($this->pieces as $piece) {
-                $piece->price = $piece->getArea() * $unitPrice * $this->currency_rate;
+                // Round to the column's own scale (pieces.price is numeric(10,2)).
+                // Assigning full float precision made every save dirty forever:
+                // the DB stored 11.73, the next computation produced
+                // 11.731708479744002, and the two never compared equal — so each
+                // call rewrote every piece and logged an audit row for a change
+                // that did not exist.
+                $piece->price = round($piece->getArea() * $unitPrice * $this->currency_rate, 2);
                 if ($persist) {
                     $piece->save();
                 }
@@ -369,7 +375,8 @@ class Order extends Model
             $this->load('pieces');
         }
         
-        $price = number_format($this->calculateTotalPrice(), 2);
+        // Display accessor (select options): read-only, must not persist.
+        $price = number_format($this->calculateTotalPrice(false), 2);
         $productType = product_type_ge($this->product_type ?? '');
         return "Order #{$this->id} - {$productType} - {$price} ₾";
     }

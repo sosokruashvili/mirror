@@ -884,7 +884,7 @@
                                 
                                 <div class="detail-row">
                                     <span class="detail-label">ფასი:</span>
-                                    <span class="detail-value">{{ number_format($order->price_gel ?? $order->calculateTotalPrice(), 2) }} ₾</span>
+                                    <span class="detail-value">{{ number_format($order->price_gel ?? $order->calculateTotalPrice(false), 2) }} ₾</span>
                                 </div>
                                 
                                 <div class="detail-row">

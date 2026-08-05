@@ -185,6 +185,53 @@ class ExpenseCategory extends Model
         return $options;
     }
 
+    /**
+     * Suppliers attached to each category, for the expense form's supplier picker.
+     * Categories with no suppliers are omitted, so the field can stay hidden.
+     *
+     * @return array<int, list<array{id: int, name: string}>>
+     */
+    public static function supplierOptionsMap(): array
+    {
+        $rows = DB::table('supplier_expense_category')
+            ->join('suppliers', 'suppliers.id', '=', 'supplier_expense_category.supplier_id')
+            ->orderBy('suppliers.name')
+            ->get([
+                'supplier_expense_category.expense_category_id as category_id',
+                'suppliers.id as supplier_id',
+                'suppliers.name as supplier_name',
+            ]);
+
+        $map = [];
+
+        foreach ($rows as $row) {
+            $map[(int) $row->category_id][] = [
+                'id' => (int) $row->supplier_id,
+                'name' => (string) $row->supplier_name,
+            ];
+        }
+
+        return $map;
+    }
+
+    /**
+     * IDs of the suppliers attached to a single category.
+     *
+     * @return list<int>
+     */
+    public static function supplierIdsFor(?int $categoryId): array
+    {
+        if (! $categoryId) {
+            return [];
+        }
+
+        return DB::table('supplier_expense_category')
+            ->where('expense_category_id', $categoryId)
+            ->pluck('supplier_id')
+            ->map(fn ($id) => (int) $id)
+            ->all();
+    }
+
     public function indentedName(): string
     {
         $depth = max(0, ((int) $this->depth) - 1);

@@ -25,6 +25,11 @@ class Supplier extends Model
         return $this->hasMany(CashierExpense::class);
     }
 
+    public function warehouses(): HasMany
+    {
+        return $this->hasMany(Warehouse::class);
+    }
+
     public function expenseCategories(): BelongsToMany
     {
         return $this->belongsToMany(

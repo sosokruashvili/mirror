@@ -22,7 +22,7 @@ class CashierExpenseCrudController extends CrudController
     {
         CRUD::setModel(CashierExpense::class);
         CRUD::setRoute(config('backpack.base.route_prefix') . '/cashier-expense');
-        CRUD::setEntityNameStrings('expense', 'expenses');
+        CRUD::setEntityNameStrings('expense-purchase', 'Expenses-Purchases');
 
         $this->crud->enableExportButtons();
     }
@@ -147,6 +147,14 @@ class CashierExpenseCrudController extends CrudController
     {
         CRUD::setValidation(CashierExpenseRequest::class);
 
+        Widget::add([
+            'name' => 'cashier_expense_supplier_config',
+            'type' => 'view',
+            'view' => 'vendor.backpack.crud.widgets.cashier_expense_supplier_config',
+            'supplierOptions' => ExpenseCategory::supplierOptionsMap(),
+        ]);
+        Widget::add()->type('script')->content('assets/js/cashier-expense-supplier.js');
+
         CRUD::addField([
             'name' => 'type',
             'label' => 'Type',
@@ -175,6 +183,11 @@ class CashierExpenseCrudController extends CrudController
                 return $query->orderBy('name', 'ASC')->get();
             }),
             'allows_null' => true,
+            'hint' => 'Only suppliers linked to the selected category.',
+            // Hidden until a category that has suppliers is picked (JS toggles d-none).
+            'wrapper' => [
+                'class' => 'form-group col-sm-12 mb-3 d-none',
+            ],
         ]);
 
         CRUD::addField([
@@ -239,9 +252,30 @@ class CashierExpenseCrudController extends CrudController
     {
         $this->setupCreateOperation();
 
+        $entry = $this->crud->getCurrentEntry();
+
+        // Keep the saved supplier selectable even if it was unlinked from the
+        // category since; otherwise editing the row would silently drop it.
+        if ($entry && $entry->category_id && $entry->supplier_id && $entry->supplier) {
+            $supplierOptions = ExpenseCategory::supplierOptionsMap();
+            $forCategory = $supplierOptions[$entry->category_id] ?? [];
+            $alreadyListed = collect($forCategory)->contains('id', (int) $entry->supplier_id);
+
+            if (! $alreadyListed) {
+                $forCategory[] = ['id' => (int) $entry->supplier_id, 'name' => $entry->supplier->name];
+                $supplierOptions[$entry->category_id] = $forCategory;
+
+                Widget::add([
+                    'name' => 'cashier_expense_supplier_config',
+                    'type' => 'view',
+                    'view' => 'vendor.backpack.crud.widgets.cashier_expense_supplier_config',
+                    'supplierOptions' => $supplierOptions,
+                ]);
+            }
+        }
+
         // Keep the current category visible if it stopped being a leaf after
         // children were added under it; validation still requires a leaf.
-        $entry = $this->crud->getCurrentEntry();
         if ($entry && $entry->category_id && $entry->category) {
             $options = ExpenseCategory::groupedLeafOptions();
             $flat = [];

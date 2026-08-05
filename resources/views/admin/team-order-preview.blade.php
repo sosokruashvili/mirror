@@ -304,7 +304,7 @@
 			<span class="order-info-value">{{ $order->client->name ?? 'N/A' }}</span>
 			<span class="order-info-value">{{ order_type_ge($order->order_type ?? '') }}</span>
 			<span class="order-info-value">{{ product_type_ge($order->product_type ?? '') }}</span>
-			<span class="order-info-value">{{ number_format($order->price_gel ?? $order->calculateTotalPrice(), 2) }} ₾</span>
+			<span class="order-info-value">{{ number_format($order->price_gel ?? $order->calculateTotalPrice(false), 2) }} ₾</span>
 		</div>
 		@if($order->comment)
 		<button type="button" class="btn btn-order-comment" data-comment="{{ e($order->comment) }}" onclick="showOrderComment(this)">

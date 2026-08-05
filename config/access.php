@@ -52,7 +52,7 @@ return [
 
         'payment'          => ['label' => 'Payments',         'actions' => ['list', 'create', 'update', 'delete', 'show']],
         'cashier'           => ['label' => 'Cashier Balance',     'actions' => ['list']],
-        'cashier-expense'   => ['label' => 'Cashier Expenses',    'actions' => ['list', 'create', 'update', 'delete', 'show']],
+        'cashier-expense'   => ['label' => 'Expenses-Purchases',  'actions' => ['list', 'create', 'update', 'delete', 'show']],
         'expense-category'  => ['label' => 'Expense Categories',  'actions' => ['list', 'create', 'update', 'delete', 'reorder']],
         'custom-price'      => ['label' => 'Custom Prices',       'actions' => ['list', 'create', 'update', 'delete', 'show']],
 

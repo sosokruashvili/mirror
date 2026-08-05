@@ -1,7 +1,6 @@
 <?php
 
 namespace App\Http\Controllers\Admin;
-//test test
 
 use App\Models\AuditLog;
 use Backpack\CRUD\app\Http\Controllers\CrudController;
@@ -36,6 +35,15 @@ class AuditLogCrudController extends CrudController
     {
         // Newest activity first.
         $this->crud->orderBy('created_at', 'desc')->orderBy('id', 'desc');
+
+        $this->crud->query = $this->crud->query->withGroupCount();
+
+        // Collapse each bulk action to a single row. The exception is drilling
+        // into one record by id: there the user wants that record's own history,
+        // and a row hidden behind its group's representative would look missing.
+        if (! request()->filled('subject_id')) {
+            $this->crud->query = $this->crud->query->representativeOfBatch();
+        }
 
         CRUD::addColumn([
             'name' => 'created_at',
@@ -131,7 +139,9 @@ class AuditLogCrudController extends CrudController
             'label' => 'Changes',
             'type' => 'custom_html',
             'escaped' => false,
-            'value' => fn ($entry) => $this->renderDiff($entry),
+            'value' => fn ($entry) => $entry->group_count > 1
+                ? $this->renderGroupDiff($entry)
+                : $this->renderDiff($entry),
         ]);
     }
 
@@ -219,9 +229,17 @@ class AuditLogCrudController extends CrudController
     /**
      * "Order #42", linked to the record's Show page when that page exists and
      * the record has not been deleted.
+     *
+     * When the row stands for a whole group ("30 × Piece"), there is no single
+     * record to link to — the Show page lists the members instead.
      */
     protected function subjectLink(AuditLog $entry): string
     {
+        if ($entry->group_count > 1) {
+            return '<span class="badge bg-secondary me-1">' . $entry->group_count . ' ×</span> '
+                . e($entry->subject_model);
+        }
+
         $label = e($entry->subject_label);
 
         if (! $entry->subject_type || $entry->event === 'deleted') {
@@ -288,6 +306,58 @@ class AuditLogCrudController extends CrudController
             . '<th style="width:20%">Field</th>'
             . '<th style="width:40%">Old value</th>'
             . '<th style="width:40%">New value</th>'
+            . '</tr></thead>'
+            . '<tbody>' . $rows . '</tbody></table>';
+    }
+
+    /**
+     * Expanded view of a collapsed group: every record the action touched, one
+     * line per changed field, so "30 × Piece updated" stays inspectable.
+     */
+    protected function renderGroupDiff(AuditLog $entry): string
+    {
+        // Enough to audit a bulk edit without rendering a runaway page.
+        $limit = 200;
+
+        $members = $entry->groupMembers()->limit($limit + 1)->get();
+        $overflow = $members->count() > $limit;
+        $members = $members->take($limit);
+
+        $rows = '';
+        foreach ($members as $member) {
+            $old = $member->old_values ?? [];
+            $new = $member->new_values ?? [];
+            $keys = array_values(array_unique(array_merge(array_keys($old), array_keys($new))));
+
+            if (empty($keys)) {
+                $keys = [null];
+            }
+
+            foreach ($keys as $i => $key) {
+                $rows .= '<tr>'
+                    // Name the record once per record, not once per field.
+                    . ($i === 0
+                        ? '<td rowspan="' . count($keys) . '" class="fw-bold">' . e($member->subject_label) . '</td>'
+                        : '')
+                    . '<td>' . ($key === null ? '<span class="text-muted">—</span>' : e($key)) . '</td>'
+                    . '<td>' . $this->formatValue($key === null ? null : ($old[$key] ?? null)) . '</td>'
+                    . '<td>' . $this->formatValue($key === null ? null : ($new[$key] ?? null)) . '</td>'
+                    . '</tr>';
+            }
+        }
+
+        $note = '<p class="text-muted small mb-2">'
+            . 'One action changed ' . $entry->group_count . ' records.'
+            . ($overflow ? ' Showing the first ' . $limit . '.' : '')
+            . '</p>';
+
+        return $note
+            . '<table class="table table-sm table-bordered mb-0">'
+            . '<thead><tr>'
+            . '<th style="width:20%">Record</th>'
+            . '<th style="width:20%">Field</th>'
+            . '<th style="width:30%">Old value</th>'
+            . '<th style="width:30%">New value</th>'
             . '</tr></thead>'
             . '<tbody>' . $rows . '</tbody></table>';
     }

@@ -26,6 +26,7 @@ class WarehouseRequest extends FormRequest
     {
         return [
             'product_id' => 'required|exists:products,id',
+            'supplier_id' => 'nullable|exists:suppliers,id',
             'quantity' => 'nullable|integer|min:0',
             'area' => 'nullable|numeric|min:0',
         ];

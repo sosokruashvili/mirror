@@ -86,7 +86,7 @@
             <x-backpack::menu-dropdown-item title="Balance" icon="la la-wallet" :link="backpack_url('cashier')" />
         @endif
         @if($u->can('cashier-expense.list'))
-            <x-backpack::menu-dropdown-item title="Expenses" icon="la la-receipt" :link="backpack_url('cashier-expense')" />
+            <x-backpack::menu-dropdown-item title="Expenses-Purchases" icon="la la-receipt" :link="backpack_url('cashier-expense')" />
         @endif
         @if($u->can('expense-category.list'))
             <x-backpack::menu-dropdown-item title="Expense Categories" icon="la la-sitemap" :link="backpack_url('expense-category')" />

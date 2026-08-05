@@ -5,6 +5,7 @@ namespace App\Support\Auditing;
 use App\Models\AuditLog;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 
 /**
  * Turns Eloquent model events into audit_logs rows.
@@ -49,6 +50,36 @@ class AuditLogger
         'created_at',
     ];
 
+    /**
+     * Groups every row written during one request / job, so a single user action
+     * that touches many records reads as one entry in the activity log.
+     *
+     * The logger is a singleton, so this is minted once per process lifecycle and
+     * reset between queued jobs by App\Providers\AuditServiceProvider.
+     */
+    protected ?string $batchId = null;
+
+    /**
+     * Groups within the current batch that already have a head row, keyed by
+     * event + subject type. Lets the list view find the one row representing a
+     * bulk change with an indexed lookup instead of a correlated subquery.
+     */
+    protected array $batchHeads = [];
+
+    /**
+     * Start a new batch. Called at the boundaries of a unit of work.
+     */
+    public function newBatch(): void
+    {
+        $this->batchId = null;
+        $this->batchHeads = [];
+    }
+
+    protected function batchId(): string
+    {
+        return $this->batchId ??= (string) Str::uuid();
+    }
+
     public function created(Model $model): void
     {
         $this->record('created', $model, null, $this->attributes($model));
@@ -89,9 +120,13 @@ class AuditLogger
 
         try {
             $causer = $this->resolveCauser();
+            $groupKey = $event . '|' . $model->getMorphClass();
+            $isHead = ! isset($this->batchHeads[$groupKey]);
 
             AuditLog::create([
-                'event'        => $event,
+                'batch_id'      => $this->batchId(),
+                'is_batch_head' => $isHead,
+                'event'         => $event,
                 'subject_type' => $model->getMorphClass(),
                 'subject_id'   => $model->getKey(),
                 'causer_id'    => $causer?->getKey(),
@@ -101,6 +136,10 @@ class AuditLogger
                 'ip_address'   => $this->requestValue(fn () => request()->ip()),
                 'url'          => $this->requestValue(fn () => request()->fullUrl()),
             ]);
+
+            // Only after a successful insert, so a failed head does not leave the
+            // rest of its group headless and therefore hidden from the list.
+            $this->batchHeads[$groupKey] = true;
         } catch (\Throwable $e) {
             // Auditing must never take down the actual request.
             Log::warning('Audit logging failed: ' . $e->getMessage(), [

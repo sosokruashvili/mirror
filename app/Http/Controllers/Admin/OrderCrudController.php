@@ -837,8 +837,9 @@ class OrderCrudController extends CrudController
             'name' => 'price_gel',
             'label' => 'Price (GEL)',
             'type' => 'number',
-            'value' => function ($entry) {  
-                return $entry->calculateTotalPrice();
+            'value' => function ($entry) {
+                // List column: rendering a page must not persist piece prices.
+                return $entry->calculateTotalPrice(false);
             },
             'decimals' => 0,
         ]);

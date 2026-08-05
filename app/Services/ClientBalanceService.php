@@ -28,7 +28,8 @@ class ClientBalanceService
             ->where('status', '!=', 'draft')
             ->get()
             ->sum(function ($order) {
-                return $order->calculateTotalPrice();
+                // Read-only: never write piece prices back while reading a balance.
+                return $order->calculateTotalPrice(false);
             });
 
         return [

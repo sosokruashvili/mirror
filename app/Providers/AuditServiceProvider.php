@@ -4,6 +4,7 @@ namespace App\Providers;
 
 use App\Support\Auditing\AuditLogger;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Queue\Events\JobProcessing;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\ServiceProvider;
 
@@ -42,5 +43,9 @@ class AuditServiceProvider extends ServiceProvider
                 }
             });
         }
+
+        // A queue worker is a long-lived process holding one logger singleton, so
+        // without this every job it ever runs would share a single batch.
+        Event::listen(JobProcessing::class, fn () => $logger->newBatch());
     }
 }

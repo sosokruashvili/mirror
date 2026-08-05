@@ -49,6 +49,7 @@ return [
         'warehouse-expense' => ['label' => 'Warehouse Expenses', 'actions' => ['list']],
         'warehouse-correction' => ['label' => 'Warehouse Corrections', 'actions' => ['list', 'create', 'update', 'delete', 'show']],
         'supplier'         => ['label' => 'Suppliers',        'actions' => ['list', 'create', 'update', 'delete', 'show']],
+        'supplier-price'   => ['label' => 'Supplier Prices',  'actions' => ['list', 'create', 'update', 'delete', 'show']],
 
         'payment'          => ['label' => 'Payments',         'actions' => ['list', 'create', 'update', 'delete', 'show']],
         'cashier'           => ['label' => 'Cashier Balance',     'actions' => ['list']],

@@ -46,4 +46,12 @@ class Product extends Model
     {
         return $this->hasMany(Warehouse::class);
     }
+
+    /**
+     * The per-supplier purchase prices for this product.
+     */
+    public function supplierPrices()
+    {
+        return $this->hasMany(SupplierPrice::class);
+    }
 }

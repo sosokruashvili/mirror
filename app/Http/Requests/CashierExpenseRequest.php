@@ -24,6 +24,7 @@ class CashierExpenseRequest extends FormRequest
                 Rule::exists('expense_categories', 'id'),
             ],
             'supplier_id' => 'nullable|exists:suppliers,id',
+            'product_id' => 'nullable|exists:products,id',
             'amount_gel' => 'required|numeric|min:0.01|max:999999999.99',
             'credit' => 'nullable|numeric|min:0|max:999999999.99',
             'description' => 'nullable|string|max:5000',
@@ -71,6 +72,11 @@ class CashierExpenseRequest extends FormRequest
             && (! $supplierId || ! $this->supplierIsAllowed((int) $supplierId, $categoryId ? (int) $categoryId : null))) {
             $this->merge(['supplier_id' => null]);
         }
+
+        // Same for the product field, which is only shown for საწარმოო categories.
+        if (! ExpenseCategory::isProductionCategory($categoryId ? (int) $categoryId : null)) {
+            $this->merge(['product_id' => null]);
+        }
     }
 
     /**
@@ -105,6 +111,7 @@ class CashierExpenseRequest extends FormRequest
             'type' => 'type',
             'category_id' => 'category',
             'supplier_id' => 'supplier',
+            'product_id' => 'product',
             'amount_gel' => 'amount (GEL)',
             'credit' => 'credit',
             'description' => 'description',

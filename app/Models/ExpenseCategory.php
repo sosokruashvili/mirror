@@ -186,6 +186,41 @@ class ExpenseCategory extends Model
     }
 
     /**
+     * IDs of the საწარმოო root and every category under it. Expenses in this
+     * branch are purchases of goods, so they can name the product bought.
+     *
+     * @return list<int>
+     */
+    public static function productionCategoryIds(): array
+    {
+        $root = static::query()
+            ->where('name', 'საწარმოო')
+            ->whereNull('parent_id')
+            ->first();
+
+        if (! $root) {
+            return [];
+        }
+
+        return static::query()
+            ->where('lft', '>=', $root->lft)
+            ->where('rgt', '<=', $root->rgt)
+            ->orderBy('lft')
+            ->pluck('id')
+            ->map(fn ($id) => (int) $id)
+            ->all();
+    }
+
+    public static function isProductionCategory(?int $categoryId): bool
+    {
+        if (! $categoryId) {
+            return false;
+        }
+
+        return in_array($categoryId, static::productionCategoryIds(), true);
+    }
+
+    /**
      * Suppliers attached to each category, for the expense form's supplier picker.
      * Categories with no suppliers are omitted, so the field can stay hidden.
      *

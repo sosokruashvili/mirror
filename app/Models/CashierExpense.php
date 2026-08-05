@@ -18,6 +18,7 @@ class CashierExpense extends Model
         'type',
         'category_id',
         'supplier_id',
+        'product_id',
         'amount_gel',
         'credit',
         'description',
@@ -31,6 +32,7 @@ class CashierExpense extends Model
         'expense_date' => 'datetime',
         'category_id' => 'integer',
         'supplier_id' => 'integer',
+        'product_id' => 'integer',
     ];
 
     /**
@@ -49,6 +51,11 @@ class CashierExpense extends Model
     public function supplier(): BelongsTo
     {
         return $this->belongsTo(Supplier::class);
+    }
+
+    public function product(): BelongsTo
+    {
+        return $this->belongsTo(Product::class);
     }
 
     public function setFileAttribute($value)

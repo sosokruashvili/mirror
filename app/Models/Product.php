@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Backpack\CRUD\app\Models\Traits\CrudTrait;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Product extends Model
 {
@@ -53,5 +54,10 @@ class Product extends Model
     public function supplierPrices()
     {
         return $this->hasMany(SupplierPrice::class);
+    }
+
+    public function cashierExpenses(): HasMany
+    {
+        return $this->hasMany(CashierExpense::class);
     }
 }

@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Requests\CashierExpenseRequest;
 use App\Models\CashierExpense;
 use App\Models\ExpenseCategory;
+use App\Models\Product;
 use Backpack\CRUD\app\Http\Controllers\CrudController;
 use Backpack\CRUD\app\Library\CrudPanel\CrudPanelFacade as CRUD;
 use Backpack\CRUD\app\Library\Widget;
@@ -29,7 +30,7 @@ class CashierExpenseCrudController extends CrudController
 
     protected function setupListOperation(): void
     {
-        $this->crud->query->with(['category', 'supplier']);
+        $this->crud->query->with(['category', 'supplier', 'product']);
         $this->addExpenseStatsWidget();
 
         CRUD::addColumn([
@@ -60,6 +61,15 @@ class CashierExpenseCrudController extends CrudController
             'entity' => 'supplier',
             'attribute' => 'name',
             'model' => \App\Models\Supplier::class,
+        ]);
+
+        CRUD::addColumn([
+            'name' => 'product_id',
+            'label' => 'Product',
+            'type' => 'select',
+            'entity' => 'product',
+            'attribute' => 'title',
+            'model' => Product::class,
         ]);
 
         CRUD::addColumn([
@@ -127,6 +137,16 @@ class CashierExpenseCrudController extends CrudController
         });
 
         CRUD::addFilter([
+            'name' => 'product_id',
+            'type' => 'select2',
+            'label' => 'Product',
+        ], function () {
+            return Product::query()->orderBy('title')->pluck('title', 'id')->toArray();
+        }, function ($value) {
+            $this->crud->addClause('where', 'product_id', $value);
+        });
+
+        CRUD::addFilter([
             'type' => 'date_range',
             'name' => 'expense_date',
             'label' => 'Date Range',
@@ -152,9 +172,10 @@ class CashierExpenseCrudController extends CrudController
             'type' => 'view',
             'view' => 'vendor.backpack.crud.widgets.cashier_expense_supplier_config',
             'supplierOptions' => ExpenseCategory::supplierOptionsMap(),
+            'productionCategoryIds' => ExpenseCategory::productionCategoryIds(),
         ]);
         // Filename is versioned so browsers pick up fixes (Basset cache-busts via composer.lock only).
-        Widget::add()->type('script')->content('assets/js/cashier-expense-supplier-v2.js');
+        Widget::add()->type('script')->content('assets/js/cashier-expense-supplier-v3.js');
 
         CRUD::addField([
             'name' => 'type',
@@ -186,6 +207,27 @@ class CashierExpenseCrudController extends CrudController
             'allows_null' => true,
             'hint' => 'Only suppliers linked to the selected category.',
             // Hidden until a category that has suppliers is picked (JS toggles d-none).
+            'wrapper' => [
+                'class' => 'form-group col-sm-12 mb-3 d-none',
+            ],
+        ]);
+
+        CRUD::addField([
+            'name' => 'product_id',
+            'label' => 'Product',
+            'type' => 'select2',
+            'entity' => 'product',
+            'attribute' => 'title',
+            'model' => Product::class,
+            'allows_null' => true,
+            'options' => (function ($query) {
+                return $query->orderBy('title')->get();
+            }),
+            'attributes' => [
+                'data-placeholder' => 'Search and select a product',
+            ],
+            'hint' => 'Only for საწარმოო purchases.',
+            // Hidden until a საწარმოო category is picked (JS toggles d-none).
             'wrapper' => [
                 'class' => 'form-group col-sm-12 mb-3 d-none',
             ],
@@ -307,7 +349,7 @@ class CashierExpenseCrudController extends CrudController
     }
 
     /**
-     * Apply the list filters (type, category, date range) to a query so the
+     * Apply the list filters to a query so the
      * summary widget totals match exactly what the filtered table shows.
      */
     protected function applyExpenseFilters($query)
@@ -322,6 +364,10 @@ class CashierExpenseCrudController extends CrudController
 
         if (request()->filled('supplier_id')) {
             $query->where('supplier_id', request()->get('supplier_id'));
+        }
+
+        if (request()->filled('product_id')) {
+            $query->where('product_id', request()->get('product_id'));
         }
 
         if (request()->filled('expense_date')) {

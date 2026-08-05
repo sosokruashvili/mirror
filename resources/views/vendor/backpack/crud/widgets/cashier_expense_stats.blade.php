@@ -68,6 +68,7 @@
         if (urlParams.get('type')) params.type = urlParams.get('type');
         if (urlParams.get('category_id')) params.category_id = urlParams.get('category_id');
         if (urlParams.get('supplier_id')) params.supplier_id = urlParams.get('supplier_id');
+        if (urlParams.get('product_id')) params.product_id = urlParams.get('product_id');
         if (urlParams.get('expense_date')) params.expense_date = urlParams.get('expense_date');
 
         $.ajax({

@@ -1,7 +1,10 @@
-// Supplier picker on the expense form: only shown when the selected expense
-// category has suppliers attached, and limited to those suppliers.
+// Category-driven fields on the expense form:
+//  - Supplier appears only when the selected category has suppliers attached,
+//    limited to those suppliers.
+//  - Product appears only for categories under საწარმოო.
 (function () {
     var supplierOptions = window.cashierExpenseSupplierOptions || {};
+    var productionCategoryIds = (window.cashierExpenseProductionCategoryIds || []).map(String);
 
     function suppliersFor(categoryId) {
         if (!categoryId) {
@@ -9,6 +12,10 @@
         }
 
         return supplierOptions[String(categoryId)] || [];
+    }
+
+    function isProductionCategory(categoryId) {
+        return !!categoryId && productionCategoryIds.indexOf(String(categoryId)) !== -1;
     }
 
     function getCategoryId() {
@@ -19,22 +26,22 @@
         }
     }
 
-    function getSupplierInput() {
+    function getInput(name) {
         try {
-            return crud.field('supplier_id').$input;
+            return crud.field(name).$input;
         } catch (e) {
-            return $('select[name="supplier_id"]');
+            return $('select[name="' + name + '"]');
         }
     }
 
-    function getSupplierWrapper() {
-        var $wrapper = $('[bp-field-name="supplier_id"][bp-field-wrapper]').first();
+    function getWrapper(name) {
+        var $wrapper = $('[bp-field-name="' + name + '"][bp-field-wrapper]').first();
 
-        return $wrapper.length ? $wrapper : getSupplierInput().closest('.form-group');
+        return $wrapper.length ? $wrapper : getInput(name).closest('.form-group');
     }
 
     function populateSuppliers(suppliers) {
-        var $input = getSupplierInput();
+        var $input = getInput('supplier_id');
         if (!$input.length) {
             return;
         }
@@ -57,20 +64,35 @@
 
     function refreshSupplierField() {
         var suppliers = suppliersFor(getCategoryId());
-        var $wrapper = getSupplierWrapper();
 
         populateSuppliers(suppliers);
-        $wrapper.toggleClass('d-none', suppliers.length === 0);
+        getWrapper('supplier_id').toggleClass('d-none', suppliers.length === 0);
+    }
+
+    function refreshProductField() {
+        var show = isProductionCategory(getCategoryId());
+        var $input = getInput('product_id');
+
+        if (!show && $input.length && $input.val()) {
+            $input.val('').trigger('change');
+        }
+
+        getWrapper('product_id').toggleClass('d-none', !show);
+    }
+
+    function refreshFields() {
+        refreshSupplierField();
+        refreshProductField();
     }
 
     function bind() {
         try {
-            crud.field('category_id').onChange(refreshSupplierField);
+            crud.field('category_id').onChange(refreshFields);
         } catch (e) {
-            $('select[name="category_id"]').on('change', refreshSupplierField);
+            $('select[name="category_id"]').on('change', refreshFields);
         }
 
-        refreshSupplierField();
+        refreshFields();
     }
 
     $(document).ready(function () {

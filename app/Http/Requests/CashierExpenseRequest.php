@@ -4,6 +4,7 @@ namespace App\Http\Requests;
 
 use App\Models\CashierExpense;
 use App\Models\ExpenseCategory;
+use App\Models\SupplierPrice;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -25,6 +26,7 @@ class CashierExpenseRequest extends FormRequest
             ],
             'supplier_id' => 'nullable|exists:suppliers,id',
             'product_id' => 'nullable|exists:products,id',
+            'price_usd' => 'nullable|numeric|min:0|max:99999999.99',
             'amount_gel' => 'required|numeric|min:0.01|max:999999999.99',
             'credit' => 'nullable|numeric|min:0|max:999999999.99',
             'description' => 'nullable|string|max:5000',
@@ -75,7 +77,22 @@ class CashierExpenseRequest extends FormRequest
 
         // Same for the product field, which is only shown for საწარმოო categories.
         if (! ExpenseCategory::isProductionCategory($categoryId ? (int) $categoryId : null)) {
-            $this->merge(['product_id' => null]);
+            $this->merge([
+                'product_id' => null,
+                'price_usd' => null,
+            ]);
+        } elseif (($this->input('price_usd') === null || $this->input('price_usd') === '')
+            && $this->input('supplier_id')
+            && $this->input('product_id')) {
+            // Server-side fallback when JavaScript is unavailable.
+            $price = SupplierPrice::query()
+                ->where('supplier_id', $this->input('supplier_id'))
+                ->where('product_id', $this->input('product_id'))
+                ->value('price_usd');
+
+            if ($price !== null) {
+                $this->merge(['price_usd' => $price]);
+            }
         }
     }
 
@@ -112,6 +129,7 @@ class CashierExpenseRequest extends FormRequest
             'category_id' => 'category',
             'supplier_id' => 'supplier',
             'product_id' => 'product',
+            'price_usd' => 'purchase price (USD)',
             'amount_gel' => 'amount (GEL)',
             'credit' => 'credit',
             'description' => 'description',

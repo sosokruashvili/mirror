@@ -19,6 +19,7 @@ class CashierExpense extends Model
         'category_id',
         'supplier_id',
         'product_id',
+        'price_usd',
         'amount_gel',
         'credit',
         'description',
@@ -28,6 +29,7 @@ class CashierExpense extends Model
 
     protected $casts = [
         'amount_gel' => 'decimal:2',
+        'price_usd' => 'decimal:2',
         'credit' => 'decimal:2',
         'expense_date' => 'datetime',
         'category_id' => 'integer',

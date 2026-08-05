@@ -1,10 +1,12 @@
 // Category-driven fields on the expense form:
-//  - Supplier appears only when the selected category has suppliers attached,
-//    limited to those suppliers.
-//  - Product appears only for categories under საწარმოო.
+//  - Supplier appears only when the selected category has suppliers attached.
+//  - Product and purchase price appear only for categories under საწარმოო.
+//  - Purchase price is filled from Supplier Prices for the selected pair.
 (function () {
     var supplierOptions = window.cashierExpenseSupplierOptions || {};
     var productionCategoryIds = (window.cashierExpenseProductionCategoryIds || []).map(String);
+    var supplierPrices = window.cashierExpenseSupplierPrices || {};
+    var initializing = false;
 
     function suppliersFor(categoryId) {
         if (!categoryId) {
@@ -30,7 +32,7 @@
         try {
             return crud.field(name).$input;
         } catch (e) {
-            return $('select[name="' + name + '"]');
+            return $('input[name="' + name + '"], select[name="' + name + '"]').first();
         }
     }
 
@@ -54,7 +56,6 @@
             $input.append($('<option>').val(supplier.id).text(supplier.name));
         });
 
-        // Keep the saved/selected supplier if it belongs to the new category.
         var stillValid = suppliers.some(function (supplier) {
             return String(supplier.id) === previous;
         });
@@ -78,21 +79,67 @@
         }
 
         getWrapper('product_id').toggleClass('d-none', !show);
+
+        return show;
     }
 
-    function refreshFields() {
+    function configuredPrice() {
+        var supplierId = String(getInput('supplier_id').val() || '');
+        var productId = String(getInput('product_id').val() || '');
+        var key = supplierId + ':' + productId;
+
+        return supplierId && productId && Object.prototype.hasOwnProperty.call(supplierPrices, key)
+            ? supplierPrices[key]
+            : null;
+    }
+
+    function refreshPriceField(force) {
+        var show = isProductionCategory(getCategoryId());
+        var $input = getInput('price_usd');
+
+        getWrapper('price_usd').toggleClass('d-none', !show);
+
+        if (!show) {
+            $input.val('');
+            return;
+        }
+
+        // On initial edit-page load, keep the stored historical price. When the
+        // supplier/product changes (or the field is blank), use today's configured price.
+        if (force || !$input.val()) {
+            $input.val(configuredPrice() || '').trigger('change');
+        }
+    }
+
+    function refreshFields(forcePrice) {
         refreshSupplierField();
         refreshProductField();
+        refreshPriceField(forcePrice);
     }
 
     function bind() {
         try {
-            crud.field('category_id').onChange(refreshFields);
+            crud.field('category_id').onChange(function () {
+                refreshFields(true);
+            });
+            crud.field('supplier_id').onChange(function () {
+                refreshPriceField(!initializing);
+            });
+            crud.field('product_id').onChange(function () {
+                refreshPriceField(!initializing);
+            });
         } catch (e) {
-            $('select[name="category_id"]').on('change', refreshFields);
+            $('select[name="category_id"]').on('change', function () {
+                refreshFields(true);
+            });
+            $('select[name="supplier_id"], select[name="product_id"]').on('change', function () {
+                refreshPriceField(!initializing);
+            });
         }
 
-        refreshFields();
+        initializing = true;
+        refreshFields(false);
+        initializing = false;
     }
 
     $(document).ready(function () {

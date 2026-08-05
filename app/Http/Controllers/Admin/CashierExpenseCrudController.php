@@ -6,6 +6,7 @@ use App\Http\Requests\CashierExpenseRequest;
 use App\Models\CashierExpense;
 use App\Models\ExpenseCategory;
 use App\Models\Product;
+use App\Models\SupplierPrice;
 use Backpack\CRUD\app\Http\Controllers\CrudController;
 use Backpack\CRUD\app\Library\CrudPanel\CrudPanelFacade as CRUD;
 use Backpack\CRUD\app\Library\Widget;
@@ -70,6 +71,14 @@ class CashierExpenseCrudController extends CrudController
             'entity' => 'product',
             'attribute' => 'title',
             'model' => Product::class,
+        ]);
+
+        CRUD::addColumn([
+            'name' => 'price_usd',
+            'label' => 'Purchase Price ($)',
+            'type' => 'number',
+            'decimals' => 2,
+            'prefix' => '$',
         ]);
 
         CRUD::addColumn([
@@ -173,9 +182,10 @@ class CashierExpenseCrudController extends CrudController
             'view' => 'vendor.backpack.crud.widgets.cashier_expense_supplier_config',
             'supplierOptions' => ExpenseCategory::supplierOptionsMap(),
             'productionCategoryIds' => ExpenseCategory::productionCategoryIds(),
+            'supplierPrices' => SupplierPrice::priceMap(),
         ]);
         // Filename is versioned so browsers pick up fixes (Basset cache-busts via composer.lock only).
-        Widget::add()->type('script')->content('assets/js/cashier-expense-supplier-v3.js');
+        Widget::add()->type('script')->content('assets/js/cashier-expense-supplier-v4.js');
 
         CRUD::addField([
             'name' => 'type',
@@ -228,6 +238,23 @@ class CashierExpenseCrudController extends CrudController
             ],
             'hint' => 'Only for საწარმოო purchases.',
             // Hidden until a საწარმოო category is picked (JS toggles d-none).
+            'wrapper' => [
+                'class' => 'form-group col-sm-12 mb-3 d-none',
+            ],
+        ]);
+
+        CRUD::addField([
+            'name' => 'price_usd',
+            'label' => 'Purchase Price (USD)',
+            'type' => 'number',
+            'attributes' => [
+                'step' => '0.01',
+                'min' => '0',
+                'placeholder' => 'Select supplier and product',
+            ],
+            'prefix' => '$',
+            'hint' => 'Auto-filled from Supplier Prices when the supplier and product match.',
+            // Product purchases only; JS toggles this with the product field.
             'wrapper' => [
                 'class' => 'form-group col-sm-12 mb-3 d-none',
             ],
@@ -313,6 +340,8 @@ class CashierExpenseCrudController extends CrudController
                     'type' => 'view',
                     'view' => 'vendor.backpack.crud.widgets.cashier_expense_supplier_config',
                     'supplierOptions' => $supplierOptions,
+                    'productionCategoryIds' => ExpenseCategory::productionCategoryIds(),
+                    'supplierPrices' => SupplierPrice::priceMap(),
                 ]);
             }
         }

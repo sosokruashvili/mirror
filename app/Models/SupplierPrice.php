@@ -21,6 +21,21 @@ class SupplierPrice extends Model
     ];
 
     /**
+     * Purchase prices keyed by "supplier_id:product_id" for the expense form.
+     *
+     * @return array<string, string>
+     */
+    public static function priceMap(): array
+    {
+        return static::query()
+            ->get(['supplier_id', 'product_id', 'price_usd'])
+            ->mapWithKeys(fn (self $price) => [
+                $price->supplier_id.':'.$price->product_id => (string) $price->price_usd,
+            ])
+            ->all();
+    }
+
+    /**
      * The product this purchase price applies to.
      */
     public function product(): BelongsTo

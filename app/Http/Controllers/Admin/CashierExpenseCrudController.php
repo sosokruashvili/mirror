@@ -422,7 +422,6 @@ class CashierExpenseCrudController extends CrudController
         $query = $this->applyExpenseFilters(CashierExpense::query());
 
         return [
-            'expensesCount' => (clone $query)->count(),
             'totalAmount' => (float) (clone $query)->sum('amount_gel'),
             'totalCredit' => (float) (clone $query)->sum('credit'),
             'totalCash' => (float) (clone $query)->where('type', CashierExpense::TYPE_CASH)->sum(\DB::raw('amount_gel - credit')),

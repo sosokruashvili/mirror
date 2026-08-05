@@ -1,15 +1,5 @@
 <div class="row mb-3" id="cashier-expense-stats-widget">
-    <div class="col-md-4 col-lg mb-3 mb-lg-0">
-        <div class="card bg-primary text-white mb-0">
-            <div class="card-header">
-                <h4 class="mb-0">Expenses Count</h4>
-            </div>
-            <div class="card-body">
-                <h2 class="mb-0" id="stats-expenses-count">{{ number_format($widget['expensesCount']) }}</h2>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-4 col-lg mb-3 mb-lg-0">
+    <div class="col-md-6 col-lg mb-3 mb-lg-0">
         <div class="card bg-warning text-white mb-0">
             <div class="card-header">
                 <h4 class="mb-0">Total Amount</h4>
@@ -19,7 +9,7 @@
             </div>
         </div>
     </div>
-    <div class="col-md-4 col-lg mb-3 mb-lg-0">
+    <div class="col-md-6 col-lg mb-3 mb-lg-0">
         <div class="card bg-danger text-white mb-0">
             <div class="card-header">
                 <h4 class="mb-0">Total Credit</h4>
@@ -76,7 +66,6 @@
             method: 'GET',
             data: params,
             success: function(response) {
-                $('#stats-expenses-count').text(Number(response.expensesCount).toLocaleString());
                 $('#stats-total-amount').text(parseFloat(response.totalAmount).toFixed(2) + ' ₾');
                 $('#stats-total-credit').text(parseFloat(response.totalCredit).toFixed(2) + ' ₾');
                 $('#stats-total-cash').text(parseFloat(response.totalCash).toFixed(2) + ' ₾');

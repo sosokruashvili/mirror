@@ -44,10 +44,22 @@ class TeamOrderController extends Controller
         $view = $request->query('view');
         $showArchived = ($view === 'archived');
 
-        // Reset button: clear the user's saved filters and reload unfiltered.
+        // Reset button: clear the user's active filters and reload unfiltered.
+        // The snapshot taken with the Save button is left untouched so it can
+        // be brought back with Restore.
         if ($request->boolean('reset')) {
             if ($user = backpack_user()) {
                 $user->team_order_filters = null;
+                $user->save();
+            }
+
+            return redirect()->route('team.orders', $showArchived ? ['view' => 'archived'] : []);
+        }
+
+        // Restore button: make the saved snapshot the active filters again.
+        if ($request->boolean('restore')) {
+            if (($user = backpack_user()) && is_array($user->team_order_saved_filters)) {
+                $user->team_order_filters = $user->team_order_saved_filters;
                 $user->save();
             }
 
@@ -68,19 +80,46 @@ class TeamOrderController extends Controller
             'client' => $clientFilter,
         ] = $this->resolveFilters($request);
 
+        $activeFilters = [
+            'from' => $dateFrom ?: null,
+            'to' => $dateTo ?: null,
+            'product_type' => $productTypeFilter,
+            'service' => $serviceFilter,
+            'stage' => $stageFilter,
+            'current_stage' => $currentStageFilter,
+            'client' => $clientFilter,
+        ];
+
         // Persist the just-applied filters for this user.
         if ($applied && ($user = backpack_user())) {
-            $user->team_order_filters = [
-                'from' => $dateFrom ?: null,
-                'to' => $dateTo ?: null,
-                'product_type' => $productTypeFilter,
-                'service' => $serviceFilter,
-                'stage' => $stageFilter,
-                'current_stage' => $currentStageFilter,
-                'client' => $clientFilter,
-            ];
+            $user->team_order_filters = $activeFilters;
             $user->save();
         }
+
+        // Save button: the filter form was submitted with save=1, so the form's
+        // selection is now applied AND kept as a snapshot that survives Reset.
+        // Saving an empty selection clears the snapshot instead — that's how a
+        // stale snapshot is removed.
+        if ($applied && $request->boolean('save') && ($user = backpack_user())) {
+            if ($this->isEmptyFilterState($activeFilters)) {
+                $user->team_order_saved_filters = null;
+                Alert::info('Saved filter cleared.')->flash();
+            } else {
+                $user->team_order_saved_filters = $activeFilters;
+                Alert::success('Filter saved. Use Restore after a reset to bring it back.')->flash();
+            }
+            $user->save();
+
+            return redirect()->route('team.orders', $showArchived ? ['view' => 'archived'] : []);
+        }
+
+        // Offer Restore when a snapshot exists and differs from what is active
+        // now (after Reset, or after the filters were changed).
+        $savedSnapshot = ($user = backpack_user()) && is_array($user->team_order_saved_filters)
+            ? $user->team_order_saved_filters
+            : null;
+        $canRestoreFilters = $savedSnapshot !== null
+            && $this->normalizeFilterState($savedSnapshot) != $this->normalizeFilterState($activeFilters);
 
         $clients = \App\Models\Client::orderBy('name')->get();
         $stages = \App\Models\Stage::orderBy('position')->orderBy('id')->get();
@@ -145,7 +184,7 @@ class TeamOrderController extends Controller
         // the applied filters.
         $orders = $ordersQuery->paginate(32)->withQueryString();
 
-        return view('admin.team-orders', compact('orders', 'showArchived', 'productTypes', 'productTypeFilter', 'services', 'serviceFilter', 'stages', 'stageFilter', 'currentStageFilter', 'clients', 'clientFilter', 'dateFrom', 'dateTo'));
+        return view('admin.team-orders', compact('orders', 'showArchived', 'productTypes', 'productTypeFilter', 'services', 'serviceFilter', 'stages', 'stageFilter', 'currentStageFilter', 'clients', 'clientFilter', 'dateFrom', 'dateTo', 'canRestoreFilters'));
     }
 
     /**
@@ -220,6 +259,38 @@ class TeamOrderController extends Controller
             'current_stage' => $normalizeArray($pick('current_stage', [])),
             'client' => $pick('client', 'all'),
         ];
+    }
+
+    /**
+     * Bring a stored filter state into a canonical shape so two states can be
+     * compared regardless of key order, checkbox order, or int/string ids.
+     */
+    private function normalizeFilterState(array $filters): array
+    {
+        $normalizeList = function ($value): array {
+            $list = array_values(array_map('strval', is_array($value) ? $value : []));
+            sort($list);
+
+            return $list;
+        };
+
+        return [
+            'from' => ($filters['from'] ?? null) ?: null,
+            'to' => ($filters['to'] ?? null) ?: null,
+            'product_type' => $normalizeList($filters['product_type'] ?? []),
+            'service' => $normalizeList($filters['service'] ?? []),
+            'stage' => $normalizeList($filters['stage'] ?? []),
+            'current_stage' => $normalizeList($filters['current_stage'] ?? []),
+            'client' => (string) (($filters['client'] ?? 'all') ?: 'all'),
+        ];
+    }
+
+    /**
+     * True when the filter state selects nothing (equivalent to Reset).
+     */
+    private function isEmptyFilterState(array $filters): bool
+    {
+        return $this->normalizeFilterState($filters) == $this->normalizeFilterState([]);
     }
 
     /**

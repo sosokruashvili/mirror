@@ -24,6 +24,7 @@
         $currentStageFilter = $currentStageFilter === 'all' ? [] : [$currentStageFilter];
     }
     $clientFilter = $clientFilter ?? 'all';
+    $canRestoreFilters = $canRestoreFilters ?? false;
     $productTypes = $productTypes ?? collect();
     $services = $services ?? collect();
     $stages = $stages ?? collect();
@@ -846,7 +847,15 @@
             </div>
 
             <button type="submit" class="btn btn-primary">Apply</button>
+            <button type="submit" name="save" value="1" class="btn btn-outline-light" title="გამოიყენე და შეინახე ფილტრი — Reset-ის შემდეგ Restore დააბრუნებს">
+                <i class="la la-save"></i> Save
+            </button>
             <a href="{{ route('team.orders', $showArchived ? ['view' => 'archived', 'reset' => 1] : ['reset' => 1]) }}" class="btn btn-outline-light">Reset</a>
+            @if($canRestoreFilters)
+            <a href="{{ route('team.orders', $showArchived ? ['view' => 'archived', 'restore' => 1] : ['restore' => 1]) }}" class="btn btn-warning" title="შენახული ფილტრის დაბრუნება">
+                <i class="la la-history"></i> Restore
+            </a>
+            @endif
         </form>
     </div>
     <div class="row">

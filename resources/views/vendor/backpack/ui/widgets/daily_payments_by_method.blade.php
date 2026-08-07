@@ -2,8 +2,8 @@
     <div class="card">
         <div class="card-header">
             <div>
-                <h3 class="card-title mb-0">Daily Payments by Method</h3>
-                <div class="text-muted small">Paid payment totals by method (Cash, Transfer, Terminal, PM Transfer), based on payment date</div>
+                <h3 class="card-title mb-0">Daily Payments by Method &amp; Type</h3>
+                <div class="text-muted small">Paid payment totals by method and type (შეკვეთა / ვალი), based on payment date</div>
             </div>
             <div class="d-flex flex-wrap align-items-end justify-content-between gap-2 mt-2">
                 <div class="d-flex flex-wrap align-items-end gap-2">
@@ -26,7 +26,7 @@
             </div>
         </div>
         <div class="card-body">
-            <div class="row g-3 mb-3" id="daily-payments-method-totals">
+            <div class="row g-3 mb-2" id="daily-payments-summary-totals">
                 <div class="col-6 col-md-2">
                     <div class="text-muted small">Total</div>
                     <div class="h3 mb-0" id="daily-payments-total-amount">—</div>
@@ -36,6 +36,8 @@
                     <div class="h3 mb-0" id="daily-payments-count">—</div>
                 </div>
             </div>
+            <div class="row g-3 mb-3" id="daily-payments-type-totals"></div>
+            <div class="row g-3 mb-3" id="daily-payments-method-totals"></div>
             <div style="position: relative; height: 400px;">
                 <canvas id="daily-payments-chart"></canvas>
             </div>
@@ -55,17 +57,21 @@
     var $periodButtons = $('#daily-payments-chart').closest('.card').find('[data-period]');
     var currentPeriod = 'days';
     var methodColors = {
-        'Cash': 'rgba(47, 179, 68, 0.85)',
-        'Transfer': 'rgba(32, 107, 196, 0.85)',
-        'Terminal': 'rgba(247, 183, 49, 0.9)',
-        'PM Transfer': 'rgba(73, 80, 87, 0.85)'
+        'Cash': { order: 'rgba(47, 179, 68, 0.9)', debt: 'rgba(47, 179, 68, 0.45)' },
+        'Transfer': { order: 'rgba(32, 107, 196, 0.9)', debt: 'rgba(32, 107, 196, 0.45)' },
+        'Terminal': { order: 'rgba(247, 183, 49, 0.95)', debt: 'rgba(247, 183, 49, 0.45)' },
+        'PM Transfer': { order: 'rgba(73, 80, 87, 0.9)', debt: 'rgba(73, 80, 87, 0.45)' }
     };
     var fallbackColors = [
-        'rgba(132, 94, 194, 0.85)',
-        'rgba(214, 57, 57, 0.85)',
-        'rgba(18, 183, 172, 0.85)',
-        'rgba(250, 140, 22, 0.85)'
+        { order: 'rgba(132, 94, 194, 0.9)', debt: 'rgba(132, 94, 194, 0.45)' },
+        { order: 'rgba(214, 57, 57, 0.9)', debt: 'rgba(214, 57, 57, 0.45)' },
+        { order: 'rgba(18, 183, 172, 0.9)', debt: 'rgba(18, 183, 172, 0.45)' },
+        { order: 'rgba(250, 140, 22, 0.9)', debt: 'rgba(250, 140, 22, 0.45)' }
     ];
+    var typeAccent = {
+        'Order': 'text-primary',
+        'Debt': 'text-danger'
+    };
 
     function setActivePeriod(period) {
         currentPeriod = period;
@@ -80,26 +86,30 @@
         }) + ' ₾';
     }
 
-    function colorForMethod(method, index) {
-        if (methodColors[method]) {
-            return methodColors[method];
-        }
-        return fallbackColors[index % fallbackColors.length];
+    function colorFor(method, type, index) {
+        var palette = methodColors[method] || fallbackColors[index % fallbackColors.length];
+        return type === 'Debt' ? palette.debt : palette.order;
     }
 
-    function renderMethodTotals(methods, methodTotals) {
-        var $row = $('#daily-payments-method-totals');
-        $row.find('[data-method-total]').remove();
+    function renderTotalsRow($row, items, totals, labels, attrName, valueClassFn) {
+        $row.empty();
 
-        methods.forEach(function (method) {
+        items.forEach(function (key) {
             var col = document.createElement('div');
             col.className = 'col-6 col-md-2';
-            col.setAttribute('data-method-total', method);
+            col.setAttribute(attrName, key);
             col.innerHTML =
                 '<div class="text-muted small"></div>' +
                 '<div class="h3 mb-0"></div>';
-            col.querySelector('.text-muted').textContent = method;
-            col.querySelector('.h3').textContent = formatMoney(methodTotals[method] || 0);
+            col.querySelector('.text-muted').textContent = (labels && labels[key]) ? labels[key] : key;
+            var valueEl = col.querySelector('.h3');
+            valueEl.textContent = formatMoney(totals[key] || 0);
+            if (valueClassFn) {
+                var extra = valueClassFn(key);
+                if (extra) {
+                    valueEl.classList.add(extra);
+                }
+            }
             $row.append(col);
         });
     }
@@ -111,22 +121,45 @@
 
         $('#daily-payments-total-amount').text(formatMoney(data.totalAmount));
         $('#daily-payments-count').text(Number(data.paymentsCount || 0).toLocaleString());
-        renderMethodTotals(data.methods || [], data.methodTotals || {});
+
+        renderTotalsRow(
+            $('#daily-payments-type-totals'),
+            data.types || [],
+            data.typeTotals || {},
+            data.typeLabels || {},
+            'data-type-total',
+            function (type) { return typeAccent[type] || ''; }
+        );
+        renderTotalsRow(
+            $('#daily-payments-method-totals'),
+            data.methods || [],
+            data.methodTotals || {},
+            null,
+            'data-method-total'
+        );
 
         if (chartInstance) {
             chartInstance.destroy();
         }
 
         var isDaily = (data.period || 'days') === 'days';
-        var datasets = (data.methods || []).map(function (method, index) {
-            return {
-                label: method,
-                data: (data.series && data.series[method]) ? data.series[method] : [],
-                backgroundColor: colorForMethod(method, index),
-                stack: 'payments',
-                borderRadius: 3,
-                maxBarThickness: 26
-            };
+        var methods = data.methods || [];
+        var types = data.types || [];
+        var typeLabels = data.typeLabels || {};
+        var datasets = [];
+
+        types.forEach(function (type) {
+            methods.forEach(function (method, index) {
+                var typeData = (data.series && data.series[type]) ? data.series[type] : {};
+                datasets.push({
+                    label: method + ' · ' + (typeLabels[type] || type),
+                    data: typeData[method] || [],
+                    backgroundColor: colorFor(method, type, index),
+                    stack: type,
+                    borderRadius: 3,
+                    maxBarThickness: 22
+                });
+            });
         });
 
         chartInstance = new Chart(canvas, {
@@ -154,11 +187,18 @@
                                 }
                                 var chart = tooltipItems[0].chart;
                                 var i = tooltipItems[0].dataIndex;
+                                var byStack = {};
                                 var total = 0;
                                 chart.data.datasets.forEach(function (dataset) {
-                                    total += Number(dataset.data[i] || 0);
+                                    var value = Number(dataset.data[i] || 0);
+                                    total += value;
+                                    byStack[dataset.stack] = (byStack[dataset.stack] || 0) + value;
                                 });
-                                return 'Total: ' + formatMoney(total);
+                                var lines = ['Total: ' + formatMoney(total)];
+                                Object.keys(byStack).forEach(function (stack) {
+                                    lines.push((typeLabels[stack] || stack) + ': ' + formatMoney(byStack[stack]));
+                                });
+                                return lines;
                             },
                             label: function (context) {
                                 return context.dataset.label + ': ' + formatMoney(context.parsed.y || 0);

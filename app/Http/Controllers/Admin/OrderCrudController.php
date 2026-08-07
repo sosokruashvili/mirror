@@ -272,7 +272,7 @@ class OrderCrudController extends CrudController
                 'draft' => 'Draft',
                 'new' => 'New',
                 'working' => 'Working',
-                'done' => 'Done',
+                'ready' => 'Ready',
                 'finished' => 'Finished',
             ];
         },
@@ -650,7 +650,6 @@ class OrderCrudController extends CrudController
                 'draft' => 'Draft',
                 'new' => 'New',
                 'working' => 'Working',
-                'done' => 'Done',
                 'ready' => 'Ready',
                 'finished' => 'Finished',
             ],

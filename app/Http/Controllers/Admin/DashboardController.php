@@ -91,12 +91,12 @@ class DashboardController
     }
 
     /**
-     * Paid payment totals grouped by payment method for the daily-payments widget.
+     * Paid payment totals for the daily-payments widget, split by method and type.
      *
-     * Returns a continuous day/month/year series (so empty periods still appear
-     * on the x-axis) with one stacked series per known method, plus any unexpected
-     * method values found in the data. Totals use `payment_date` and only count
-     * payments with status Paid.
+     * Returns a continuous day/month/year series with amounts keyed by
+     * payment type (Order / Debt) and method (Cash / Transfer / …). The chart
+     * can render one stacked bar per type (შეკვეთა / ვალი), each stack broken
+     * down by method. Totals use `payment_date` and only count status Paid.
      */
     public function getDailyPaymentsByMethodChart(Request $request): JsonResponse
     {
@@ -113,42 +113,56 @@ class DashboardController
         $rows = Payment::query()
             ->where('status', 'Paid')
             ->whereBetween('payment_date', [$from, $to->copy()->endOfDay()])
-            ->selectRaw("{$sqlGroup} as period_key, method, SUM(amount_gel) as total")
-            ->groupByRaw("{$sqlGroup}, method")
+            ->selectRaw("{$sqlGroup} as period_key, method, type, SUM(amount_gel) as total")
+            ->groupByRaw("{$sqlGroup}, method, type")
             ->orderBy('period_key')
             ->get();
 
-        // Known methods first (fixed order), then any unexpected/legacy values.
+        $typeLabels = Payment::types();
+        $types = array_keys($typeLabels);
         $methods = array_keys(Payment::methods());
+
         foreach ($rows as $row) {
             $method = (string) $row->method;
             if ($method !== '' && ! in_array($method, $methods, true)) {
                 $methods[] = $method;
+            }
+
+            $type = (string) $row->type;
+            if ($type !== '' && ! in_array($type, $types, true)) {
+                $types[] = $type;
+                $typeLabels[$type] = $type;
             }
         }
 
         $byPeriod = [];
         foreach ($rows as $row) {
             $key = $this->normalizePeriodKey($row->period_key, $periodConfig['step']);
-            $byPeriod[$key][(string) $row->method] = (float) $row->total;
+            $byPeriod[$key][(string) $row->type][(string) $row->method] = (float) $row->total;
         }
 
         $labels = [];
         $series = [];
-        foreach ($methods as $method) {
-            $series[$method] = [];
+        foreach ($types as $type) {
+            foreach ($methods as $method) {
+                $series[$type][$method] = [];
+            }
         }
         $methodTotals = array_fill_keys($methods, 0.0);
+        $typeTotals = array_fill_keys($types, 0.0);
 
         $cursor = $from->copy();
         while ($cursor <= $to) {
             $key = $this->periodKey($cursor, $periodConfig['step']);
             $labels[] = $cursor->format($periodConfig['labelFormat']);
 
-            foreach ($methods as $method) {
-                $amount = round($byPeriod[$key][$method] ?? 0.0, 2);
-                $series[$method][] = $amount;
-                $methodTotals[$method] += $amount;
+            foreach ($types as $type) {
+                foreach ($methods as $method) {
+                    $amount = round($byPeriod[$key][$type][$method] ?? 0.0, 2);
+                    $series[$type][$method][] = $amount;
+                    $methodTotals[$method] += $amount;
+                    $typeTotals[$type] += $amount;
+                }
             }
 
             match ($periodConfig['step']) {
@@ -159,6 +173,7 @@ class DashboardController
         }
 
         $methodTotals = array_map(fn (float $v): float => round($v, 2), $methodTotals);
+        $typeTotals = array_map(fn (float $v): float => round($v, 2), $typeTotals);
 
         return response()->json([
             'period' => $period,
@@ -166,8 +181,11 @@ class DashboardController
             'to' => $to->toDateString(),
             'labels' => $labels,
             'methods' => $methods,
+            'types' => $types,
+            'typeLabels' => $typeLabels,
             'series' => $series,
             'methodTotals' => $methodTotals,
+            'typeTotals' => $typeTotals,
             'totalAmount' => round(array_sum($methodTotals), 2),
             'paymentsCount' => (int) Payment::query()
                 ->where('status', 'Paid')

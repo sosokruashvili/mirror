@@ -1,7 +1,12 @@
 @extends(backpack_view('blank'))
 
 @section('content')
+    {{-- Daily Payments by Method Chart Widget --}}
     <div class="row">
+        @include('vendor.backpack.ui.widgets.daily_payments_by_method')
+    </div>
+
+    <div class="row mt-4">
         {{-- Clients Count Widget --}}
         <div class="col-sm-6 col-md-3">
             <div class="card">

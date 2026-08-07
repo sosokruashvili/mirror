@@ -18,6 +18,7 @@ Route::group([
 ], function () { // custom admin routes
     Route::get('dashboard/orders-area-chart', 'DashboardController@getOrdersAreaChart')->name('dashboard.ordersAreaChart');
     Route::get('dashboard/daily-stats-chart', 'DashboardController@getDailyStatsChart')->name('dashboard.dailyStatsChart');
+    Route::get('dashboard/daily-payments-by-method', 'DashboardController@getDailyPaymentsByMethodChart')->name('dashboard.dailyPaymentsByMethod');
     Route::get('dashboard/product-type-stats-chart', 'DashboardController@getProductTypeStatsChart')->name('dashboard.productTypeStatsChart');
 
     // User Stats dashboard (access-controlled: user-stats.view)

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Models\Order;
+use App\Models\Payment;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -86,6 +87,92 @@ class DashboardController
             'totalPaid' => round(array_sum($paid), 2),
             'totalCredit' => round(array_sum($credit), 2),
             'totalIncome' => round(array_sum($paid) + array_sum($credit), 2),
+        ]);
+    }
+
+    /**
+     * Paid payment totals grouped by payment method for the daily-payments widget.
+     *
+     * Returns a continuous day/month/year series (so empty periods still appear
+     * on the x-axis) with one stacked series per known method, plus any unexpected
+     * method values found in the data. Totals use `payment_date` and only count
+     * payments with status Paid.
+     */
+    public function getDailyPaymentsByMethodChart(Request $request): JsonResponse
+    {
+        $period = $this->resolvePeriod($request);
+        [$from, $to] = $this->resolveDailyStatsRange($request, $period);
+        $periodConfig = $this->periodConfig($period);
+
+        $sqlGroup = match ($period) {
+            'months' => "DATE_TRUNC('month', payments.payment_date)",
+            'years' => "DATE_TRUNC('year', payments.payment_date)",
+            default => 'payments.payment_date::date',
+        };
+
+        $rows = Payment::query()
+            ->where('status', 'Paid')
+            ->whereBetween('payment_date', [$from, $to->copy()->endOfDay()])
+            ->selectRaw("{$sqlGroup} as period_key, method, SUM(amount_gel) as total")
+            ->groupByRaw("{$sqlGroup}, method")
+            ->orderBy('period_key')
+            ->get();
+
+        // Known methods first (fixed order), then any unexpected/legacy values.
+        $methods = array_keys(Payment::methods());
+        foreach ($rows as $row) {
+            $method = (string) $row->method;
+            if ($method !== '' && ! in_array($method, $methods, true)) {
+                $methods[] = $method;
+            }
+        }
+
+        $byPeriod = [];
+        foreach ($rows as $row) {
+            $key = $this->normalizePeriodKey($row->period_key, $periodConfig['step']);
+            $byPeriod[$key][(string) $row->method] = (float) $row->total;
+        }
+
+        $labels = [];
+        $series = [];
+        foreach ($methods as $method) {
+            $series[$method] = [];
+        }
+        $methodTotals = array_fill_keys($methods, 0.0);
+
+        $cursor = $from->copy();
+        while ($cursor <= $to) {
+            $key = $this->periodKey($cursor, $periodConfig['step']);
+            $labels[] = $cursor->format($periodConfig['labelFormat']);
+
+            foreach ($methods as $method) {
+                $amount = round($byPeriod[$key][$method] ?? 0.0, 2);
+                $series[$method][] = $amount;
+                $methodTotals[$method] += $amount;
+            }
+
+            match ($periodConfig['step']) {
+                'month' => $cursor->addMonth(),
+                'year' => $cursor->addYear(),
+                default => $cursor->addDay(),
+            };
+        }
+
+        $methodTotals = array_map(fn (float $v): float => round($v, 2), $methodTotals);
+
+        return response()->json([
+            'period' => $period,
+            'from' => $from->toDateString(),
+            'to' => $to->toDateString(),
+            'labels' => $labels,
+            'methods' => $methods,
+            'series' => $series,
+            'methodTotals' => $methodTotals,
+            'totalAmount' => round(array_sum($methodTotals), 2),
+            'paymentsCount' => (int) Payment::query()
+                ->where('status', 'Paid')
+                ->whereBetween('payment_date', [$from, $to->copy()->endOfDay()])
+                ->count(),
         ]);
     }
 

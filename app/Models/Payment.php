@@ -17,6 +17,11 @@ class Payment extends Model
     const TYPE_ORDER = 'Order';
     const TYPE_DEBT = 'Debt';
 
+    const METHOD_CASH = 'Cash';
+    const METHOD_TRANSFER = 'Transfer';
+    const METHOD_TERMINAL = 'Terminal';
+    const METHOD_PM_TRANSFER = 'PM Transfer';
+
     protected $fillable = [
         'author',
         'client_id',
@@ -89,6 +94,21 @@ class Payment extends Model
         return [
             self::TYPE_ORDER => 'შეკვეთა',
             self::TYPE_DEBT => 'ვალი',
+        ];
+    }
+
+    /**
+     * Payment methods in display order, keyed by the value stored in the database.
+     *
+     * @return array<string, string>
+     */
+    public static function methods(): array
+    {
+        return [
+            self::METHOD_CASH => 'Cash',
+            self::METHOD_TRANSFER => 'Transfer',
+            self::METHOD_TERMINAL => 'Terminal',
+            self::METHOD_PM_TRANSFER => 'PM Transfer',
         ];
     }
 

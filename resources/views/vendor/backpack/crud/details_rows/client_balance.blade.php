@@ -12,7 +12,7 @@
     $orderStatusClass = function ($status) {
         return match ($status) {
             'draft' => 'bg-secondary-lt',
-            'new' => 'bg-azure-lt',
+            'new' => 'bg-purple-lt',
             'working' => 'bg-warning-lt',
             'ready', 'done' => 'bg-teal-lt',
             'finished' => 'bg-success-lt',

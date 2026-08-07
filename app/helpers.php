@@ -34,7 +34,7 @@ if (!function_exists('status_badge')) {
         // Using text-bg-* format (Bootstrap 5.2+) for better compatibility with Tabler
         $badgeClasses = [
             'draft' => 'text-bg-secondary',
-            'new' => 'text-bg-primary',
+            'new' => 'bg-purple text-white',
             'pending' => 'text-bg-warning',
             'working' => 'text-bg-warning',
             'done' => 'text-bg-success',

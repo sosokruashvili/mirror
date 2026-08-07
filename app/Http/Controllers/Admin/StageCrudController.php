@@ -89,8 +89,13 @@ class StageCrudController extends CrudController
             'name' => 'name',
             'label' => 'Name',
             'type' => 'text',
-            'hint' => 'Machine identifier stored on pieces (e.g. cutting). Changing this on an existing stage will unlink pieces already set to the old value.',
-            'attributes' => ['required' => true],
+            'hint' => 'Machine identifier used in code lookups and as an index. Lowercase latin letters, numbers, underscores and dashes only — no spaces (e.g. frame_assembly). Changing this on an existing stage will unlink pieces already set to the old value.',
+            'attributes' => [
+                'required' => true,
+                'placeholder' => 'frame_assembly',
+                'pattern' => '[A-Za-z0-9_-]+',
+                'title' => 'Only latin letters, numbers, underscores and dashes — no spaces',
+            ],
         ]);
 
         CRUD::addField([

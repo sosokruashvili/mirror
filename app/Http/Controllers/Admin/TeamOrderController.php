@@ -494,6 +494,15 @@ class TeamOrderController extends Controller
                 return $response;
             }
 
+            // Handing out is locked until production is done: every piece must
+            // have reached the დასრულება stage. Admins can still force-finish
+            // an order through the order edit form.
+            if (!OrderPieceStatusSync::piecesReadyForFinish($order)) {
+                Alert::error('Order #' . $order->id . ' cannot be marked as finished: not every piece has reached the დასრულება stage.')->flash();
+
+                return redirect()->route('team.orders');
+            }
+
             $comment = trim((string) ($data['finish_comment'] ?? ''));
             if ($comment !== '') {
                 $order->finish_comment = $comment;

@@ -449,6 +449,11 @@
     .piece-ctx-menu-item.item-finished {
         color: #198754;
     }
+    /* Hand-out locked: pieces have not reached the დასრულება stage yet. */
+    .piece-ctx-menu-item.item-locked {
+        opacity: 0.45;
+        cursor: not-allowed;
+    }
     .piece-ctx-menu-item.item-stage {
         color: #2c3e50;
     }
@@ -863,7 +868,7 @@
             <div class="orders-grid{{ $showArchived ? ' orders-grid-archived' : '' }}">
                 <div class="row" id="ordersGridRow" data-dnd-storage-key="{{ $dragStorageKey }}">
                 @forelse($orders as $order)
-                    <div class="col-md-3 col-sm-6 col-12 order-card" style="margin-bottom: 10px;" data-order-id="{{ $order->id }}">
+                    <div class="col-md-3 col-sm-6 col-12 order-card" style="margin-bottom: 10px;" data-order-id="{{ $order->id }}"@if(!$showArchived) data-can-finish="{{ \App\Services\OrderPieceStatusSync::piecesReadyForFinish($order) ? '1' : '0' }}"@endif>
                         <div class="order-tile">
                             <div class="order-header{{ $showArchived ? ' order-header-no-actions' : '' }}">
                                 @if(!$showArchived)
@@ -1343,6 +1348,8 @@ jQuery(function($) {
 
         if (!wasOpen) {
             _orderCtxCard = card;
+            document.getElementById('orderCtxMenuFinished')
+                .classList.toggle('item-locked', card.getAttribute('data-can-finish') === '0');
             var rect = dotsBtn.getBoundingClientRect();
 
             _orderCtxMenu.style.top = '0px';
@@ -1445,7 +1452,14 @@ jQuery(function($) {
         if (!_orderCtxCard) return;
 
         var orderId = _orderCtxCard.getAttribute('data-order-id');
+        var locked = _orderCtxCard.getAttribute('data-can-finish') === '0';
         closeCtxMenus();
+
+        if (locked) {
+            alert('შეკვეთის გატანა შეუძლებელია — ყველა დეტალი ჯერ არ არის დასრულების ეტაპზე.');
+            return;
+        }
+
         openOrderFinishModal(orderId);
     });
 

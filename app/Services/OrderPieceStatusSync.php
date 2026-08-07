@@ -12,6 +12,12 @@ class OrderPieceStatusSync
      */
     public const FINISHED_STAGE = 'finished';
 
+    /**
+     * Slug of the final production stage (დასრულება). Its position is the
+     * gate for handing an order out: see piecesReadyForFinish().
+     */
+    public const COMPLETION_STAGE = 'completion';
+
     private static bool $syncingFromOrder = false;
 
     public static function isSyncingFromOrder(): bool
@@ -68,7 +74,7 @@ class OrderPieceStatusSync
             return null;
         }
 
-        if ($pieces->every(fn ($piece) => $piece->stages->contains('name', 'completion'))) {
+        if ($pieces->every(fn ($piece) => $piece->stages->contains('name', self::COMPLETION_STAGE))) {
             return 'ready';
         }
 
@@ -77,6 +83,27 @@ class OrderPieceStatusSync
         }
 
         return null;
+    }
+
+    /**
+     * Whether the order has been produced far enough to be handed out: every
+     * piece must have completed a stage at or past the დასრულება stage's
+     * position. An order whose pieces never went through production fails
+     * this check, so a stray "გატანილია" tap on the team page cannot finish
+     * it. Pieceless (service-only) orders pass, and so does everything when
+     * the დასრულება stage is missing (there is no gate to measure against).
+     */
+    public static function piecesReadyForFinish(Order $order): bool
+    {
+        $gate = Stage::ordered()->firstWhere('name', self::COMPLETION_STAGE)?->position;
+
+        if ($gate === null) {
+            return true;
+        }
+
+        return self::productionPieces($order)->every(
+            fn ($piece) => $piece->stages->contains(fn ($stage) => $stage->position >= $gate)
+        );
     }
 
     /**

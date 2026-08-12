@@ -86,7 +86,7 @@ class ServiceStatsController extends Controller
         }
 
         return view('admin.service-stats', [
-            'title' => 'Service Stats',
+            'title' => __('service.stats.title'),
             'rows' => $rows,
             'grandMoney' => $grandMoney,
             'from' => $from,

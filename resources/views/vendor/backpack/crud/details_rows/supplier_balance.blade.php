@@ -16,7 +16,7 @@
         <div class="col-6 col-md-4">
             <div class="card card-sm">
                 <div class="card-body py-2">
-                    <div class="text-secondary small">Total Amount</div>
+                    <div class="text-secondary small">{{ __('supplier_balance.details.expenses_total') }}</div>
                     <div class="h3 mb-0">{{ number_format($expensesTotal, 2) }} ₾</div>
                 </div>
             </div>
@@ -24,7 +24,7 @@
         <div class="col-6 col-md-4">
             <div class="card card-sm">
                 <div class="card-body py-2">
-                    <div class="text-secondary small">Total Paid</div>
+                    <div class="text-secondary small">{{ __('supplier_balance.details.paid_total') }}</div>
                     <div class="h3 mb-0 text-success">{{ number_format($paidTotal, 2) }} ₾</div>
                 </div>
             </div>
@@ -32,7 +32,7 @@
         <div class="col-6 col-md-4">
             <div class="card card-sm">
                 <div class="card-body py-2">
-                    <div class="text-secondary small">Balance (we owe)</div>
+                    <div class="text-secondary small">{{ __('supplier_balance.details.credit_total') }}</div>
                     <div class="h3 mb-0 {{ $creditTotal > 0 ? 'text-danger' : 'text-success' }}">
                         {{ number_format($creditTotal, 2) }} ₾
                     </div>
@@ -45,32 +45,32 @@
     <div class="card">
         <div class="card-header d-flex align-items-center justify-content-between py-2">
             <h4 class="card-title mb-0">
-                Expenses-Purchases
+                {{ __('supplier_balance.details.expenses') }}
                 <span class="badge bg-secondary-lt ms-1">{{ $expenses->count() }}</span>
             </h4>
             <a href="{{ url(config('backpack.base.route_prefix') . '/cashier-expense') }}?supplier_id={{ $entry->id }}"
                class="btn btn-sm btn-outline-secondary">
-                View all
+                {{ __('supplier_balance.details.view_all') }}
             </a>
         </div>
 
         @if ($expenses->isEmpty())
             <div class="card-body text-secondary text-center py-4">
-                No expenses for this supplier yet.
+                {{ __('supplier_balance.details.no_expenses') }}
             </div>
         @else
             <div class="table-responsive supplier-balance-subtable">
                 <table class="table table-sm table-vcenter card-table mb-0">
                     <thead>
                         <tr>
-                            <th>Date</th>
-                            <th>Type</th>
-                            <th>Category</th>
-                            <th>Product</th>
-                            <th>Description</th>
-                            <th class="text-end">Amount</th>
-                            <th class="text-end">Paid</th>
-                            <th class="text-end">Credit</th>
+                            <th>{{ __('supplier_balance.details.date') }}</th>
+                            <th>{{ __('supplier_balance.details.type') }}</th>
+                            <th>{{ __('supplier_balance.details.category') }}</th>
+                            <th>{{ __('supplier_balance.details.product') }}</th>
+                            <th>{{ __('supplier_balance.details.description') }}</th>
+                            <th class="text-end">{{ __('supplier_balance.details.amount') }}</th>
+                            <th class="text-end">{{ __('supplier_balance.details.paid') }}</th>
+                            <th class="text-end">{{ __('supplier_balance.details.credit') }}</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -101,7 +101,7 @@
                     </tbody>
                     <tfoot>
                         <tr>
-                            <th colspan="5">Totals</th>
+                            <th colspan="5">{{ __('supplier_balance.details.totals') }}</th>
                             <th class="text-end text-nowrap">{{ number_format($expensesTotal, 2) }} ₾</th>
                             <th class="text-end text-nowrap text-success">{{ number_format($paidTotal, 2) }} ₾</th>
                             <th class="text-end text-nowrap {{ $creditTotal > 0 ? 'text-danger' : '' }}">{{ number_format($creditTotal, 2) }} ₾</th>

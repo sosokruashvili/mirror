@@ -24,7 +24,7 @@ class StageCrudController extends CrudController
     {
         CRUD::setModel(\App\Models\Stage::class);
         CRUD::setRoute(config('backpack.base.route_prefix') . '/stage');
-        CRUD::setEntityNameStrings('stage', 'stages');
+        CRUD::setEntityNameStrings(__('stage.entity'), __('stage.entity_plural'));
     }
 
     protected function setupListOperation()
@@ -34,25 +34,25 @@ class StageCrudController extends CrudController
 
         CRUD::addColumn([
             'name' => 'position',
-            'label' => 'Order',
+            'label' => __('stage.position'),
             'type' => 'number',
         ]);
 
         CRUD::addColumn([
             'name' => 'title',
-            'label' => 'Title',
+            'label' => __('stage.title'),
             'type' => 'text',
         ]);
 
         CRUD::addColumn([
             'name' => 'name',
-            'label' => 'Name',
+            'label' => __('stage.name'),
             'type' => 'text',
         ]);
 
         CRUD::addColumn([
             'name' => 'color',
-            'label' => 'Color',
+            'label' => __('stage.color'),
             'type' => 'custom_html',
             'escaped' => false,
             'value' => function ($entry) {
@@ -67,9 +67,9 @@ class StageCrudController extends CrudController
 
         CRUD::addColumn([
             'name' => 'is_universal',
-            'label' => 'Universal',
+            'label' => __('stage.is_universal'),
             'type' => 'boolean',
-            'options' => [0 => 'No', 1 => 'Yes'],
+            'options' => __('stage.yes_no'),
         ]);
     }
 
@@ -79,46 +79,46 @@ class StageCrudController extends CrudController
 
         CRUD::addField([
             'name' => 'title',
-            'label' => 'Title',
+            'label' => __('stage.title'),
             'type' => 'text',
-            'hint' => 'Display label shown to users (e.g. მოჭრა).',
+            'hint' => __('stage.hints.title'),
             'attributes' => ['required' => true],
         ]);
 
         CRUD::addField([
             'name' => 'name',
-            'label' => 'Name',
+            'label' => __('stage.name'),
             'type' => 'text',
-            'hint' => 'Machine identifier used in code lookups and as an index. Lowercase latin letters, numbers, underscores and dashes only — no spaces (e.g. frame_assembly). Changing this on an existing stage will unlink pieces already set to the old value.',
+            'hint' => __('stage.hints.name'),
             'attributes' => [
                 'required' => true,
                 'placeholder' => 'frame_assembly',
                 'pattern' => '[A-Za-z0-9_-]+',
-                'title' => 'Only latin letters, numbers, underscores and dashes — no spaces',
+                'title' => __('stage.name_pattern_title'),
             ],
         ]);
 
         CRUD::addField([
             'name' => 'color',
-            'label' => 'Color',
+            'label' => __('stage.color'),
             'type' => 'color',
             'default' => '#64748B',
-            'hint' => 'Badge color for this stage.',
+            'hint' => __('stage.hints.color'),
         ]);
 
         CRUD::addField([
             'name' => 'position',
-            'label' => 'Order',
+            'label' => __('stage.position'),
             'type' => 'number',
-            'hint' => 'Lower numbers appear first everywhere stages are listed.',
+            'hint' => __('stage.hints.position'),
             'default' => 0,
         ]);
 
         CRUD::addField([
             'name' => 'is_universal',
-            'label' => 'Universal stage',
+            'label' => __('stage.is_universal_field'),
             'type' => 'checkbox',
-            'hint' => 'When on, this stage applies to every piece regardless of its services (e.g. მოჭრა, დასრულება).',
+            'hint' => __('stage.hints.is_universal'),
         ]);
     }
 

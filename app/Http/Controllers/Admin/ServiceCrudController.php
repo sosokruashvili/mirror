@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Requests\ServiceRequest;
 use Backpack\CRUD\app\Http\Controllers\CrudController;
 use Backpack\CRUD\app\Library\CrudPanel\CrudPanelFacade as CRUD;
+use Illuminate\Support\Arr;
 
 /**
  * Class ServiceCrudController
@@ -29,7 +30,7 @@ class ServiceCrudController extends CrudController
     {
         CRUD::setModel(\App\Models\Service::class);
         CRUD::setRoute(config('backpack.base.route_prefix') . '/service');
-        CRUD::setEntityNameStrings('service', 'services');
+        CRUD::setEntityNameStrings(__('service.entity'), __('service.entity_plural'));
         
         // Enable export buttons
         $this->crud->enableExportButtons();
@@ -47,72 +48,72 @@ class ServiceCrudController extends CrudController
         
         $this->crud->addColumn([
             'name' => 'id',
-            'label' => 'ID',
+            'label' => __('service.id'),
             'type' => 'number',
         ]);
 
         CRUD::addColumn([
             'name' => 'title',
-            'label' => 'Title',
+            'label' => __('service.title'),
             'type' => 'text',
         ]);
 
         CRUD::addColumn([
             'name' => 'shortname',
-            'label' => 'Short Name',
+            'label' => __('service.short_name'),
             'type' => 'text',
         ]);
 
         CRUD::addColumn([
             'name' => 'slug',
-            'label' => 'Slug',
+            'label' => __('service.slug'),
             'type' => 'text',
         ]);
 
         CRUD::addColumn([
             'name' => 'stage',
-            'label' => 'Stage',
+            'label' => __('service.stage'),
             'type' => 'relationship',
             'attribute' => 'title',
         ]);
 
         CRUD::addColumn([
             'name' => 'description',
-            'label' => 'Description',
+            'label' => __('service.description'),
             'type' => 'text',
             'limit' => 100,
         ]);
 
         CRUD::addColumn([
             'name' => 'unit',
-            'label' => 'Unit',
+            'label' => __('service.unit'),
             'type' => 'text',
         ]);
 
         CRUD::addColumn([
             'name' => 'price',
-            'label' => 'Price ($)',
+            'label' => __('service.price_usd'),
             'type' => 'number',
             'decimals' => 2,
         ]);
 
         CRUD::addColumn([
             'name' => 'price_gel',
-            'label' => 'Price (₾)',
+            'label' => __('service.price_gel'),
             'type' => 'number',
             'decimals' => 2,
         ]);
 
         CRUD::addColumn([
             'name' => 'cutloss',
-            'label' => 'Cutting Loss (mm)',
+            'label' => __('service.cutting_loss'),
             'type' => 'number',
             'decimals' => 0,
         ]);
 
         CRUD::addColumn([
             'name'  => 'extra_field_names',
-            'label' => 'Extra Field Names',
+            'label' => __('service.extra_field_names'),
             'type'  => 'custom_html',
             'value' => function ($entry) {
                 if (is_array($entry->extra_field_names)) {
@@ -127,7 +128,7 @@ class ServiceCrudController extends CrudController
         CRUD::addFilter([
             'type'  => 'select2',
             'name'  => 'stage_id',
-            'label' => 'Stage',
+            'label' => __('service.stage'),
         ], function () {
             return \App\Models\Stage::orderBy('position')->orderBy('id')->pluck('title', 'id')->toArray();
         }, function ($value) {
@@ -146,7 +147,7 @@ class ServiceCrudController extends CrudController
         $this->crud->addFilter([
             'name' => 'order_id',
             'type' => 'select2',
-            'label' => 'Order'
+            'label' => __('service.filters.order')
         ], function() {
             return \App\Models\Order::all()->pluck('id', 'id')->toArray();
         }, function($value) {
@@ -168,7 +169,7 @@ class ServiceCrudController extends CrudController
 
         CRUD::addField([
             'name' => 'title',
-            'label' => 'Title',
+            'label' => __('service.title'),
             'type' => 'text',
             'attributes' => [
                 'required' => true,
@@ -178,41 +179,41 @@ class ServiceCrudController extends CrudController
 
         CRUD::addField([
             'name' => 'shortname',
-            'label' => 'Short Name',
+            'label' => __('service.short_name'),
             'type' => 'text',
-            'hint' => 'Short name or abbreviation for this service',
+            'hint' => __('service.hints.short_name'),
             'wrapper' => ['class' => 'form-group col-md-6'],
         ]);
 
         CRUD::addField([
             'name' => 'slug',
-            'label' => 'Slug',
+            'label' => __('service.slug'),
             'type' => 'slug',
             'source' => 'title',
             'attributes' => [
                 'required' => true,
             ],
-            'hint' => 'URL-friendly version of the title',
+            'hint' => __('service.hints.slug'),
             'wrapper' => ['class' => 'form-group col-md-6'],
         ]);
 
         CRUD::addField([
             'name' => 'stage',
-            'label' => 'Stage',
+            'label' => __('service.stage'),
             'type' => 'relationship',
             'attribute' => 'title',
-            'placeholder' => '-',
+            'placeholder' => __('service.placeholders.stage'),
             'allows_null' => false,
             'attributes' => [
                 'required' => true,
             ],
-            'hint' => 'Which production stage this service belongs to.',
+            'hint' => __('service.hints.stage'),
             'wrapper' => ['class' => 'form-group col-md-6'],
         ]);
 
         CRUD::addField([
             'name' => 'description',
-            'label' => 'Description',
+            'label' => __('service.description'),
             'type' => 'textarea',
             'attributes' => [
                 'rows' => 4,
@@ -222,19 +223,19 @@ class ServiceCrudController extends CrudController
 
         CRUD::addField([
             'name' => 'unit',
-            'label' => 'Unit',
+            'label' => __('service.unit'),
             'type' => 'text',
             'attributes' => [
                 'required' => true,
-                'placeholder' => 'e.g., hour, piece, sq ft',
+                'placeholder' => __('service.placeholders.unit'),
             ],
-            'hint' => 'Unit of measurement for this service',
+            'hint' => __('service.hints.unit'),
             'wrapper' => ['class' => 'form-group col-md-6'],
         ]);
 
         CRUD::addField([
             'name' => 'price',
-            'label' => 'Price (USD)',
+            'label' => __('service.price_usd_field'),
             'type' => 'number',
             'attributes' => [
                 'step' => '0.01',
@@ -246,7 +247,7 @@ class ServiceCrudController extends CrudController
 
         CRUD::addField([
             'name' => 'price_gel',
-            'label' => 'Price (GEL)',
+            'label' => __('service.price_gel_field'),
             'type' => 'number',
             'attributes' => [
                 'step' => '0.01',
@@ -258,40 +259,30 @@ class ServiceCrudController extends CrudController
 
         CRUD::addField([
             'name' => 'cutloss',
-            'label' => 'Cutting Loss (mm)',
+            'label' => __('service.cutting_loss'),
             'type' => 'number',
             'attributes' => [
                 'step' => '1',
                 'min' => '0',
             ],
             'default' => 0,
-            'hint' => 'Extra size (whole mm) added to a piece\'s width and height on the team orders page when this service is applied.',
+            'hint' => __('service.hints.cutting_loss'),
             'wrapper' => ['class' => 'form-group col-md-6'],
         ]);
 
         // select2_from_array with value support for updateOperation
         CRUD::field([
             'name'        => 'extra_field_names',
-            'label'       => "Extra Field Names",
+            'label'       => __('service.extra_field_names'),
             'type'        => 'select2_from_array',
-            'options'     => [
-                'antifog_type' => 'Anti Fog Type',
-                'quantity' => 'Quantity',
-                'perimeter' => 'Perimeter',
-                'color' => 'Color',
-                'light_type' => 'Light Type',
-                'foam_length' => 'Foam Length',
-                'tape_length' => 'Tape Length',
-                'area' => 'Area',
-                'length_cm' => 'Length (cm)',
-                'sensor_quantity1' => 'Sensor Quantity',
-                'sensor_type' => 'Sensor Type',
-                'distance' => 'Distance',
-                'description' => 'Description',
-                'price_gel' => 'Price (GEL)',
-                'piece_id' => 'Piece ID',
-                'calculate_price_btn' => 'Calculate Price Button',
-            ],
+            // Labels come from the service_pivot lang group (the keys are the
+            // pivot column names); listed explicitly to keep the display order.
+            'options'     => Arr::only(__('service_pivot'), [
+                'antifog_type', 'quantity', 'perimeter', 'color', 'light_type',
+                'foam_length', 'tape_length', 'area', 'length_cm', 'sensor_quantity1',
+                'sensor_type', 'distance', 'description', 'price_gel', 'piece_id',
+                'calculate_price_btn',
+            ]),
             'allows_null' => true,
             'default'     => [],
             'allows_multiple' => true,
@@ -354,71 +345,71 @@ class ServiceCrudController extends CrudController
     {
         CRUD::addColumn([
             'name' => 'id',
-            'label' => 'ID',
+            'label' => __('service.id'),
             'type' => 'number',
         ]);
 
         CRUD::addColumn([
             'name' => 'title',
-            'label' => 'Title',
+            'label' => __('service.title'),
             'type' => 'text',
         ]);
 
         CRUD::addColumn([
             'name' => 'shortname',
-            'label' => 'Short Name',
+            'label' => __('service.short_name'),
             'type' => 'text',
         ]);
 
         CRUD::addColumn([
             'name' => 'slug',
-            'label' => 'Slug',
+            'label' => __('service.slug'),
             'type' => 'text',
         ]);
 
         CRUD::addColumn([
             'name' => 'stage',
-            'label' => 'Stage',
+            'label' => __('service.stage'),
             'type' => 'relationship',
             'attribute' => 'title',
         ]);
 
         CRUD::addColumn([
             'name' => 'description',
-            'label' => 'Description',
+            'label' => __('service.description'),
             'type' => 'text',
         ]);
 
         CRUD::addColumn([
             'name' => 'unit',
-            'label' => 'Unit',
+            'label' => __('service.unit'),
             'type' => 'text',
         ]);
 
         CRUD::addColumn([
             'name' => 'price',
-            'label' => 'Price ($)',
+            'label' => __('service.price_usd'),
             'type' => 'number',
             'decimals' => 2,
         ]);
 
         CRUD::addColumn([
             'name' => 'price_gel',
-            'label' => 'Price (₾)',
+            'label' => __('service.price_gel'),
             'type' => 'number',
             'decimals' => 2,
         ]);
 
         CRUD::addColumn([
             'name' => 'cutloss',
-            'label' => 'Cutting Loss (mm)',
+            'label' => __('service.cutting_loss'),
             'type' => 'number',
             'decimals' => 0,
         ]);
 
         CRUD::addColumn([
             'name'  => 'extra_field_names',
-            'label' => 'Extra Field Names',
+            'label' => __('service.extra_field_names'),
             'type'  => 'custom_html',
             'value' => function ($entry) {
                 if (is_array($entry->extra_field_names)) {
@@ -439,7 +430,7 @@ class ServiceCrudController extends CrudController
         CRUD::addFilter([
             'type'  => 'text',
             'name'  => 'title',
-            'label' => 'Title',
+            'label' => __('service.title'),
         ],
         false,
         function ($value) {
@@ -449,7 +440,7 @@ class ServiceCrudController extends CrudController
         CRUD::addFilter([
             'type'  => 'select2',
             'name'  => 'unit',
-            'label' => 'Unit',
+            'label' => __('service.unit'),
         ],
         function () {
             return \App\Models\Service::query()
@@ -466,7 +457,7 @@ class ServiceCrudController extends CrudController
         CRUD::addFilter([
             'type'  => 'range',
             'name'  => 'price',
-            'label' => 'Price (USD)',
+            'label' => __('service.price_usd_field'),
         ],
         false,
         function ($value) {
@@ -486,7 +477,7 @@ class ServiceCrudController extends CrudController
         CRUD::addFilter([
             'type'  => 'range',
             'name'  => 'price_gel',
-            'label' => 'Price (GEL)',
+            'label' => __('service.price_gel_field'),
         ],
         false,
         function ($value) {

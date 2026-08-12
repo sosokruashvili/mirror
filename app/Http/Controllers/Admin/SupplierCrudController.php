@@ -26,7 +26,7 @@ class SupplierCrudController extends CrudController
     {
         CRUD::setModel(Supplier::class);
         CRUD::setRoute(config('backpack.base.route_prefix') . '/supplier');
-        CRUD::setEntityNameStrings('supplier', 'suppliers');
+        CRUD::setEntityNameStrings(__('supplier.entity'), __('supplier.entity_plural'));
 
         $this->crud->enableExportButtons();
     }
@@ -37,51 +37,51 @@ class SupplierCrudController extends CrudController
 
         CRUD::addColumn([
             'name' => 'id',
-            'label' => 'ID',
+            'label' => __('supplier.id'),
             'type' => 'number',
         ]);
 
         CRUD::addColumn([
             'name' => 'name',
-            'label' => 'Name',
+            'label' => __('supplier.name'),
             'type' => 'text',
         ]);
 
         CRUD::addColumn([
             'name' => 'description',
-            'label' => 'Description',
+            'label' => __('supplier.description'),
             'type' => 'text',
             'limit' => 80,
         ]);
 
         CRUD::addColumn([
             'name' => 'email',
-            'label' => 'Email',
+            'label' => __('supplier.email'),
             'type' => 'email',
         ]);
 
         CRUD::addColumn([
             'name' => 'phone',
-            'label' => 'Phone',
+            'label' => __('supplier.phone'),
             'type' => 'phone',
         ]);
 
         CRUD::addColumn([
             'name' => 'address',
-            'label' => 'Address',
+            'label' => __('supplier.address'),
             'type' => 'text',
             'limit' => 60,
         ]);
 
         CRUD::addColumn([
             'name' => 'legal_id',
-            'label' => 'Legal ID',
+            'label' => __('supplier.legal_id'),
             'type' => 'text',
         ]);
 
         CRUD::addColumn([
             'name' => 'expenseCategories',
-            'label' => 'Expense categories',
+            'label' => __('supplier.expense_categories'),
             'type' => 'select_multiple',
             'entity' => 'expenseCategories',
             'attribute' => 'name',
@@ -95,44 +95,44 @@ class SupplierCrudController extends CrudController
 
         CRUD::addField([
             'name' => 'name',
-            'label' => 'Name',
+            'label' => __('supplier.name'),
             'type' => 'text',
             'attributes' => ['required' => true],
         ]);
 
         CRUD::addField([
             'name' => 'description',
-            'label' => 'Description',
+            'label' => __('supplier.description'),
             'type' => 'textarea',
         ]);
 
         CRUD::addField([
             'name' => 'email',
-            'label' => 'Email',
+            'label' => __('supplier.email'),
             'type' => 'email',
         ]);
 
         CRUD::addField([
             'name' => 'address',
-            'label' => 'Address',
+            'label' => __('supplier.address'),
             'type' => 'textarea',
         ]);
 
         CRUD::addField([
             'name' => 'phone',
-            'label' => 'Phone',
+            'label' => __('supplier.phone'),
             'type' => 'phone',
         ]);
 
         CRUD::addField([
             'name' => 'legal_id',
-            'label' => 'Legal ID',
+            'label' => __('supplier.legal_id'),
             'type' => 'text',
         ]);
 
         CRUD::addField([
             'name' => 'expenseCategories',
-            'label' => 'Expense categories',
+            'label' => __('supplier.expense_categories'),
             'type' => 'select_multiple',
             'entity' => 'expenseCategories',
             'attribute' => 'select_label',
@@ -144,7 +144,7 @@ class SupplierCrudController extends CrudController
             'attributes' => [
                 'size' => 30,
             ],
-            'hint' => 'Select one or more expense categories this supplier covers.',
+            'hint' => __('supplier.hints.expense_categories'),
         ]);
     }
 

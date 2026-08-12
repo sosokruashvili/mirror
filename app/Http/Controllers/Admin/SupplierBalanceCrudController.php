@@ -30,7 +30,7 @@ class SupplierBalanceCrudController extends CrudController
     {
         CRUD::setModel(Supplier::class);
         CRUD::setRoute(config('backpack.base.route_prefix') . '/supplier-balance');
-        CRUD::setEntityNameStrings('supplier balance', 'supplier balances');
+        CRUD::setEntityNameStrings(__('supplier_balance.entity'), __('supplier_balance.entity_plural'));
 
         // Read-only screen
         $this->crud->denyAccess(['create', 'update', 'delete', 'show']);
@@ -51,14 +51,14 @@ class SupplierBalanceCrudController extends CrudController
 
         CRUD::addColumn([
             'name' => 'id',
-            'label' => 'ID',
+            'label' => __('supplier_balance.id'),
             'type' => 'number',
             'searchLogic' => false,
         ]);
 
         CRUD::addColumn([
             'name' => 'name',
-            'label' => 'Supplier',
+            'label' => __('supplier_balance.supplier'),
             'type' => 'text',
             'limit' => 9999,
             'searchLogic' => function ($query, $column, $searchTerm) {
@@ -68,14 +68,14 @@ class SupplierBalanceCrudController extends CrudController
 
         CRUD::addColumn([
             'name' => 'phone',
-            'label' => 'Phone',
+            'label' => __('supplier_balance.phone'),
             'type' => 'phone',
             'searchLogic' => false,
         ]);
 
         CRUD::addColumn([
             'name' => 'email',
-            'label' => 'Email',
+            'label' => __('supplier_balance.email'),
             'type' => 'email',
             'searchLogic' => false,
         ]);
@@ -83,7 +83,7 @@ class SupplierBalanceCrudController extends CrudController
         // ₾ stays in the column titles only so Excel export cells are plain numbers.
         CRUD::addColumn([
             'name' => 'expenses_total',
-            'label' => 'Total Amount (₾)',
+            'label' => __('supplier_balance.expenses_total'),
             'type' => 'number',
             'decimals' => 2,
             'searchLogic' => false,
@@ -96,7 +96,7 @@ class SupplierBalanceCrudController extends CrudController
 
         CRUD::addColumn([
             'name' => 'paid_total',
-            'label' => 'Total Paid (₾)',
+            'label' => __('supplier_balance.paid_total'),
             'type' => 'number',
             'decimals' => 2,
             'searchLogic' => false,
@@ -115,7 +115,7 @@ class SupplierBalanceCrudController extends CrudController
 
         CRUD::addColumn([
             'name' => 'credit_total',
-            'label' => 'Balance (₾)',
+            'label' => __('supplier_balance.credit_total'),
             'type' => 'number',
             'decimals' => 2,
             'searchLogic' => false,
@@ -135,7 +135,7 @@ class SupplierBalanceCrudController extends CrudController
         CRUD::addFilter([
             'type' => 'text',
             'name' => 'name',
-            'label' => 'Name',
+            'label' => __('supplier_balance.filters.name'),
         ], false, function ($value) {
             $this->crud->addClause('where', 'name', 'LIKE', "%{$value}%");
         });
@@ -143,7 +143,7 @@ class SupplierBalanceCrudController extends CrudController
         CRUD::addFilter([
             'name' => 'only_debt',
             'type' => 'simple',
-            'label' => 'With outstanding balance',
+            'label' => __('supplier_balance.filters.only_debt'),
         ], false, function () {
             $this->crud->addClause('whereHas', 'cashierExpenses', function ($query) {
                 $query->where('credit', '>', 0);

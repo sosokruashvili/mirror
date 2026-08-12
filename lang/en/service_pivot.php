@@ -15,5 +15,7 @@ return [
     'tape_length' => 'Tape Length',
     'sensor_type' => 'Sensor Type',
     'sensor_quantity' => 'Sensor Quantity',
+    'sensor_quantity1' => 'Sensor Quantity',
+    'piece_id' => 'Piece ID',
+    'calculate_price_btn' => 'Calculate Price Button',
 ];
-

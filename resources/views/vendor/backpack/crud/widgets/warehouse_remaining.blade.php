@@ -22,7 +22,7 @@
 <div class="card mb-3">
     <div class="card-header d-flex flex-wrap justify-content-between align-items-start gap-2">
         <div>
-            <h4 class="mb-0">Remaining in warehouse (m²)</h4>
+            <h4 class="mb-0">{{ __('warehouse.remaining.title') }}</h4>
             <small class="text-muted">
                 Per product: total warehouse area minus total order expenses.
                 @if($isLive)
@@ -57,7 +57,7 @@
                 <input type="hidden" name="{{ $key }}" value="{{ $value }}">
             @endforeach
 
-            <label for="snapshot_date" class="form-label mb-0 text-muted small">Date</label>
+            <label for="snapshot_date" class="form-label mb-0 text-muted small">{{ __('warehouse.remaining.date') }}</label>
             <select name="snapshot_date"
                     id="snapshot_date"
                     class="form-select form-select-sm"
@@ -65,7 +65,7 @@
                     onchange="this.form.submit()"
                     @disabled($availableDates->isEmpty())>
                 @if($availableDates->isEmpty())
-                    <option value="">No snapshots yet</option>
+                    <option value="">{{ __('warehouse.remaining.no_snapshots') }}</option>
                 @else
                     @foreach($availableDates as $date)
                         <option value="{{ $date }}" @selected((string) $selectedDate === (string) $date)>
@@ -75,13 +75,13 @@
                 @endif
             </select>
 
-            <label for="summary_product_id" class="form-label mb-0 text-muted small">Product</label>
+            <label for="summary_product_id" class="form-label mb-0 text-muted small">{{ __('warehouse.remaining.product') }}</label>
             <select name="summary_product_id"
                     id="summary_product_id"
                     class="form-select form-select-sm"
                     style="min-width: 220px;"
                     onchange="this.form.submit()">
-                <option value="">All products</option>
+                <option value="">{{ __('warehouse.remaining.all_products') }}</option>
                 @foreach($products as $id => $title)
                     <option value="{{ $id }}" @selected((string) $selectedProduct === (string) $id)>{{ $title }}</option>
                 @endforeach
@@ -89,7 +89,7 @@
 
             @if($selectedProduct)
                 <a href="{{ url()->current() . '?' . http_build_query(array_merge($carryOver->all(), array_filter(['snapshot_date' => $selectedDate]))) }}"
-                   class="btn btn-sm btn-link text-muted">Reset</a>
+                   class="btn btn-sm btn-link text-muted">{{ __('warehouse.remaining.reset') }}</a>
             @endif
         </form>
     </div>
@@ -98,13 +98,13 @@
             <table class="table table-striped table-hover mb-0">
                 <thead>
                     <tr>
-                        <th>Product</th>
+                        <th>{{ __('warehouse.remaining.col_product') }}</th>
                         <th class="text-end">Offcut (%)</th>
-                        <th class="text-end">Offcut (m²)</th>
-                        <th class="text-end">In warehouse (m²)</th>
-                        <th class="text-end">Expenses (m²)</th>
-                        <th class="text-end">Corrections (m²)</th>
-                        <th class="text-end">Remaining (m²)</th>
+                        <th class="text-end">{{ __('warehouse.remaining.col_offcut') }}</th>
+                        <th class="text-end">{{ __('warehouse.remaining.col_in_warehouse') }}</th>
+                        <th class="text-end">{{ __('warehouse.remaining.col_expenses') }}</th>
+                        <th class="text-end">{{ __('warehouse.remaining.col_corrections') }}</th>
+                        <th class="text-end">{{ __('warehouse.remaining.col_remaining') }}</th>
                     </tr>
                 </thead>
                 <tbody>

@@ -2,7 +2,7 @@
     <div class="col-md-3 mb-3 mb-md-0">
         <div class="card bg-primary text-white mb-0">
             <div class="card-header">
-                <h4 class="mb-0">Orders Count</h4>
+                <h4 class="mb-0">{{ __('warehouse.expense.stats_orders_count') }}</h4>
             </div>
             <div class="card-body">
                 <h2 class="mb-0" id="stats-orders-count">{{ number_format($widget['ordersCount']) }}</h2>
@@ -12,7 +12,7 @@
     <div class="col-md-3">
         <div class="card bg-warning text-white mb-0">
             <div class="card-header">
-                <h4 class="mb-0">Total Expenses (m²)</h4>
+                <h4 class="mb-0">{{ __('warehouse.expense.stats_total_expenses') }}</h4>
             </div>
             <div class="card-body">
                 <h2 class="mb-0" id="stats-total-expenses">{{ number_format($widget['totalExpenses'], 2) }}</h2>

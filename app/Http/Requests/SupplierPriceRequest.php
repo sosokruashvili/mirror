@@ -49,9 +49,9 @@ class SupplierPriceRequest extends FormRequest
     public function attributes()
     {
         return [
-            'supplier_id' => 'supplier',
-            'product_id' => 'product',
-            'price_usd' => 'purchase price (USD)',
+            'supplier_id' => __('supplier_price.attributes.supplier'),
+            'product_id' => __('supplier_price.attributes.product'),
+            'price_usd' => __('supplier_price.attributes.price_usd'),
         ];
     }
 
@@ -63,12 +63,12 @@ class SupplierPriceRequest extends FormRequest
     public function messages()
     {
         return [
-            'supplier_id.required' => 'Please select a supplier.',
-            'product_id.required' => 'Please select a product.',
-            'product_id.unique' => 'This supplier already has a price for this product.',
-            'price_usd.required' => 'Please enter a purchase price.',
-            'price_usd.numeric' => 'Purchase price must be a valid number.',
-            'price_usd.min' => 'Purchase price must be at least 0.',
+            'supplier_id.required' => __('supplier_price.messages.supplier_required'),
+            'product_id.required' => __('supplier_price.messages.product_required'),
+            'product_id.unique' => __('supplier_price.messages.product_unique'),
+            'price_usd.required' => __('supplier_price.messages.price_required'),
+            'price_usd.numeric' => __('supplier_price.messages.price_numeric'),
+            'price_usd.min' => __('supplier_price.messages.price_min'),
         ];
     }
 }

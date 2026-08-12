@@ -34,7 +34,7 @@ class WarehouseCrudController extends CrudController
     {
         CRUD::setModel(\App\Models\Warehouse::class);
         CRUD::setRoute(config('backpack.base.route_prefix') . '/warehouse');
-        CRUD::setEntityNameStrings('warehouse', 'warehouses');
+        CRUD::setEntityNameStrings(__('warehouse.entity'), __('warehouse.entity_plural'));
         
         // Enable export buttons
         $this->crud->enableExportButtons();
@@ -49,7 +49,7 @@ class WarehouseCrudController extends CrudController
     protected function setupListOperation()
     {
         // Set custom button label for list page
-        CRUD::setEntityNameStrings('warehouse item', 'warehouses');
+        CRUD::setEntityNameStrings(__('warehouse.entity'), __('warehouse.entity_plural'));
         
         $this->crud->orderBy('id', 'desc');
         $this->crud->query->with(['product', 'supplier']);
@@ -58,13 +58,13 @@ class WarehouseCrudController extends CrudController
 
         $this->crud->addColumn([
             'name' => 'id',
-            'label' => 'ID',
+            'label' => __('warehouse.id'),
             'type' => 'number',
         ]);
 
         $this->crud->addColumn([
             'name' => 'product_id',
-            'label' => 'Product',
+            'label' => __('warehouse.product'),
             'type' => 'select',
             'entity' => 'product',
             'attribute' => 'title',
@@ -73,7 +73,7 @@ class WarehouseCrudController extends CrudController
 
         $this->crud->addColumn([
             'name' => 'supplier_id',
-            'label' => 'Supplier',
+            'label' => __('warehouse.supplier'),
             'type' => 'select',
             'entity' => 'supplier',
             'attribute' => 'name',
@@ -82,20 +82,20 @@ class WarehouseCrudController extends CrudController
 
         $this->crud->addColumn([
             'name' => 'quantity',
-            'label' => 'Quantity of lists',
+            'label' => __('warehouse.quantity_of_lists'),
             'type' => 'number',
         ]);
 
         $this->crud->addColumn([
             'name' => 'area',
-            'label' => 'Area (m²)',
+            'label' => __('warehouse.area'),
             'type' => 'number',
             'decimals' => 3,
         ]);
 
         $this->crud->addColumn([
             'name' => 'created_at',
-            'label' => 'Created At',
+            'label' => __('warehouse.created_at'),
             'type' => 'datetime',
         ]);
 
@@ -103,7 +103,7 @@ class WarehouseCrudController extends CrudController
         $this->crud->addFilter([
             'name' => 'product_id',
             'type' => 'select2',
-            'label' => 'Product'
+            'label' => __('warehouse.product')
         ], function() {
             return \App\Models\Product::all()->pluck('title', 'id')->toArray();
         }, function($value) {
@@ -113,7 +113,7 @@ class WarehouseCrudController extends CrudController
         $this->crud->addFilter([
             'name' => 'supplier_id',
             'type' => 'select2',
-            'label' => 'Supplier'
+            'label' => __('warehouse.supplier')
         ], function() {
             return \App\Models\Supplier::query()->orderBy('name')->pluck('name', 'id')->toArray();
         }, function($value) {
@@ -132,11 +132,11 @@ class WarehouseCrudController extends CrudController
         CRUD::setValidation(WarehouseRequest::class);
         
         // Set custom button label
-        CRUD::setEntityNameStrings('warehouse item', 'warehouses');
+        CRUD::setEntityNameStrings(__('warehouse.entity'), __('warehouse.entity_plural'));
 
         CRUD::addField([
             'name' => 'product_id',
-            'label' => 'Product',
+            'label' => __('warehouse.product'),
             'type' => 'select',
             'entity' => 'product',
             'model' => 'App\Models\Product',
@@ -151,7 +151,7 @@ class WarehouseCrudController extends CrudController
 
         CRUD::addField([
             'name' => 'supplier_id',
-            'label' => 'Supplier',
+            'label' => __('warehouse.supplier'),
             'type' => 'select',
             'entity' => 'supplier',
             'model' => 'App\Models\Supplier',
@@ -164,7 +164,7 @@ class WarehouseCrudController extends CrudController
 
         CRUD::addField([
             'name' => 'quantity',
-            'label' => 'Quantity of lists',
+            'label' => __('warehouse.quantity_of_lists'),
             'type' => 'number',
             'default' => 0,
             'attributes' => [
@@ -178,7 +178,7 @@ class WarehouseCrudController extends CrudController
 
         CRUD::addField([
             'name' => 'area',
-            'label' => 'Area (m²)',
+            'label' => __('warehouse.area'),
             'type' => 'number',
             'default' => 0,
             'attributes' => [

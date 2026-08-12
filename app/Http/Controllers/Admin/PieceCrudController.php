@@ -28,7 +28,7 @@ class PieceCrudController extends CrudController
     {
         CRUD::setModel(\App\Models\Piece::class);
         CRUD::setRoute(config('backpack.base.route_prefix') . '/piece');
-        CRUD::setEntityNameStrings('piece', 'pieces');
+        CRUD::setEntityNameStrings(__('piece.entity'), __('piece.entity_plural'));
     }
 
     /**
@@ -48,7 +48,7 @@ class PieceCrudController extends CrudController
 
         CRUD::addColumn([
             'name' => 'id',
-            'label' => 'ID',
+            'label' => __('piece.id'),
             'type' => 'number',
         ]);
 
@@ -56,7 +56,7 @@ class PieceCrudController extends CrudController
 
         CRUD::addColumn([
             'name' => 'order_id',
-            'label' => 'Order',
+            'label' => __('piece.order'),
             'type' => 'relationship',
             'entity' => 'order',
             'attribute' => 'id', // Show the Order ID
@@ -65,7 +65,7 @@ class PieceCrudController extends CrudController
 
         CRUD::addColumn([
             'name' => 'product_title',
-            'label' => 'Product',
+            'label' => __('piece.product'),
             'type' => 'text',
             'orderable' => false,
             'searchLogic' => function ($query, $column, $searchTerm) {
@@ -84,13 +84,13 @@ class PieceCrudController extends CrudController
 
         CRUD::addColumn([
             'name' => 'order.product_type',
-            'label' => 'Order Product Type',
+            'label' => __('piece.order_product_type'),
             'type' => 'text',
         ]);
 
         CRUD::addColumn([
             'name' => 'stage',
-            'label' => 'Stage',
+            'label' => __('piece.stage'),
             'type' => 'custom_html',
             'escaped' => false,
             // Highest completed stage from the piece_stage pivot.
@@ -98,7 +98,7 @@ class PieceCrudController extends CrudController
                 $slug = $entry->currentStageName();
 
                 if (!$slug) {
-                    return '<span class="badge" style="background-color: ' . piece_draft_color() . '; color: #ffffff;">Draft</span>';
+                    return '<span class="badge" style="background-color: ' . piece_draft_color() . '; color: #ffffff;">' . htmlspecialchars(__('status.draft'), ENT_QUOTES, 'UTF-8') . '</span>';
                 }
 
                 $bg = piece_stage_color($slug);
@@ -111,12 +111,13 @@ class PieceCrudController extends CrudController
 
         CRUD::addColumn([
             'name' => 'broken_display',
-            'label' => 'Broken',
+            'label' => __('piece.broken'),
             'type' => 'custom_html',
             'escaped' => false,
             'orderable' => false,
             'searchLogic' => false,
             'value' => function ($entry) {
+                $viewDescription = htmlspecialchars(__('piece.broken_modal.view_description'), ENT_QUOTES, 'UTF-8');
                 $records = $entry->brokenGlasses ?? collect();
                 $recordCount = $records->count();
                 $totalCount = max($recordCount, (int) ($entry->broken ?? 0));
@@ -129,11 +130,11 @@ class PieceCrudController extends CrudController
 
                 foreach ($records as $record) {
                     $description = htmlspecialchars($record->description ?? '', ENT_QUOTES, 'UTF-8');
-                    $html .= '<span role="button" tabindex="0" class="badge bg-danger me-1 piece-broken-x-btn" data-description="' . $description . '" title="View description"><i class="la la-times"></i></span>';
+                    $html .= '<span role="button" tabindex="0" class="badge bg-danger me-1 piece-broken-x-btn" data-description="' . $description . '" title="' . $viewDescription . '"><i class="la la-times"></i></span>';
                 }
 
                 for ($i = 0; $i < $totalCount - $recordCount; $i++) {
-                    $html .= '<span role="button" tabindex="0" class="badge bg-danger me-1 piece-broken-x-btn" data-description="" title="View description"><i class="la la-times"></i></span>';
+                    $html .= '<span role="button" tabindex="0" class="badge bg-danger me-1 piece-broken-x-btn" data-description="" title="' . $viewDescription . '"><i class="la la-times"></i></span>';
                 }
 
                 $html .= '</span>';
@@ -144,7 +145,7 @@ class PieceCrudController extends CrudController
 
         CRUD::addColumn([
             'name' => 'width',
-            'label' => 'Width',
+            'label' => __('piece.width'),
             'type' => 'number',
             'decimals' => 0,
             'thousands_sep' => '',
@@ -152,7 +153,7 @@ class PieceCrudController extends CrudController
 
         CRUD::addColumn([
             'name' => 'height',
-            'label' => 'Height',
+            'label' => __('piece.height'),
             'type' => 'number',
             'decimals' => 0,
             'thousands_sep' => '',
@@ -162,13 +163,13 @@ class PieceCrudController extends CrudController
 
         CRUD::addColumn([
             'name' => 'quantity',
-            'label' => 'Quantity',
+            'label' => __('piece.quantity'),
             'type' => 'number',
         ]);
 
         CRUD::addColumn([
             'name' => 'created_at',
-            'label' => 'Created At',
+            'label' => __('piece.created_at'),
             'type' => 'datetime',
         ]);
 
@@ -181,7 +182,7 @@ class PieceCrudController extends CrudController
         CRUD::addFilter([
             'name' => 'id',
             'type' => 'text',
-            'label' => 'ID',
+            'label' => __('piece.id'),
         ], false, function ($value) {
             $this->crud->addClause('where', 'id', $value);
         });
@@ -190,7 +191,7 @@ class PieceCrudController extends CrudController
         $this->crud->addFilter([
             'name' => 'order_id',
             'type' => 'select2',
-            'label' => 'Order'
+            'label' => __('piece.order')
         ], function() {
             return \App\Models\Order::all()->pluck('id', 'id')->toArray();
         }, function($value) {
@@ -201,7 +202,7 @@ class PieceCrudController extends CrudController
         CRUD::addFilter([
             'name' => 'product_id',
             'type' => 'select2',
-            'label' => 'Product',
+            'label' => __('piece.product'),
         ], function () {
             return \App\Models\Product::orderBy('title')->pluck('title', 'id')->toArray();
         }, function ($value) {
@@ -212,15 +213,9 @@ class PieceCrudController extends CrudController
         CRUD::addFilter([
             'name' => 'product_type',
             'type' => 'select2',
-            'label' => 'Product Type',
+            'label' => __('piece.product_type'),
         ], function () {
-            return [
-                'mirror' => 'სარკე',
-                'glass' => 'შუშა',
-                'lamix' => 'ლამექსი',
-                'glass_pkg' => 'შუშაპაკეტი',
-                'service' => 'მომსახურება',
-            ];
+            return __('product_type');
         }, function ($value) {
             $this->crud->addClause('whereHas', 'order', function ($query) use ($value) {
                 $query->where('product_type', $value);
@@ -231,7 +226,7 @@ class PieceCrudController extends CrudController
         CRUD::addFilter([
             'name' => 'created_at',
             'type' => 'date_range',
-            'label' => 'Created At',
+            'label' => __('piece.created_at'),
         ], false, function ($value) {
             $dates = json_decode($value, true);
 
@@ -267,7 +262,7 @@ class PieceCrudController extends CrudController
     {
         CRUD::addField([
             'name' => 'quantity',
-            'label' => 'Quantity',
+            'label' => __('piece.quantity'),
             'type' => 'number',
             'attributes' => [
                 'min' => '1',
@@ -277,7 +272,7 @@ class PieceCrudController extends CrudController
 
         CRUD::addField([
             'name' => 'order_id',
-            'label' => 'Order',
+            'label' => __('piece.order'),
             'type' => 'select',
             'entity' => 'order',
             'attribute' => 'name',
@@ -286,7 +281,7 @@ class PieceCrudController extends CrudController
 
         CRUD::addField([
             'name' => 'product_id',
-            'label' => 'Product',
+            'label' => __('piece.product'),
             'type' => 'select',
             'entity' => 'product',
             'attribute' => 'title',
@@ -295,7 +290,7 @@ class PieceCrudController extends CrudController
 
         CRUD::addField([
             'name' => 'width',
-            'label' => 'Width',
+            'label' => __('piece.width'),
             'type' => 'number',
             'attributes' => [
                 'step' => '0.01',
@@ -306,7 +301,7 @@ class PieceCrudController extends CrudController
 
         CRUD::addField([
             'name' => 'height',
-            'label' => 'Height',
+            'label' => __('piece.height'),
             'type' => 'number',
             'attributes' => [
                 'step' => '0.01',

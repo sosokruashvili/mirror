@@ -27,7 +27,7 @@ class SupplierPriceCrudController extends CrudController
     {
         CRUD::setModel(SupplierPrice::class);
         CRUD::setRoute(config('backpack.base.route_prefix') . '/supplier-price');
-        CRUD::setEntityNameStrings('supplier price', 'supplier prices');
+        CRUD::setEntityNameStrings(__('supplier_price.entity'), __('supplier_price.entity_plural'));
 
         $this->crud->enableExportButtons();
     }
@@ -41,13 +41,13 @@ class SupplierPriceCrudController extends CrudController
 
         CRUD::addColumn([
             'name' => 'id',
-            'label' => 'ID',
+            'label' => __('supplier_price.id'),
             'type' => 'number',
         ]);
 
         CRUD::addColumn([
             'name' => 'product_id',
-            'label' => 'Product',
+            'label' => __('supplier_price.product'),
             'type' => 'select',
             'entity' => 'product',
             'attribute' => 'title',
@@ -55,7 +55,7 @@ class SupplierPriceCrudController extends CrudController
 
         CRUD::addColumn([
             'name' => 'supplier_id',
-            'label' => 'Supplier',
+            'label' => __('supplier_price.supplier'),
             'type' => 'select',
             'entity' => 'supplier',
             'attribute' => 'name',
@@ -63,7 +63,7 @@ class SupplierPriceCrudController extends CrudController
 
         CRUD::addColumn([
             'name' => 'price_usd',
-            'label' => 'Purchase Price ($)',
+            'label' => __('supplier_price.price_usd'),
             'type' => 'number',
             'decimals' => 2,
             'prefix' => '$',
@@ -73,7 +73,7 @@ class SupplierPriceCrudController extends CrudController
         // this supplier charges us.
         CRUD::addColumn([
             'name' => 'sale_price',
-            'label' => 'Sale Price ($)',
+            'label' => __('supplier_price.sale_price'),
             'type' => 'number',
             'decimals' => 2,
             'prefix' => '$',
@@ -84,14 +84,14 @@ class SupplierPriceCrudController extends CrudController
 
         CRUD::addColumn([
             'name' => 'updated_at',
-            'label' => 'Last Updated',
+            'label' => __('supplier_price.last_updated'),
             'type' => 'datetime',
         ]);
 
         CRUD::addFilter([
             'name' => 'supplier_id',
             'type' => 'select2',
-            'label' => 'Supplier',
+            'label' => __('supplier_price.supplier'),
         ],
         function () {
             return Supplier::orderBy('name')->pluck('name', 'id')->toArray();
@@ -103,7 +103,7 @@ class SupplierPriceCrudController extends CrudController
         CRUD::addFilter([
             'name' => 'product_id',
             'type' => 'select2',
-            'label' => 'Product',
+            'label' => __('supplier_price.product'),
         ],
         function () {
             return Product::orderBy('title')->pluck('title', 'id')->toArray();
@@ -119,7 +119,7 @@ class SupplierPriceCrudController extends CrudController
 
         CRUD::addField([
             'name' => 'product_id',
-            'label' => 'Product',
+            'label' => __('supplier_price.product'),
             'type' => 'select2',
             'entity' => 'product',
             'attribute' => 'title',
@@ -135,7 +135,7 @@ class SupplierPriceCrudController extends CrudController
 
         CRUD::addField([
             'name' => 'supplier_id',
-            'label' => 'Supplier',
+            'label' => __('supplier_price.supplier'),
             'type' => 'select2',
             'entity' => 'supplier',
             'attribute' => 'name',
@@ -151,7 +151,7 @@ class SupplierPriceCrudController extends CrudController
 
         CRUD::addField([
             'name' => 'price_usd',
-            'label' => 'Purchase Price (USD)',
+            'label' => __('supplier_price.price_usd_field'),
             'type' => 'number',
             'attributes' => [
                 'step' => '0.01',
@@ -159,7 +159,7 @@ class SupplierPriceCrudController extends CrudController
                 'required' => true,
             ],
             'prefix' => '$',
-            'hint' => 'What this supplier charges us for one unit of the product.',
+            'hint' => __('supplier_price.hints.price_usd'),
         ]);
     }
 

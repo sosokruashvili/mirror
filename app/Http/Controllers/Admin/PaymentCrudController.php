@@ -32,7 +32,7 @@ class PaymentCrudController extends CrudController
     {
         CRUD::setModel(\App\Models\Payment::class);
         CRUD::setRoute(config('backpack.base.route_prefix') . '/payment');
-        CRUD::setEntityNameStrings('payment', 'payments');
+        CRUD::setEntityNameStrings(__('payment.entity'), __('payment.entity_plural'));
         
         // Enable export buttons
         $this->crud->enableExportButtons();
@@ -54,13 +54,13 @@ class PaymentCrudController extends CrudController
 
         CRUD::addColumn([
             'name' => 'id',
-            'label' => 'ID',
+            'label' => __('payment.id'),
             'type' => 'number',
         ]);
 
         CRUD::addColumn([
             'name' => 'client_id',
-            'label' => 'Client',
+            'label' => __('payment.client'),
             'type' => 'select',
             'entity' => 'client',
             'attribute' => 'name',
@@ -68,7 +68,7 @@ class PaymentCrudController extends CrudController
 
         CRUD::addColumn([
             'name' => 'authorUser',
-            'label' => 'Author',
+            'label' => __('payment.author'),
             'type' => 'relationship',
             'entity' => 'authorUser',
             'attribute' => 'name',
@@ -76,40 +76,44 @@ class PaymentCrudController extends CrudController
 
         CRUD::addColumn([
             'name' => 'amount_gel',
-            'label' => 'Amount (₾)',
+            'label' => __('payment.amount_gel'),
             'type' => 'number',
             'decimals' => 2,
         ]);
 
         CRUD::addColumn([
             'name' => 'currency_rate',
-            'label' => 'Currency Rate',
+            'label' => __('payment.currency_rate'),
             'type' => 'number',
             'decimals' => 4,
         ]);
 
         CRUD::addColumn([
             'name' => 'method',
-            'label' => 'Method',
-            'type' => 'text',
+            'label' => __('payment.method'),
+            // select_from_array (not text) so the stored value is shown through
+            // the lang file, the same way the type column below does it.
+            'type' => 'select_from_array',
+            'options' => Payment::methods(),
         ]);
 
         CRUD::addColumn([
             'name' => 'type',
-            'label' => 'Type',
+            'label' => __('payment.type'),
             'type' => 'select_from_array',
             'options' => Payment::types(),
         ]);
 
         CRUD::addColumn([
             'name' => 'status',
-            'label' => 'Status',
-            'type' => 'text',
+            'label' => __('payment.status'),
+            'type' => 'select_from_array',
+            'options' => __('payment.statuses'),
         ]);
 
         CRUD::addColumn([
             'name' => 'payment_date',
-            'label' => 'Payment Date',
+            'label' => __('payment.payment_date'),
             'type' => 'datetime',
         ]);
 
@@ -122,7 +126,7 @@ class PaymentCrudController extends CrudController
         CRUD::addFilter([
             'name' => 'order_id',
             'type' => 'select2',
-            'label' => 'Order'
+            'label' => __('payment.order')
         ], function() {
             return \App\Models\Order::all()->pluck('id', 'id')->toArray();
         }, function($value) {
@@ -132,7 +136,7 @@ class PaymentCrudController extends CrudController
         CRUD::addFilter([
             'name' => 'client_id',
             'type' => 'select2',
-            'label' => 'Client'
+            'label' => __('payment.client')
         ], function() {
             return \App\Models\Client::all()->pluck('name', 'id')->toArray();
         }, function($value) {
@@ -143,7 +147,7 @@ class PaymentCrudController extends CrudController
         CRUD::addFilter([
             'type' => 'select2',
             'name' => 'author',
-            'label' => 'Author',
+            'label' => __('payment.author'),
         ], function () {
             return \App\Models\User::orderBy('name')->pluck('name', 'id')->toArray();
         }, function ($value) {
@@ -153,14 +157,9 @@ class PaymentCrudController extends CrudController
         CRUD::addFilter([
             'name' => 'method',
             'type' => 'select2',
-            'label' => 'Payment Method'
+            'label' => __('payment.payment_method')
         ], function() {
-            return [
-                'Cash' => 'Cash',
-                'Transfer' => 'Transfer',
-                'Terminal' => 'Terminal',
-                'PM Transfer' => 'PM Transfer',
-            ];
+            return Payment::methods();
         }, function($value) {
             $this->crud->addClause('where', 'method', $value);
         });
@@ -168,7 +167,7 @@ class PaymentCrudController extends CrudController
         CRUD::addFilter([
             'name' => 'type',
             'type' => 'select2',
-            'label' => 'Type'
+            'label' => __('payment.type')
         ], function() {
             return Payment::types();
         }, function($value) {
@@ -178,12 +177,9 @@ class PaymentCrudController extends CrudController
         CRUD::addFilter([
             'name' => 'status',
             'type' => 'select2',
-            'label' => 'Status'
+            'label' => __('payment.status')
         ], function() {
-            return [
-                'Paid' => 'Paid',
-                'Pending' => 'Pending',
-            ];
+            return __('payment.statuses');
         }, function($value) {
             $this->crud->addClause('where', 'status', $value);
         });
@@ -191,9 +187,9 @@ class PaymentCrudController extends CrudController
         CRUD::addFilter([
             'type' => 'range',
             'name' => 'amount_gel',
-            'label' => 'Amount GEL',
-            'label_from' => 'Min amount',
-            'label_to' => 'Max amount'
+            'label' => __('payment.filters.amount_gel'),
+            'label_from' => __('payment.filters.min_amount'),
+            'label_to' => __('payment.filters.max_amount')
         ],
         false,
         function($value) {
@@ -211,7 +207,7 @@ class PaymentCrudController extends CrudController
         CRUD::addFilter([
             'name' => 'payment_date',
             'type' => 'date_range',
-            'label' => 'Payment Date Range'
+            'label' => __('payment.filters.payment_date_range')
         ],
         false,
         function($value) {
@@ -306,13 +302,13 @@ class PaymentCrudController extends CrudController
 
         CRUD::addField([
             'name' => 'client_id',
-            'label' => 'Client',
+            'label' => __('payment.client'),
             'type' => 'select2',
             'entity' => 'client',
             'attribute' => 'name_with_id',
             'model' => \App\Models\Client::class,
             'allows_null' => false,
-            'hint' => 'Select the client for this payment',
+            'hint' => __('payment.hints.client'),
             'wrapper' => [
                 'class' => 'form-group col-md-6'
             ],
@@ -330,7 +326,7 @@ class PaymentCrudController extends CrudController
                 'class' => 'form-group col-md-6'
             ],
             'value' => '<div id="client_balance_display" style="display: none;">
-                <label class="form-label" style="margin-bottom: 0;">Client Balance</label>
+                <label class="form-label" style="margin-bottom: 0;">'.e(__('payment.client_balance')).'</label>
                 <div class="form-control" style=" padding: 0.375rem 0.75rem; min-height: 38px; display: flex; align-items: center;">
                     <span id="client_balance_value" style="font-weight: 600; font-size: 1rem;">-</span>
                 </div>
@@ -339,14 +335,9 @@ class PaymentCrudController extends CrudController
 
         CRUD::addField([
             'name' => 'method',
-            'label' => 'Payment Method',
+            'label' => __('payment.payment_method'),
             'type' => 'select_from_array',
-            'options' => [
-                'Cash' => 'Cash',
-                'Transfer' => 'Transfer',
-                'Terminal' => 'Terminal',
-                'PM Transfer' => 'PM Transfer',
-            ],
+            'options' => Payment::methods(),
             'allows_null' => false,
             'default' => 'Cash',
             'wrapper' => [
@@ -356,7 +347,7 @@ class PaymentCrudController extends CrudController
 
         CRUD::addField([
             'name' => 'type',
-            'label' => 'Payment Type',
+            'label' => __('payment.payment_type'),
             'type' => 'select_from_array',
             'options' => Payment::types(),
             'allows_null' => false,
@@ -374,11 +365,11 @@ class PaymentCrudController extends CrudController
         // currently linked order is passed through so JS can pre-select it once options load.
         CRUD::addField([
             'name' => 'order_id',
-            'label' => 'Order',
+            'label' => __('payment.order'),
             'type' => 'select_from_array',
             'options' => $this->orderFieldOptions(),
             'allows_null' => true,
-            'hint' => 'Select which of the client\'s orders this payment is for',
+            'hint' => __('payment.hints.order'),
             'wrapper' => [
                 'class' => 'form-group col-md-6',
                 'id' => 'order_id_wrapper',
@@ -391,7 +382,7 @@ class PaymentCrudController extends CrudController
 
         CRUD::addField([
             'name' => 'currency_rate',
-            'label' => 'Currency Rate',
+            'label' => __('payment.currency_rate'),
             'type' => 'number',
             'attributes' => [
                 'step' => '0.0001',
@@ -399,7 +390,7 @@ class PaymentCrudController extends CrudController
                 'required' => true,
             ],
             'default' => Currency::exchangeRate(),
-            'hint' => 'Exchange rate for GEL to USD',
+            'hint' => __('payment.hints.currency_rate'),
             'wrapper' => [
                 'class' => 'form-group col-md-6'
             ]
@@ -408,7 +399,7 @@ class PaymentCrudController extends CrudController
 
         CRUD::addField([
             'name' => 'amount_gel',
-            'label' => 'Amount GEL',
+            'label' => __('payment.amount_gel_field'),
             'type' => 'number',
             'attributes' => [
                 'step' => '0.01',
@@ -426,11 +417,11 @@ class PaymentCrudController extends CrudController
 
         CRUD::addField([
             'name' => 'file',
-            'label' => 'Payment File',
+            'label' => __('payment.payment_file'),
             'type' => 'upload',
             'upload' => true,
             'disk' => 'public',
-            'hint' => 'Upload payment related document (invoice, receipt, etc.)',
+            'hint' => __('payment.hints.payment_file'),
             'wrapper' => [
                 'class' => 'form-group col-md-6'
             ]
@@ -438,12 +429,9 @@ class PaymentCrudController extends CrudController
 
         CRUD::addField([
             'name' => 'status',
-            'label' => 'Status',
+            'label' => __('payment.status'),
             'type' => 'select_from_array',
-            'options' => [
-                'Paid' => 'Paid',
-                'Pending' => 'Pending',
-            ],
+            'options' => __('payment.statuses'),
             'allows_null' => false,
             'default' => 'Paid',
             'wrapper' => [
@@ -454,7 +442,7 @@ class PaymentCrudController extends CrudController
 
         CRUD::addField([
             'name' => 'payment_date',
-            'label' => 'Payment Date',
+            'label' => __('payment.payment_date'),
             'type' => 'datetime_picker',
             'datetime_picker_options' => [
                 'format' => 'DD/MM/YYYY HH:mm',
@@ -632,21 +620,21 @@ class PaymentCrudController extends CrudController
                     'type' => 'progress',
                     'class' => 'card text-white bg-primary',
                     'value' => number_format($stats['paymentsCount']),
-                    'description' => 'Total Payments',
+                    'description' => __('payment.stats.total_payments'),
                     'wrapper' => ['class' => 'col-3'],
                 ],
                 [
                     'type' => 'progress',
                     'class' => 'card text-white bg-success',
                     'value' => number_format($stats['totalAmountGel'], 2) . ' ₾',
-                    'description' => 'Total Amount GEL',
+                    'description' => __('payment.stats.total_amount'),
                     'wrapper' => ['class' => 'col-3'],
                 ],
                 [
                     'type' => 'progress',
                     'class' => 'card text-white bg-secondary',
                     'value' => number_format($stats['paidCount']) . ' / ' . number_format($stats['pendingCount']),
-                    'description' => 'Paid / Pending',
+                    'description' => __('payment.stats.paid_pending'),
                     'hint' => number_format($stats['paidAmountGel'], 2) . ' ₾ / ' . number_format($stats['pendingAmountGel'], 2) . ' ₾',
                     'wrapper' => ['class' => 'col-3'],
                 ],
@@ -662,28 +650,28 @@ class PaymentCrudController extends CrudController
                     'type' => 'progress',
                     'class' => 'card text-white bg-success',
                     'value' => number_format($stats['cashSum'], 2) . ' ₾',
-                    'description' => 'Cash SUM',
+                    'description' => __('payment.stats.cash_sum'),
                     'wrapper' => ['class' => 'col-3'],
                 ],
                 [
                     'type' => 'progress',
                     'class' => 'card text-white bg-info',
                     'value' => number_format($stats['transferSum'], 2) . ' ₾',
-                    'description' => 'Transfer SUM',
+                    'description' => __('payment.stats.transfer_sum'),
                     'wrapper' => ['class' => 'col-3'],
                 ],
                 [
                     'type' => 'progress',
                     'class' => 'card text-white bg-warning',
                     'value' => number_format($stats['terminalSum'], 2) . ' ₾',
-                    'description' => 'Terminal SUM',
+                    'description' => __('payment.stats.terminal_sum'),
                     'wrapper' => ['class' => 'col-3'],
                 ],
                 [
                     'type' => 'progress',
                     'class' => 'card text-white bg-dark',
                     'value' => number_format($stats['pmTransferSum'], 2) . ' ₾',
-                    'description' => 'PM Transfer SUM',
+                    'description' => __('payment.stats.pm_transfer_sum'),
                     'wrapper' => ['class' => 'col-3'],
                 ],
             ],
@@ -795,12 +783,12 @@ class PaymentCrudController extends CrudController
 
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to create payment: ' . $e->getMessage()
+                'message' => __('payment.messages.create_failed', ['error' => $e->getMessage()])
             ], 422);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to create payment: ' . $e->getMessage()
+                'message' => __('payment.messages.create_failed', ['error' => $e->getMessage()])
             ], 422);
         }
     }

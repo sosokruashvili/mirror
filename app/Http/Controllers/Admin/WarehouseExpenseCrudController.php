@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Models\Order;
 use Backpack\CRUD\app\Http\Controllers\CrudController;
 use Backpack\CRUD\app\Library\CrudPanel\CrudPanelFacade as CRUD;
+use Illuminate\Support\Arr;
 use Backpack\CRUD\app\Library\Widget;
 
 /**
@@ -30,7 +31,7 @@ class WarehouseExpenseCrudController extends CrudController
     {
         CRUD::setModel(Order::class);
         CRUD::setRoute(config('backpack.base.route_prefix') . '/warehouse-expense');
-        CRUD::setEntityNameStrings('order expense', 'order expenses');
+        CRUD::setEntityNameStrings(__('warehouse.expense.entity'), __('warehouse.expense.entity_plural'));
 
         // Disable create, update, delete, show operations (read-only report)
         $this->crud->denyAccess(['create', 'update', 'delete', 'show']);
@@ -54,13 +55,13 @@ class WarehouseExpenseCrudController extends CrudController
 
         CRUD::addColumn([
             'name' => 'id',
-            'label' => 'Order ID',
+            'label' => __('warehouse.expense.order_id'),
             'type' => 'number',
         ]);
 
         CRUD::addColumn([
             'name' => 'client_id',
-            'label' => 'Client',
+            'label' => __('warehouse.expense.client'),
             'type' => 'select',
             'entity' => 'client',
             'attribute' => 'name',
@@ -68,7 +69,7 @@ class WarehouseExpenseCrudController extends CrudController
 
         CRUD::addColumn([
             'name' => 'product_type',
-            'label' => 'Product Type',
+            'label' => __('warehouse.expense.product_type'),
             'type' => 'custom_html',
             'value' => function ($entry) {
                 return product_type_ge($entry->product_type);
@@ -77,7 +78,7 @@ class WarehouseExpenseCrudController extends CrudController
 
         CRUD::addColumn([
             'name' => 'products',
-            'label' => 'Products',
+            'label' => __('warehouse.expense.products'),
             'type' => 'custom_html',
             'value' => function ($entry) {
                 $titles = $entry->products->pluck('title');
@@ -90,7 +91,7 @@ class WarehouseExpenseCrudController extends CrudController
 
         CRUD::addColumn([
             'name' => 'base_expense',
-            'label' => 'Base Expense (m²)',
+            'label' => __('warehouse.expense.base_expense'),
             'type' => 'custom_html',
             'value' => function ($entry) {
                 // Stored `expenses` already includes offcut, so subtract the
@@ -105,7 +106,7 @@ class WarehouseExpenseCrudController extends CrudController
 
         CRUD::addColumn([
             'name' => 'offcut_percent',
-            'label' => 'Offcut (%)',
+            'label' => __('warehouse.expense.offcut_pct'),
             'type' => 'custom_html',
             'value' => function ($entry) {
                 $percent = $entry->getOffcutPercent();
@@ -121,7 +122,7 @@ class WarehouseExpenseCrudController extends CrudController
 
         CRUD::addColumn([
             'name' => 'offcut_area',
-            'label' => 'Offcut (m²)',
+            'label' => __('warehouse.expense.offcut_area'),
             'type' => 'custom_html',
             'value' => function ($entry) {
                 $area = $entry->calculateOffcutArea();
@@ -138,14 +139,14 @@ class WarehouseExpenseCrudController extends CrudController
         // Total expense (base + offcut) — this is the stored `expenses` value.
         CRUD::addColumn([
             'name' => 'expenses',
-            'label' => 'Expense SUM (m²)',
+            'label' => __('warehouse.expense.expense_sum'),
             'type' => 'number',
             'decimals' => 2,
         ]);
 
         CRUD::addColumn([
             'name' => 'created_at',
-            'label' => 'Created At',
+            'label' => __('warehouse.expense.created_at'),
             'type' => 'datetime',
         ]);
 
@@ -153,7 +154,7 @@ class WarehouseExpenseCrudController extends CrudController
         CRUD::addFilter([
             'type' => 'select2',
             'name' => 'client_id',
-            'label' => 'Client',
+            'label' => __('warehouse.expense.client'),
         ],
         function () {
             return \App\Models\Client::all()->pluck('name', 'id')->toArray();
@@ -166,16 +167,10 @@ class WarehouseExpenseCrudController extends CrudController
         CRUD::addFilter([
             'type' => 'select2',
             'name' => 'product_type',
-            'label' => 'Product Type',
+            'label' => __('warehouse.expense.product_type'),
         ],
         function () {
-            return [
-                'mirror' => 'სარკე',
-                'glass' => 'შუშა',
-                'lamix' => 'ლამექსი',
-                'glass_pkg' => 'შუშაპაკეტი',
-                'service' => 'მომსახურება',
-            ];
+            return __('product_type');
         },
         function ($value) {
             CRUD::addClause('where', 'product_type', $value);
@@ -185,16 +180,10 @@ class WarehouseExpenseCrudController extends CrudController
         CRUD::addFilter([
             'type' => 'select2',
             'name' => 'status',
-            'label' => 'Status',
+            'label' => __('warehouse.expense.status'),
         ],
         function () {
-            return [
-                'draft' => 'Draft',
-                'new' => 'New',
-                'working' => 'Working',
-                'ready' => 'Ready',
-                'finished' => 'Finished',
-            ];
+            return Arr::only(__('status'), ['draft', 'new', 'working', 'ready', 'finished']);
         },
         function ($value) {
             CRUD::addClause('where', 'status', $value);
@@ -204,7 +193,7 @@ class WarehouseExpenseCrudController extends CrudController
         CRUD::addFilter([
             'name' => 'created_at',
             'type' => 'date_range',
-            'label' => 'Order Date Range',
+            'label' => __('warehouse.expense.order_date_range'),
         ],
         false,
         function ($value) {

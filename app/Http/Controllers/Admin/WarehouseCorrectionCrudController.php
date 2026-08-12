@@ -42,7 +42,7 @@ class WarehouseCorrectionCrudController extends CrudController
     {
         CRUD::setModel(WarehouseCorrection::class);
         CRUD::setRoute(config('backpack.base.route_prefix') . '/warehouse-correction');
-        CRUD::setEntityNameStrings('correction', 'corrections');
+        CRUD::setEntityNameStrings(__('warehouse.correction.entity'), __('warehouse.correction.entity_plural'));
 
         $this->crud->enableExportButtons();
     }
@@ -60,13 +60,13 @@ class WarehouseCorrectionCrudController extends CrudController
 
         CRUD::addColumn([
             'name' => 'id',
-            'label' => 'ID',
+            'label' => __('warehouse.correction.id'),
             'type' => 'number',
         ]);
 
         CRUD::addColumn([
             'name' => 'product_id',
-            'label' => 'Product',
+            'label' => __('warehouse.correction.product'),
             'type' => 'select',
             'entity' => 'product',
             'attribute' => 'title',
@@ -75,7 +75,7 @@ class WarehouseCorrectionCrudController extends CrudController
 
         CRUD::addColumn([
             'name' => 'area',
-            'label' => 'Correction (m²)',
+            'label' => __('warehouse.correction.amount'),
             'type' => 'custom_html',
             'value' => function ($entry) {
                 $area = (float) $entry->area;
@@ -88,20 +88,20 @@ class WarehouseCorrectionCrudController extends CrudController
 
         CRUD::addColumn([
             'name' => 'effective_date',
-            'label' => 'Effective From',
+            'label' => __('warehouse.correction.effective_from'),
             'type' => 'date',
         ]);
 
         CRUD::addColumn([
             'name' => 'reason',
-            'label' => 'Reason',
+            'label' => __('warehouse.correction.reason'),
             'type' => 'text',
             'limit' => 80,
         ]);
 
         CRUD::addColumn([
             'name' => 'user_id',
-            'label' => 'Entered By',
+            'label' => __('warehouse.correction.entered_by'),
             'type' => 'select',
             'entity' => 'user',
             'attribute' => 'name',
@@ -110,14 +110,14 @@ class WarehouseCorrectionCrudController extends CrudController
 
         CRUD::addColumn([
             'name' => 'created_at',
-            'label' => 'Entered At',
+            'label' => __('warehouse.correction.entered_at'),
             'type' => 'datetime',
         ]);
 
         CRUD::addFilter([
             'name' => 'product_id',
             'type' => 'select2',
-            'label' => 'Product',
+            'label' => __('warehouse.correction.product'),
         ], function () {
             return \App\Models\Product::orderBy('title')->pluck('title', 'id')->toArray();
         }, function ($value) {
@@ -127,7 +127,7 @@ class WarehouseCorrectionCrudController extends CrudController
         CRUD::addFilter([
             'name' => 'effective_date',
             'type' => 'date_range',
-            'label' => 'Effective Date Range',
+            'label' => __('warehouse.correction.effective_date_range'),
         ], false, function ($value) {
             $dates = json_decode($value, true);
             if (!empty($dates['from'])) {
@@ -151,7 +151,7 @@ class WarehouseCorrectionCrudController extends CrudController
 
         CRUD::addField([
             'name' => 'product_id',
-            'label' => 'Product',
+            'label' => __('warehouse.correction.product'),
             'type' => 'select',
             'entity' => 'product',
             'model' => 'App\Models\Product',
@@ -166,9 +166,9 @@ class WarehouseCorrectionCrudController extends CrudController
 
         CRUD::addField([
             'name' => 'area',
-            'label' => 'Correction (m²)',
+            'label' => __('warehouse.correction.amount'),
             'type' => 'number',
-            'hint' => 'Signed adjustment to remaining stock. Use a <b>negative</b> value to write stock off (e.g. -12.5 for breakage or a stocktake shortfall) and a <b>positive</b> value to add stock back.',
+            'hint' => __('warehouse.correction.hints.amount'),
             'attributes' => [
                 'step' => '0.001',
                 'required' => true,
@@ -180,10 +180,10 @@ class WarehouseCorrectionCrudController extends CrudController
 
         CRUD::addField([
             'name' => 'effective_date',
-            'label' => 'Effective From',
+            'label' => __('warehouse.correction.effective_from'),
             'type' => 'date',
             'default' => now()->toDateString(),
-            'hint' => 'The correction counts from this day onward. Snapshots before it are left untouched.',
+            'hint' => __('warehouse.correction.hints.effective_from'),
             'attributes' => [
                 'required' => true,
             ],
@@ -194,9 +194,9 @@ class WarehouseCorrectionCrudController extends CrudController
 
         CRUD::addField([
             'name' => 'reason',
-            'label' => 'Reason',
+            'label' => __('warehouse.correction.reason'),
             'type' => 'textarea',
-            'hint' => 'Required — this is the record of why the stock was adjusted.',
+            'hint' => __('warehouse.correction.hints.reason'),
             'attributes' => [
                 'required' => true,
                 'rows' => 3,

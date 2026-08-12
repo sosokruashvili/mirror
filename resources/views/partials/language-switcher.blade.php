@@ -1,10 +1,23 @@
 {{--
     Admin-panel language selector.
 
-    Rendered in the topbar (see vendor/backpack/theme-tabler/inc/topbar_right_content),
-    but kept standalone so it can also be dropped onto the login screen.
-    Posts to locale.switch, which stores the choice in the session and on the
-    user row. Hidden entirely when only one language is configured.
+    Mounted twice, because the tabler "vertical" layout splits chrome by
+    breakpoint: inc/topbar_right_content (mobile, d-block d-lg-none) and
+    layouts/partials/sidebar_shortcuts (desktop, d-none d-lg-flex).
+
+    Deliberately an inline segmented toggle rather than a dropdown:
+      * the sidebar is overflow-y:scroll when sidebarFixed is false, which
+        makes overflow-x clip - a floating dropdown gets cut off;
+      * the theme's ".sidebar-shortcuts :not(:first-child):not(.d-none):before"
+        rule injects "|" separators into ANY descendant, which mangled the
+        dropdown internals.
+    That same rule now works for us: it draws the divider between the two
+    language buttons, matching the theme's own shortcut styling.
+
+    One form with a formaction per locale, so switching stays a POST. The
+    buttons are emitted BEFORE @csrf so the first button is :first-child and
+    does not get a leading "|" (the hidden csrf input renders no box, so it
+    never shows a separator of its own).
 --}}
 @php
     $locales = config('locales.supported', []);
@@ -12,30 +25,19 @@
 @endphp
 
 @if (count($locales) > 1)
-    <li class="nav-item dropdown">
-        <a href="#" class="nav-link d-flex lh-1 text-reset align-items-center px-2"
-           data-bs-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false"
-           aria-label="{{ __('locale.change_language') }}">
-            <i class="la la-globe fs-2 m-0"></i>
-            <span class="d-none d-lg-block ps-1 small">{{ $locales[$current]['short'] ?? strtoupper($current) }}</span>
-        </a>
-
-        <div class="dropdown-menu dropdown-menu-end dropdown-menu-arrow">
-            <h6 class="dropdown-header">{{ __('locale.change_language') }}</h6>
-
-            @foreach ($locales as $code => $locale)
-                <form method="POST" action="{{ route('locale.switch', $code) }}" class="m-0">
-                    @csrf
-                    <button type="submit" lang="{{ $code }}"
-                            class="dropdown-item d-flex align-items-center @if($code === $current) active @endif"
-                            @if($code === $current) aria-current="true" @endif>
-                        <span class="flex-fill text-start">{{ $locale['native'] }}</span>
-                        @if ($code === $current)
-                            <i class="la la-check ms-3"></i>
-                        @endif
-                    </button>
-                </form>
-            @endforeach
-        </div>
-    </li>
+    <form method="POST" action="{{ route('locale.switch', $current) }}"
+          class="language-switcher d-inline-flex align-items-center m-0">
+        @foreach ($locales as $code => $locale)
+            <button type="submit"
+                    formaction="{{ route('locale.switch', $code) }}"
+                    lang="{{ $code }}"
+                    title="{{ $locale['native'] }}"
+                    aria-label="{{ __('locale.change_language') }}: {{ $locale['native'] }}"
+                    @if($code === $current) aria-current="true" @endif
+                    class="btn-link border-0 bg-transparent shadow-none text-decoration-none nav-link px-1 py-0 @if($code === $current) fw-bold text-primary @else text-secondary @endif">
+                {{ $locale['short'] ?? strtoupper($code) }}
+            </button>
+        @endforeach
+        @csrf
+    </form>
 @endif

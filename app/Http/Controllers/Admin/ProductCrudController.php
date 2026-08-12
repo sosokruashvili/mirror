@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Requests\ProductRequest;
 use Backpack\CRUD\app\Http\Controllers\CrudController;
 use Backpack\CRUD\app\Library\CrudPanel\CrudPanelFacade as CRUD;
+use Illuminate\Support\Arr;
 use App\Models\Product;
 /**
  * Class ProductCrudController
@@ -29,7 +30,7 @@ class ProductCrudController extends CrudController
     {
         CRUD::setModel(\App\Models\Product::class);
         CRUD::setRoute(config('backpack.base.route_prefix') . '/product');
-        CRUD::setEntityNameStrings('product', 'products');
+        CRUD::setEntityNameStrings(__('product.entity'), __('product.entity_plural'));
         
         // Enable export buttons
         $this->crud->enableExportButtons();
@@ -47,39 +48,39 @@ class ProductCrudController extends CrudController
         
         $this->crud->addColumn([
             'name' => 'id',
-            'label' => 'ID',
+            'label' => __('product.id'),
             'type' => 'number',
         ]);
 
         $this->crud->addColumn([
             'name' => 'title',
-            'label' => 'Title',
+            'label' => __('product.title'),
             'type' => 'text',
         ]);
 
         $this->crud->addColumn([
             'name' => 'product_type',
-            'label' => 'Product Type',
+            'label' => __('product.product_type'),
             'type' => 'text',
         ]);
 
         $this->crud->addColumn([
             'name' => 'price',
-            'label' => 'Price ($)',
+            'label' => __('product.price_usd'),
             'type' => 'number',
             'decimals' => 2,
         ]);
 
         $this->crud->addColumn([
             'name' => 'price_w',
-            'label' => 'Wholesale Price ($)',
+            'label' => __('product.wholesale_price_usd'),
             'type' => 'number',
             'decimals' => 2,
         ]);
 
         $this->crud->addColumn([
             'name' => 'offcut',
-            'label' => 'Offcut (%)',
+            'label' => __('product.offcut'),
             'type' => 'number',
             'decimals' => 2,
         ]);
@@ -88,12 +89,9 @@ class ProductCrudController extends CrudController
         $this->crud->addFilter([
             'name' => 'product_type',
             'type' => 'select2',
-            'label' => 'Product Type'
+            'label' => __('product.product_type')
         ], function() {
-            return [
-                'glass' => 'Glass',
-                'film' => 'Film',
-            ];
+            return Arr::only(__('material_type'), ['glass', 'film']);
         }, function($value) {
             $this->crud->addClause('where', 'product_type', $value);
         });
@@ -101,7 +99,7 @@ class ProductCrudController extends CrudController
         $this->crud->addFilter([
             'type' => 'range',
             'name' => 'price',
-            'label' => 'Retail Price',
+            'label' => __('product.filters.retail_price'),
             'label_from' => 'Min price',
             'label_to' => 'Max price'
         ],
@@ -119,7 +117,7 @@ class ProductCrudController extends CrudController
         $this->crud->addFilter([
             'type' => 'range',
             'name' => 'price_w',
-            'label' => 'Wholesale Price',
+            'label' => __('product.filters.wholesale_price'),
             'label_from' => 'Min price',
             'label_to' => 'Max price'
         ],
@@ -137,7 +135,7 @@ class ProductCrudController extends CrudController
         $this->crud->addFilter([
             'type' => 'text',
             'name' => 'title',
-            'label' => 'Title'
+            'label' => __('product.title')
         ],
         false,
         function($value) {
@@ -156,7 +154,7 @@ class ProductCrudController extends CrudController
         $this->crud->addFilter([
             'name' => 'order_id',
             'type' => 'select2',
-            'label' => 'Order'
+            'label' => __('product.filters.order')
         ], function() {
             return \App\Models\Order::all()->pluck('id', 'id')->toArray();
         }, function($value) {
@@ -178,7 +176,7 @@ class ProductCrudController extends CrudController
 
         CRUD::addField([
             'name' => 'title',
-            'label' => 'Title',
+            'label' => __('product.title'),
             'type' => 'text',
             'attributes' => [
                 'required' => true,
@@ -187,21 +185,16 @@ class ProductCrudController extends CrudController
 
         CRUD::addField([
             'name' => 'product_type',
-            'label' => 'Product Type',
+            'label' => __('product.product_type'),
             'type' => 'select_from_array',
-            'options' => [
-                'glass' => 'Glass',
-                'film' => 'Film',
-                'mirror' => 'Mirror',
-                'butyl' => 'Butyl',
-            ],
+            'options' => __('material_type'),
             'allows_null' => false,
             'default' => 'glass',
         ]);
 
         CRUD::addField([
             'name' => 'price',
-            'label' => 'Retail Price (USD)',
+            'label' => __('product.retail_price_field'),
             'type' => 'number',
             'attributes' => [
                 'step' => '0.01',
@@ -213,19 +206,19 @@ class ProductCrudController extends CrudController
 
         CRUD::addField([
             'name' => 'price_w',
-            'label' => 'Wholesale Price (USD)',
+            'label' => __('product.wholesale_price_field'),
             'type' => 'number',
             'attributes' => [
                 'step' => '0.01',
                 'min' => '0',
             ],
             'prefix' => '$',
-            'hint' => 'Optional wholesale price for bulk purchases',
+            'hint' => __('product.hints.wholesale_price'),
         ]);
 
         CRUD::addField([
             'name' => 'offcut',
-            'label' => 'Offcut (%)',
+            'label' => __('product.offcut'),
             'type' => 'number',
             'attributes' => [
                 'step' => '0.01',
@@ -234,7 +227,7 @@ class ProductCrudController extends CrudController
             ],
             'default' => 0,
             'suffix' => '%',
-            'hint' => 'Percent of piece area added on top when calculating warehouse expenses for orders using this product.',
+            'hint' => __('product.hints.offcut'),
         ]);
     }
 

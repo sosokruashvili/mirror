@@ -60,7 +60,7 @@ class StageRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'name.regex' => 'The name may only contain latin letters, numbers, underscores and dashes — no spaces (e.g. frame_assembly).',
+            'name.regex' => __('stage.messages.name_regex'),
         ];
     }
 }

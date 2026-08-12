@@ -7,7 +7,7 @@ return [
         'total_clients' => 'კლიენტები სულ',
         'total_clients_hint' => 'ყველა რეგისტრირებული კლიენტი',
         'total_orders' => 'შეკვეთები სულ',
-        'total_orders_hint' => 'დადასტურებული შეკვეთები (დრაფტების გარეშე)',
+        'total_orders_hint' => 'დადასტურებული შეკვეთები',
         'total_products' => 'პროდუქტები სულ',
         'total_products_hint' => 'ხელმისაწვდომი პროდუქტები',
         'total_pieces' => 'ნაჭრები სულ',

@@ -16,16 +16,25 @@
         return bootstrap.Modal.getOrCreateInstance(modalEl);
     }
 
+    // The modal markup carries the translated fallback, so this asset stays
+    // language-agnostic.
+    function noDescriptionText() {
+        var modalEl = document.getElementById('pieceBrokenDescModal');
+
+        return (modalEl && modalEl.getAttribute('data-no-description')) || 'No description provided.';
+    }
+
     function showBrokenDescription(description) {
         var bodyEl = document.getElementById('pieceBrokenDescModalBody');
         var modal = getModal();
+        var text = description.trim() !== '' ? description : noDescriptionText();
 
         if (!bodyEl || !modal) {
-            window.alert(description.trim() !== '' ? description : 'No description provided.');
+            window.alert(text);
             return;
         }
 
-        bodyEl.textContent = description.trim() !== '' ? description : 'No description provided.';
+        bodyEl.textContent = text;
         modal.show();
     }
 

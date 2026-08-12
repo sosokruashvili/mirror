@@ -40,7 +40,7 @@
         <div id="orderPaymentsList" class="list-group mb-2"></div>
 
         <div id="orderPaymentsEmpty" class="text-muted small mb-2">
-            No payments on this order yet.
+            {{ __('payment.no_payments_on_order') }}
         </div>
 
         @unless ($user && ($user->can('payment.update') || $user->can('payment.delete')))

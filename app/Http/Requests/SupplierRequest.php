@@ -28,13 +28,13 @@ class SupplierRequest extends FormRequest
     public function attributes(): array
     {
         return [
-            'name' => 'name',
-            'description' => 'description',
-            'email' => 'email',
-            'address' => 'address',
-            'phone' => 'phone',
-            'legal_id' => 'legal ID',
-            'expenseCategories' => 'expense categories',
+            'name' => __('supplier.attributes.name'),
+            'description' => __('supplier.attributes.description'),
+            'email' => __('supplier.attributes.email'),
+            'address' => __('supplier.attributes.address'),
+            'phone' => __('supplier.attributes.phone'),
+            'legal_id' => __('supplier.attributes.legal_id'),
+            'expenseCategories' => __('supplier.attributes.expense_categories'),
         ];
     }
 }

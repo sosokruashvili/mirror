@@ -15,5 +15,7 @@ return [
     'tape_length' => 'ლენტის სიგრძე',
     'sensor_type' => 'სენსორის ტიპი',
     'sensor_quantity' => 'სენსორის რაოდენობა',
+    'sensor_quantity1' => 'სენსორის რაოდენობა',
+    'piece_id' => 'ნაჭრის ID',
+    'calculate_price_btn' => 'ფასის გამოთვლის ღილაკი',
 ];
-

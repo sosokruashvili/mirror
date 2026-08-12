@@ -13,6 +13,7 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->web(append: [
             \App\Http\Middleware\VerifyCsrfToken::class,
+            \App\Http\Middleware\SetLocale::class,
         ]);
 
         // Page-permission guard for custom admin pages (uses the Backpack guard).

@@ -3,7 +3,7 @@
     <div class="card">
         <div class="card-body">
             <div class="d-flex align-items-center">
-                <div class="subheader">USD Exchange Rate</div>
+                <div class="subheader">{{ __('dashboard.usd.title') }}</div>
                 <div class="ms-auto">
                     <i class="la la-dollar-sign text-success" style="font-size: 2rem;"></i>
                 </div>
@@ -15,17 +15,17 @@
                 <div class="h1 mb-3 text-success">{{ number_format($currency->rate_usd, 4) }} ₾</div>
                 <div class="d-flex mb-2">
                     <div class="text-muted">
-                        <small>Last updated: {{ $currency->created_at->diffForHumans() }}</small>
+                        <small>{{ __('dashboard.usd.last_updated', ['time' => $currency->created_at->diffForHumans()]) }}</small>
                     </div>
                 </div>
                 <div class="text-muted">
                     <small>{{ $currency->created_at->format('d M Y, H:i') }}</small>
                 </div>
             @else
-                <div class="h1 mb-3 text-muted">N/A</div>
+                <div class="h1 mb-3 text-muted">{{ __('dashboard.usd.unavailable') }}</div>
                 <div class="d-flex mb-2">
                     <div class="text-muted">
-                        <small>No exchange rate data available</small>
+                        <small>{{ __('dashboard.usd.no_data') }}</small>
                     </div>
                 </div>
             @endif

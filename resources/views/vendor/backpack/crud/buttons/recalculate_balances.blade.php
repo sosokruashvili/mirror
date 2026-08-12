@@ -1,6 +1,6 @@
 @if ($crud->hasAccess('list'))
     <a href="javascript:void(0)" id="recalculateBalancesBtn" bp-button="recalculate-balances" class="btn btn-primary" data-style="zoom-in">
-        <i class="la la-sync"></i> <span>&nbsp;Recalculate Balances</span>
+        <i class="la la-sync"></i> <span>&nbsp;{{ __('client_balance.recalculate.button') }}</span>
     </a>
 @endif
 
@@ -16,7 +16,7 @@
             }
 
             var originalHtml = $btn.html();
-            $btn.prop('disabled', true).html('<i class="la la-spinner la-spin"></i> Recalculating...');
+            $btn.prop('disabled', true).html('<i class="la la-spinner la-spin"></i> ' + @json(e(__('client_balance.recalculate.running'))));
 
             $.ajax({
                 url: '{{ route('client-balance.recalculate') }}',
@@ -41,14 +41,14 @@
 
                     new Noty({
                         type: 'success',
-                        text: response.message || 'Balances recalculated.',
+                        text: response.message || @json(__('client_balance.recalculate.success')),
                         timeout: 3000,
                     }).show();
                 },
                 error: function () {
                     new Noty({
                         type: 'error',
-                        text: 'Failed to recalculate balances. Please try again.',
+                        text: @json(__('client_balance.recalculate.error')),
                         timeout: 3000,
                     }).show();
                 },

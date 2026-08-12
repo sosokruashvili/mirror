@@ -12,11 +12,11 @@
             <div class="card">
                 <div class="card-body">
                     <div class="d-flex align-items-center">
-                        <div class="subheader">Total Clients</div>
+                        <div class="subheader">{{ __('dashboard.stats.total_clients') }}</div>
                     </div>
                     <div class="h1 mb-3">{{ \App\Models\Client::count() }}</div>
                     <div class="d-flex mb-2">
-                        <div>All registered clients</div>
+                        <div>{{ __('dashboard.stats.total_clients_hint') }}</div>
                     </div>
                 </div>
             </div>
@@ -27,11 +27,11 @@
             <div class="card">
                 <div class="card-body">
                     <div class="d-flex align-items-center">
-                        <div class="subheader">Total Orders</div>
+                        <div class="subheader">{{ __('dashboard.stats.total_orders') }}</div>
                     </div>
                     <div class="h1 mb-3">{{ \App\Models\Order::where('status', '!=', 'draft')->count() }}</div>
                     <div class="d-flex mb-2">
-                        <div>Confirmed orders (excluding drafts)</div>
+                        <div>{{ __('dashboard.stats.total_orders_hint') }}</div>
                     </div>
                 </div>
             </div>
@@ -42,11 +42,11 @@
             <div class="card">
                 <div class="card-body">
                     <div class="d-flex align-items-center">
-                        <div class="subheader">Total Products</div>
+                        <div class="subheader">{{ __('dashboard.stats.total_products') }}</div>
                     </div>
                     <div class="h1 mb-3">{{ \App\Models\Product::count() }}</div>
                     <div class="d-flex mb-2">
-                        <div>Available products</div>
+                        <div>{{ __('dashboard.stats.total_products_hint') }}</div>
                     </div>
                 </div>
             </div>
@@ -57,11 +57,11 @@
             <div class="card">
                 <div class="card-body">
                     <div class="d-flex align-items-center">
-                        <div class="subheader">Total Pieces</div>
+                        <div class="subheader">{{ __('dashboard.stats.total_pieces') }}</div>
                     </div>
                     <div class="h1 mb-3">{{ \App\Models\Piece::whereHas('order', fn($q) => $q->where('status', '!=', 'draft'))->count() }}</div>
                     <div class="d-flex mb-2">
-                        <div>Production pieces (excluding drafts)</div>
+                        <div>{{ __('dashboard.stats.total_pieces_hint') }}</div>
                     </div>
                 </div>
             </div>

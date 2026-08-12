@@ -28,7 +28,7 @@
         <div class="col-6 col-md-3">
             <div class="card card-sm">
                 <div class="card-body py-2">
-                    <div class="text-secondary small">Starting Balance</div>
+                    <div class="text-secondary small">{{ __('client_balance.details.starting_balance') }}</div>
                     <div class="h3 mb-0">{{ number_format($components['starting_balance'], 0) }} ₾</div>
                 </div>
             </div>
@@ -36,7 +36,7 @@
         <div class="col-6 col-md-3">
             <div class="card card-sm">
                 <div class="card-body py-2">
-                    <div class="text-secondary small">Payments Total</div>
+                    <div class="text-secondary small">{{ __('client_balance.details.payments_total') }}</div>
                     <div class="h3 mb-0 text-success">{{ number_format($components['payments_total'], 0) }} ₾</div>
                 </div>
             </div>
@@ -44,7 +44,7 @@
         <div class="col-6 col-md-3">
             <div class="card card-sm">
                 <div class="card-body py-2">
-                    <div class="text-secondary small">Orders Total</div>
+                    <div class="text-secondary small">{{ __('client_balance.details.orders_total') }}</div>
                     <div class="h3 mb-0 text-info">{{ number_format($components['orders_total'], 0) }} ₾</div>
                 </div>
             </div>
@@ -52,7 +52,7 @@
         <div class="col-6 col-md-3">
             <div class="card card-sm">
                 <div class="card-body py-2">
-                    <div class="text-secondary small">Balance</div>
+                    <div class="text-secondary small">{{ __('client_balance.details.balance') }}</div>
                     <div class="h3 mb-0 {{ $components['balance'] >= 0 ? 'text-success' : 'text-danger' }}">
                         {{ number_format($components['balance'], 0) }} ₾
                     </div>
@@ -68,30 +68,30 @@
             <div class="card h-100">
                 <div class="card-header d-flex align-items-center justify-content-between py-2">
                     <h4 class="card-title mb-0">
-                        Payments
+                        {{ __('client_balance.details.payments') }}
                         <span class="badge bg-secondary-lt ms-1">{{ $payments->count() }}</span>
                     </h4>
                     <a href="{{ url(config('backpack.base.route_prefix') . '/payment') }}?client_id={{ $entry->id }}"
                        class="btn btn-sm btn-outline-secondary">
-                        View all
+                        {{ __('client_balance.details.view_all') }}
                     </a>
                 </div>
 
                 @if ($payments->isEmpty())
                     <div class="card-body text-secondary text-center py-4">
-                        No payments for this client yet.
+                        {{ __('client_balance.details.no_payments') }}
                     </div>
                 @else
                     <div class="table-responsive client-balance-subtable">
                         <table class="table table-sm table-vcenter card-table mb-0">
                             <thead>
                                 <tr>
-                                    <th>Date</th>
-                                    <th>Method</th>
-                                    <th>Type</th>
-                                    <th>Order</th>
-                                    <th>Status</th>
-                                    <th class="text-end">Amount</th>
+                                    <th>{{ __('client_balance.details.date') }}</th>
+                                    <th>{{ __('client_balance.details.method') }}</th>
+                                    <th>{{ __('client_balance.details.type') }}</th>
+                                    <th>{{ __('client_balance.details.order') }}</th>
+                                    <th>{{ __('client_balance.details.status') }}</th>
+                                    <th class="text-end">{{ __('client_balance.details.amount') }}</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -124,8 +124,8 @@
                             <tfoot>
                                 <tr>
                                     <th colspan="5">
-                                        Counted in balance
-                                        <span class="text-secondary fw-normal">({{ $countedPaymentsCount }} paid)</span>
+                                        {{ __('client_balance.details.counted_in_balance') }}
+                                        <span class="text-secondary fw-normal">({{ __('client_balance.details.counted_paid', ['count' => $countedPaymentsCount]) }})</span>
                                     </th>
                                     <th class="text-end text-nowrap text-success">
                                         {{ number_format($countedPaymentsTotal, 2) }} ₾
@@ -143,30 +143,30 @@
             <div class="card h-100">
                 <div class="card-header d-flex align-items-center justify-content-between py-2">
                     <h4 class="card-title mb-0">
-                        Orders
+                        {{ __('client_balance.details.orders') }}
                         <span class="badge bg-secondary-lt ms-1">{{ $orders->count() }}</span>
                     </h4>
                     <a href="{{ url(config('backpack.base.route_prefix') . '/order') }}?client_id={{ $entry->id }}"
                        class="btn btn-sm btn-outline-secondary">
-                        View all
+                        {{ __('client_balance.details.view_all') }}
                     </a>
                 </div>
 
                 @if ($orders->isEmpty())
                     <div class="card-body text-secondary text-center py-4">
-                        No orders for this client yet.
+                        {{ __('client_balance.details.no_orders') }}
                     </div>
                 @else
                     <div class="table-responsive client-balance-subtable">
                         <table class="table table-sm table-vcenter card-table mb-0">
                             <thead>
                                 <tr>
-                                    <th>Order</th>
-                                    <th>Date</th>
-                                    <th>Type</th>
-                                    <th>Status</th>
-                                    <th>Paid</th>
-                                    <th class="text-end">Total</th>
+                                    <th>{{ __('client_balance.details.order') }}</th>
+                                    <th>{{ __('client_balance.details.date') }}</th>
+                                    <th>{{ __('client_balance.details.type') }}</th>
+                                    <th>{{ __('client_balance.details.status') }}</th>
+                                    <th>{{ __('client_balance.details.paid') }}</th>
+                                    <th class="text-end">{{ __('client_balance.details.total') }}</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -187,9 +187,9 @@
                                         </td>
                                         <td>
                                             @if ($order->paid)
-                                                <span class="badge bg-success-lt">Paid</span>
+                                                <span class="badge bg-success-lt">{{ __('client_balance.details.paid') }}</span>
                                             @else
-                                                <span class="badge bg-danger-lt">Unpaid</span>
+                                                <span class="badge bg-danger-lt">{{ __('client_balance.details.unpaid') }}</span>
                                             @endif
                                         </td>
                                         <td class="text-end text-nowrap {{ $counted ? 'text-info' : '' }}">
@@ -201,8 +201,8 @@
                             <tfoot>
                                 <tr>
                                     <th colspan="5">
-                                        Counted in balance
-                                        <span class="text-secondary fw-normal">({{ count($countedOrderIds) }} non-draft)</span>
+                                        {{ __('client_balance.details.counted_in_balance') }}
+                                        <span class="text-secondary fw-normal">({{ __('client_balance.details.counted_non_draft', ['count' => count($countedOrderIds)]) }})</span>
                                     </th>
                                     <th class="text-end text-nowrap text-info">
                                         {{ number_format($countedOrdersTotal, 2) }} ₾

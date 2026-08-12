@@ -1,6 +1,6 @@
 @if ($entry->status === 'draft')
     <a href="javascript:void(0)" onclick="confirmOrder(this)" bp-button="confirm" data-route="{{ url($crud->route.'/'.$entry->getKey().'/confirm') }}" class="btn btn-sm btn-success" data-button-type="confirm">
-        <i class="la la-check"></i> <span>Confirm</span>
+        <i class="la la-check"></i> <span>{{ __('order.buttons.confirm') }}</span>
     </a>
 @endif
 
@@ -15,19 +15,19 @@
             var route = $(button).attr('data-route');
 
             swal({
-                title: "Confirm Order?",
-                text: "Are you sure you want to confirm this order? The status will be changed to 'new'.",
+                title: @json(__('order.confirm_dialog.title')),
+                text: @json(__('order.confirm_dialog.text')),
                 icon: "info",
                 buttons: {
                     cancel: {
-                        text: "Cancel",
+                        text: @json(trans('backpack::crud.cancel')),
                         value: null,
                         visible: true,
                         className: "bg-secondary",
                         closeModal: true,
                     },
                     confirm: {
-                        text: "Confirm",
+                        text: @json(__('order.buttons.confirm')),
                         value: true,
                         visible: true,
                         className: "bg-success",
@@ -46,7 +46,7 @@
                                 // Show success notification
                                 new Noty({
                                     type: "success",
-                                    text: "<strong>Order Confirmed</strong><br>The order status has been changed to 'new'."
+                                    text: @json('<strong>'.e(__('order.confirm_dialog.success_title')).'</strong><br>'.e(__('order.confirm_dialog.success_text')))
                                 }).show();
 
                                 // Reload the page to reflect the change
@@ -55,8 +55,8 @@
                                 }, 1000);
                             } else {
                                 swal({
-                                    title: "Error",
-                                    text: result.message || "An error occurred while confirming the order.",
+                                    title: @json(trans('backpack::base.error')),
+                                    text: result.message || @json(__('order.confirm_dialog.error')),
                                     icon: "error",
                                     timer: 4000,
                                     buttons: false,
@@ -65,8 +65,8 @@
                         },
                         error: function(result) {
                             swal({
-                                title: "Error",
-                                text: "An error occurred while confirming the order.",
+                                title: @json(trans('backpack::base.error')),
+                                text: @json(__('order.confirm_dialog.error')),
                                 icon: "error",
                                 timer: 4000,
                                 buttons: false,

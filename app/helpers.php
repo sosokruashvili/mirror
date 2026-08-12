@@ -21,14 +21,19 @@ if (!function_exists('status_badge')) {
     /**
      * Generate a Bootstrap badge for order status
      *
+     * The label is read from the status lang file so it follows the active
+     * locale; unknown statuses fall back to the capitalized raw value.
+     *
      * @param string $status The status value (draft, new, pending, working, done, finished)
-     * @param string|null $text Optional custom text to display instead of capitalized status
+     * @param string|null $text Optional custom text to display instead of the translated status
      * @return string HTML badge element
      */
     function status_badge(string $status, ?string $text = null): string
     {
         $status = strtolower($status);
-        $displayText = $text ?? ucfirst($status);
+        $key = "status.{$status}";
+        $translated = __($key);
+        $displayText = $text ?? ($translated === $key ? ucfirst($status) : $translated);
         
         // Define badge classes for each status using Bootstrap 5/Tabler compatible classes
         // Using text-bg-* format (Bootstrap 5.2+) for better compatibility with Tabler
@@ -59,24 +64,23 @@ if (!function_exists('status_badge')) {
 
 if (!function_exists('product_type_ge')) {
     /**
-     * Translate product type to Georgian
+     * Product type label in the active locale.
+     *
+     * Reads lang/{locale}/product_type.php. Kept under its original name so the
+     * existing call sites keep working; despite the "_ge" suffix it now returns
+     * English when the panel is in English.
      *
      * @param string $productType The product type value (mirror, glass, lamix, glass_pkg, service)
-     * @return string Georgian translation
+     * @return string Localized label, or the raw value when it is not a known type
      */
     function product_type_ge(string $productType): string
     {
         $productType = strtolower($productType);
-        
-        $translations = [
-            'mirror' => 'სარკე',
-            'glass' => 'შუშა',
-            'lamix' => 'ლამექსი',
-            'glass_pkg' => 'მინაპაკეტი',
-            'service' => 'მომსახურება',
-        ];
-        
-        return $translations[$productType] ?? $productType;
+        $key = "product_type.{$productType}";
+        $label = __($key);
+
+        // __() hands back the key itself when there is no such translation.
+        return $label === $key ? $productType : $label;
     }
 }
 
@@ -233,21 +237,23 @@ if (!function_exists('piece_stage_ge')) {
 
 if (!function_exists('order_type_ge')) {
     /**
-     * Translate order type to Georgian
+     * Order type label in the active locale.
+     *
+     * Reads the order_type lang file. Kept under its original name so existing
+     * call sites keep working; despite the "_ge" suffix it now returns English
+     * when the panel is in English.
      *
      * @param string $orderType The order type value (retail, wholesale)
-     * @return string Georgian translation
+     * @return string Localized label, or the raw value when it is not a known type
      */
     function order_type_ge(string $orderType): string
     {
         $orderType = strtolower($orderType);
-        
-        $translations = [
-            'retail' => 'საცალო',
-            'wholesale' => 'საბითუმო',
-        ];
-        
-        return $translations[$orderType] ?? $orderType;
+        $key = "order_type.{$orderType}";
+        $label = __($key);
+
+        // __() hands back the key itself when there is no such translation.
+        return $label === $key ? $orderType : $label;
     }
 }
 

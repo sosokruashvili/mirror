@@ -3,29 +3,29 @@
         <div class="card-header">
             <div class="d-flex flex-wrap align-items-center justify-content-between gap-2">
                 <div>
-                    <h3 class="card-title mb-0">Top Users by Stage Completions</h3>
-                    <div class="text-muted small">Top 10 workers by production stages finished, broken down by stage — excluding draft orders and the auto-completed final stage</div>
+                    <h3 class="card-title mb-0">{{ __('user_stats.stage_completions.title') }}</h3>
+                    <div class="text-muted small">{{ __('user_stats.stage_completions.subtitle') }}</div>
                 </div>
-                <div class="btn-group flex-wrap" role="group" aria-label="Chart range">
-                    <button type="button" class="btn btn-sm btn-outline-primary" data-range="this_week">This week</button>
-                    <button type="button" class="btn btn-sm btn-outline-primary active" data-range="this_month">This month</button>
-                    <button type="button" class="btn btn-sm btn-outline-primary" data-range="last_month">Last month</button>
-                    <button type="button" class="btn btn-sm btn-outline-primary" data-range="last_year">Last year</button>
+                <div class="btn-group flex-wrap" role="group" aria-label="{{ __('user_stats.range.aria') }}">
+                    <button type="button" class="btn btn-sm btn-outline-primary" data-range="this_week">{{ __('user_stats.range.this_week') }}</button>
+                    <button type="button" class="btn btn-sm btn-outline-primary active" data-range="this_month">{{ __('user_stats.range.this_month') }}</button>
+                    <button type="button" class="btn btn-sm btn-outline-primary" data-range="last_month">{{ __('user_stats.range.last_month') }}</button>
+                    <button type="button" class="btn btn-sm btn-outline-primary" data-range="last_year">{{ __('user_stats.range.last_year') }}</button>
                 </div>
             </div>
         </div>
         <div class="card-body">
             <div class="row g-3 mb-3">
                 <div class="col-6">
-                    <div class="text-muted small">Completions (top 10)</div>
+                    <div class="text-muted small">{{ __('user_stats.stage_completions.completions_top10') }}</div>
                     <div class="h3 mb-0" id="stage-completions-total">—</div>
                 </div>
                 <div class="col-6">
-                    <div class="text-muted small">Active users</div>
+                    <div class="text-muted small">{{ __('user_stats.stage_completions.active_users') }}</div>
                     <div class="h3 mb-0" id="stage-completions-users">—</div>
                 </div>
                 <div class="col-12">
-                    <div class="text-muted small">Range</div>
+                    <div class="text-muted small">{{ __('user_stats.range.label') }}</div>
                     <div class="small mb-0" id="stage-completions-range-label">—</div>
                 </div>
             </div>
@@ -40,6 +40,7 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
 <script>
 (function () {
+    var i18n = @json(__('user_stats.stage_completions'));
     var chartInstance = null;
     var chartUrl = @json(route('user-stats.stageCompletionsChart'));
     var canvas = document.getElementById('stage-completions-chart');
@@ -103,7 +104,7 @@
                     x: {
                         stacked: true,
                         beginAtZero: true,
-                        title: { display: true, text: 'Stages completed' },
+                        title: { display: true, text: i18n.axis_stages },
                         ticks: {
                             precision: 0,
                             callback: function (value) {

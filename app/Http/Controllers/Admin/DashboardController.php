@@ -120,12 +120,15 @@ class DashboardController
 
         $typeLabels = Payment::types();
         $types = array_keys($typeLabels);
-        $methods = array_keys(Payment::methods());
+        $methodLabels = Payment::methods();
+        $methods = array_keys($methodLabels);
 
         foreach ($rows as $row) {
             $method = (string) $row->method;
             if ($method !== '' && ! in_array($method, $methods, true)) {
                 $methods[] = $method;
+                // A method no longer in methods() (legacy row): show it raw.
+                $methodLabels[$method] = $method;
             }
 
             $type = (string) $row->type;
@@ -181,6 +184,7 @@ class DashboardController
             'to' => $to->toDateString(),
             'labels' => $labels,
             'methods' => $methods,
+            'methodLabels' => $methodLabels,
             'types' => $types,
             'typeLabels' => $typeLabels,
             'series' => $series,
@@ -363,7 +367,7 @@ class DashboardController
             $userId = (int) $order->author;
             if (! isset($byUser[$userId])) {
                 $byUser[$userId] = [
-                    'name' => $order->authorUser?->name ?? ('User #'.$userId),
+                    'name' => $order->authorUser?->name ?? __('user_stats.unknown_user', ['id' => $userId]),
                     'count' => 0,
                     'value' => 0.0,
                 ];
@@ -456,7 +460,7 @@ class DashboardController
 
             if (! isset($byUser[$row->user_id])) {
                 $byUser[$row->user_id] = [
-                    'name' => $row->user_name ?? ('User #'.$row->user_id),
+                    'name' => $row->user_name ?? __('user_stats.unknown_user', ['id' => $row->user_id]),
                     'total' => 0,
                     'counts' => [],
                 ];

@@ -3,31 +3,31 @@
         <div class="card-header">
             <div class="d-flex flex-wrap align-items-center justify-content-between gap-3">
                 <div>
-                    <h3 class="card-title mb-0">Orders by Product Type</h3>
-                    <div class="text-muted small">Share of confirmed orders per product type, excluding draft orders</div>
+                    <h3 class="card-title mb-0">{{ __('dashboard.product_type_pie.title') }}</h3>
+                    <div class="text-muted small">{{ __('dashboard.product_type_pie.subtitle') }}</div>
                 </div>
             </div>
             <div class="d-flex flex-wrap align-items-end gap-2 mt-2">
                 <div>
-                    <label class="form-label small mb-1" for="product-type-pie-from">From</label>
+                    <label class="form-label small mb-1" for="product-type-pie-from">{{ __('dashboard.chart.from') }}</label>
                     <input type="date" id="product-type-pie-from" class="form-control form-control-sm">
                 </div>
                 <div>
-                    <label class="form-label small mb-1" for="product-type-pie-to">To</label>
+                    <label class="form-label small mb-1" for="product-type-pie-to">{{ __('dashboard.chart.to') }}</label>
                     <input type="date" id="product-type-pie-to" class="form-control form-control-sm">
                 </div>
-                <button type="button" class="btn btn-sm btn-primary" id="product-type-pie-apply">Apply</button>
-                <button type="button" class="btn btn-sm btn-outline-secondary" id="product-type-pie-reset">Last 30 days</button>
-                <div class="btn-group btn-group-sm ms-auto" role="group" aria-label="Pie chart metric">
-                    <button type="button" class="btn btn-primary" id="product-type-pie-metric-count" data-metric="count">By orders count</button>
-                    <button type="button" class="btn btn-outline-primary" id="product-type-pie-metric-value" data-metric="value">By income</button>
+                <button type="button" class="btn btn-sm btn-primary" id="product-type-pie-apply">{{ __('dashboard.chart.apply') }}</button>
+                <button type="button" class="btn btn-sm btn-outline-secondary" id="product-type-pie-reset">{{ __('dashboard.chart.last_30_days') }}</button>
+                <div class="btn-group btn-group-sm ms-auto" role="group" aria-label="{{ __('dashboard.product_type_pie.metric') }}">
+                    <button type="button" class="btn btn-primary" id="product-type-pie-metric-count" data-metric="count">{{ __('dashboard.product_type_pie.by_count') }}</button>
+                    <button type="button" class="btn btn-outline-primary" id="product-type-pie-metric-value" data-metric="value">{{ __('dashboard.product_type_pie.by_income') }}</button>
                 </div>
             </div>
         </div>
         <div class="card-body">
             <div class="row g-3 mb-3">
                 <div class="col-12">
-                    <div class="text-muted small">Total orders</div>
+                    <div class="text-muted small">{{ __('dashboard.product_type_pie.total_orders') }}</div>
                     <div class="h3 mb-0" id="product-type-pie-total-orders">—</div>
                 </div>
             </div>
@@ -42,6 +42,7 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
 <script>
 (function () {
+    var i18n = @json(__('dashboard.product_type_pie'));
     var chartInstance = null;
     var chartUrl = @json(url(config('backpack.base.route_prefix') . '/dashboard/product-type-stats-chart'));
     var canvas = document.getElementById('product-type-pie-chart');
@@ -74,7 +75,7 @@
 
         var isValue = metric === 'value';
         var seriesData = isValue ? lastData.values : lastData.counts;
-        var datasetLabel = isValue ? 'Income (₾)' : 'Orders count';
+        var datasetLabel = isValue ? i18n.income : i18n.orders_count;
 
         if (chartInstance) {
             chartInstance.destroy();

@@ -2,7 +2,7 @@
     <div class="col-md mb-3 mb-md-0">
         <div class="card bg-primary text-white mb-0">
             <div class="card-header">
-                <h4 class="mb-0">Clients Count</h4>
+                <h4 class="mb-0">{{ __('client_balance.stats.clients_count') }}</h4>
             </div>
             <div class="card-body">
                 <h2 class="mb-0" id="stats-clients-count">{{ number_format($widget['clientsCount']) }}</h2>
@@ -12,7 +12,7 @@
     <div class="col-md mb-3 mb-md-0">
         <div class="card bg-secondary text-white mb-0">
             <div class="card-header">
-                <h4 class="mb-0">Total Starting</h4>
+                <h4 class="mb-0">{{ __('client_balance.stats.total_starting') }}</h4>
             </div>
             <div class="card-body">
                 <h2 class="mb-0" id="stats-total-starting">{{ number_format($widget['totalStarting'], 0) }} ₾</h2>
@@ -22,7 +22,7 @@
     <div class="col-md mb-3 mb-md-0">
         <div class="card bg-success text-white mb-0">
             <div class="card-header">
-                <h4 class="mb-0">Total Payments</h4>
+                <h4 class="mb-0">{{ __('client_balance.stats.total_payments') }}</h4>
             </div>
             <div class="card-body">
                 <h2 class="mb-0" id="stats-total-payments">{{ number_format($widget['totalPayments'], 0) }} ₾</h2>
@@ -32,7 +32,7 @@
     <div class="col-md mb-3 mb-md-0">
         <div class="card bg-info text-white mb-0">
             <div class="card-header">
-                <h4 class="mb-0">Total Orders</h4>
+                <h4 class="mb-0">{{ __('client_balance.stats.total_orders') }}</h4>
             </div>
             <div class="card-body">
                 <h2 class="mb-0" id="stats-total-orders">{{ number_format($widget['totalOrders'], 0) }} ₾</h2>
@@ -42,7 +42,7 @@
     <div class="col-md">
         <div class="card {{ $widget['totalBalance'] >= 0 ? 'bg-success' : 'bg-danger' }} text-white mb-0" id="stats-balance-card">
             <div class="card-header">
-                <h4 class="mb-0">Total Balance</h4>
+                <h4 class="mb-0">{{ __('client_balance.stats.total_balance') }}</h4>
             </div>
             <div class="card-body">
                 <h2 class="mb-0" id="stats-total-balance">{{ number_format($widget['totalBalance'], 0) }} ₾</h2>

@@ -2,45 +2,45 @@
     <div class="card">
         <div class="card-header">
             <div>
-                <h3 class="card-title mb-0">Daily Orders &amp; Income</h3>
-                <div class="text-muted small">Orders count and income (paid / credit) per period, excluding draft orders</div>
+                <h3 class="card-title mb-0">{{ __('dashboard.daily.title') }}</h3>
+                <div class="text-muted small">{{ __('dashboard.daily.subtitle') }}</div>
             </div>
             <div class="d-flex flex-wrap align-items-end justify-content-between gap-2 mt-2">
                 <div class="d-flex flex-wrap align-items-end gap-2">
                     <div>
-                        <label class="form-label small mb-1" for="daily-stats-from">From</label>
+                        <label class="form-label small mb-1" for="daily-stats-from">{{ __('dashboard.chart.from') }}</label>
                         <input type="date" id="daily-stats-from" class="form-control form-control-sm">
                     </div>
                     <div>
-                        <label class="form-label small mb-1" for="daily-stats-to">To</label>
+                        <label class="form-label small mb-1" for="daily-stats-to">{{ __('dashboard.chart.to') }}</label>
                         <input type="date" id="daily-stats-to" class="form-control form-control-sm">
                     </div>
-                    <button type="button" class="btn btn-sm btn-primary" id="daily-stats-apply">Apply</button>
-                    <button type="button" class="btn btn-sm btn-outline-secondary" id="daily-stats-reset">Reset range</button>
+                    <button type="button" class="btn btn-sm btn-primary" id="daily-stats-apply">{{ __('dashboard.chart.apply') }}</button>
+                    <button type="button" class="btn btn-sm btn-outline-secondary" id="daily-stats-reset">{{ __('dashboard.chart.reset_range') }}</button>
                 </div>
-                <div class="btn-group ms-auto" role="group" aria-label="Chart period">
-                    <button type="button" class="btn btn-sm btn-outline-primary active" data-period="days">By day</button>
-                    <button type="button" class="btn btn-sm btn-outline-primary" data-period="months">By month</button>
-                    <button type="button" class="btn btn-sm btn-outline-primary" data-period="years">By year</button>
+                <div class="btn-group ms-auto" role="group" aria-label="{{ __('dashboard.chart.period') }}">
+                    <button type="button" class="btn btn-sm btn-outline-primary active" data-period="days">{{ __('dashboard.chart.by_day') }}</button>
+                    <button type="button" class="btn btn-sm btn-outline-primary" data-period="months">{{ __('dashboard.chart.by_month') }}</button>
+                    <button type="button" class="btn btn-sm btn-outline-primary" data-period="years">{{ __('dashboard.chart.by_year') }}</button>
                 </div>
             </div>
         </div>
         <div class="card-body">
             <div class="row g-3 mb-3">
                 <div class="col-6 col-md-3">
-                    <div class="text-muted small">Orders</div>
+                    <div class="text-muted small">{{ __('dashboard.daily.orders') }}</div>
                     <div class="h3 mb-0" id="daily-stats-total-orders">—</div>
                 </div>
                 <div class="col-6 col-md-3">
-                    <div class="text-muted small">Income</div>
+                    <div class="text-muted small">{{ __('dashboard.daily.income') }}</div>
                     <div class="h3 mb-0" id="daily-stats-total-income">—</div>
                 </div>
                 <div class="col-6 col-md-3">
-                    <div class="text-muted small">Paid</div>
+                    <div class="text-muted small">{{ __('dashboard.daily.paid') }}</div>
                     <div class="h3 mb-0 text-success" id="daily-stats-total-paid">—</div>
                 </div>
                 <div class="col-6 col-md-3">
-                    <div class="text-muted small">Credit (owed)</div>
+                    <div class="text-muted small">{{ __('dashboard.daily.credit') }}</div>
                     <div class="h3 mb-0 text-danger" id="daily-stats-total-credit">—</div>
                 </div>
             </div>
@@ -55,6 +55,7 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
 <script>
 (function () {
+    var i18n = @json(__('dashboard.daily'));
     var chartInstance = null;
     var chartUrl = @json(url(config('backpack.base.route_prefix') . '/dashboard/daily-stats-chart'));
     var canvas = document.getElementById('daily-stats-chart');
@@ -99,7 +100,7 @@
                 labels: data.labels,
                 datasets: [
                     {
-                        label: 'Paid',
+                        label: i18n.paid,
                         data: data.paid,
                         backgroundColor: 'rgba(47, 179, 68, 0.85)',
                         stack: 'income',
@@ -108,7 +109,7 @@
                         maxBarThickness: 26
                     },
                     {
-                        label: 'Credit (owed)',
+                        label: i18n.credit,
                         data: data.credit,
                         backgroundColor: 'rgba(214, 57, 57, 0.85)',
                         stack: 'income',
@@ -117,7 +118,7 @@
                         maxBarThickness: 26
                     },
                     {
-                        label: 'Orders count',
+                        label: i18n.orders_count,
                         data: data.counts,
                         backgroundColor: 'rgba(32, 107, 196, 0.85)',
                         stack: 'orders',
@@ -149,7 +150,7 @@
                                 var i = tooltipItems[0].dataIndex;
                                 var paid = Number(chart.data.datasets[0].data[i] || 0);
                                 var credit = Number(chart.data.datasets[1].data[i] || 0);
-                                return 'Income: ' + formatMoney(paid + credit);
+                                return i18n.income + ': ' + formatMoney(paid + credit);
                             },
                             label: function (context) {
                                 var value = context.parsed.y || 0;
@@ -183,7 +184,7 @@
                         position: 'left',
                         stacked: true,
                         beginAtZero: true,
-                        title: { display: true, text: 'Income (₾)' },
+                        title: { display: true, text: i18n.axis_income },
                         ticks: {
                             callback: function (value) {
                                 return Number(value).toLocaleString();
@@ -194,7 +195,7 @@
                         position: 'right',
                         stacked: true,
                         beginAtZero: true,
-                        title: { display: true, text: 'Orders' },
+                        title: { display: true, text: i18n.axis_orders },
                         grid: { drawOnChartArea: false },
                         ticks: {
                             precision: 0,

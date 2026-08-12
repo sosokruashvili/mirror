@@ -87,28 +87,33 @@ class Payment extends Model
     /**
      * Payment types, keyed by the value stored in the database.
      *
-     * @return array
+     * Keys stay in English (they are the stored values and are used in
+     * validation rules); only the labels follow the active locale.
+     *
+     * @return array<string, string>
      */
     public static function types()
     {
         return [
-            self::TYPE_ORDER => 'შეკვეთა',
-            self::TYPE_DEBT => 'ვალი',
+            self::TYPE_ORDER => __('payment.types.'.self::TYPE_ORDER),
+            self::TYPE_DEBT => __('payment.types.'.self::TYPE_DEBT),
         ];
     }
 
     /**
      * Payment methods in display order, keyed by the value stored in the database.
      *
+     * As with types(), the keys are the stored values; the labels are localized.
+     *
      * @return array<string, string>
      */
     public static function methods(): array
     {
         return [
-            self::METHOD_CASH => 'Cash',
-            self::METHOD_TRANSFER => 'Transfer',
-            self::METHOD_TERMINAL => 'Terminal',
-            self::METHOD_PM_TRANSFER => 'PM Transfer',
+            self::METHOD_CASH => __('payment.methods.'.self::METHOD_CASH),
+            self::METHOD_TRANSFER => __('payment.methods.'.self::METHOD_TRANSFER),
+            self::METHOD_TERMINAL => __('payment.methods.'.self::METHOD_TERMINAL),
+            self::METHOD_PM_TRANSFER => __('payment.methods.'.self::METHOD_PM_TRANSFER),
         ];
     }
 

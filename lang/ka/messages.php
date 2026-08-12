@@ -3,7 +3,7 @@
 return [
     'no_services' => 'მომსახურება არ არის',
     'no_products' => 'პროდუქტები არ არის',
-    'no_pieces' => 'ნაწილები არ არის',
+    'no_pieces' => 'ნაჭრები არ არის',
     
     // Light Type values
     'light_type' => [

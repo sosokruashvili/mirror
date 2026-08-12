@@ -3,21 +3,21 @@
         <div class="card-header">
             <div class="d-flex flex-wrap align-items-center justify-content-between gap-2">
                 <div>
-                    <h3 class="card-title mb-0">Orders Area Summary</h3>
-                    <div class="text-muted small">Total piece area (m²), excluding draft orders and draft pieces</div>
+                    <h3 class="card-title mb-0">{{ __('dashboard.area.title') }}</h3>
+                    <div class="text-muted small">{{ __('dashboard.area.subtitle') }}</div>
                 </div>
-                <div class="btn-group" role="group" aria-label="Chart period">
-                    <button type="button" class="btn btn-sm btn-outline-primary active" data-period="days">30 Days</button>
-                    <button type="button" class="btn btn-sm btn-outline-primary" data-period="months">12 Months</button>
-                    <button type="button" class="btn btn-sm btn-outline-primary" data-period="years">10 Years</button>
+                <div class="btn-group" role="group" aria-label="{{ __('dashboard.chart.period') }}">
+                    <button type="button" class="btn btn-sm btn-outline-primary active" data-period="days">{{ __('dashboard.area.days_30') }}</button>
+                    <button type="button" class="btn btn-sm btn-outline-primary" data-period="months">{{ __('dashboard.area.months_12') }}</button>
+                    <button type="button" class="btn btn-sm btn-outline-primary" data-period="years">{{ __('dashboard.area.years_10') }}</button>
                 </div>
             </div>
         </div>
         <div class="card-body">
             <div class="d-flex align-items-baseline gap-2 mb-3">
-                <span class="text-muted">Total:</span>
+                <span class="text-muted">{{ __('dashboard.area.total') }}</span>
                 <span class="h3 mb-0" id="orders-area-chart-total">—</span>
-                <span class="text-muted">m²</span>
+                <span class="text-muted">{{ __('dashboard.area.unit') }}</span>
             </div>
             <div style="position: relative; height: 320px;">
                 <canvas id="orders-area-chart"></canvas>
@@ -30,6 +30,7 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
 <script>
 (function () {
+    var i18n = @json(__('dashboard.area'));
     var chartInstance = null;
     var chartUrl = @json(url(config('backpack.base.route_prefix') . '/dashboard/orders-area-chart'));
     var canvas = document.getElementById('orders-area-chart');
@@ -56,7 +57,7 @@
             data: {
                 labels: data.labels,
                 datasets: [{
-                    label: 'Area (m²)',
+                    label: i18n.label,
                     data: data.areas,
                     backgroundColor: 'rgba(32, 107, 196, 0.75)',
                     borderColor: 'rgba(32, 107, 196, 1)',
@@ -79,7 +80,7 @@
                                 return value.toLocaleString(undefined, {
                                     minimumFractionDigits: 2,
                                     maximumFractionDigits: 2
-                                }) + ' m²';
+                                }) + ' ' + i18n.unit;
                             }
                         }
                     }
@@ -102,7 +103,7 @@
                         beginAtZero: true,
                         title: {
                             display: true,
-                            text: 'Area (m²)'
+                            text: i18n.label
                         },
                         ticks: {
                             callback: function (value) {

@@ -17,7 +17,7 @@ class UserStatsController extends Controller
     public function index()
     {
         return view('admin.user-stats', [
-            'title' => 'User Stats',
+            'title' => __('user_stats.title'),
         ]);
     }
 }

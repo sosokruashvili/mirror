@@ -1,6 +1,6 @@
 @if ($entry->status === 'ready')
     <a href="javascript:void(0)" onclick="finishOrder(this)" bp-button="finish" data-route="{{ url($crud->route.'/'.$entry->getKey().'/finish') }}" class="btn btn-sm btn-link" data-button-type="finish">
-        <i class="la la-check-circle"></i> <span>Finish</span>
+        <i class="la la-check-circle"></i> <span>{{ __('order.buttons.finish') }}</span>
     </a>
 @endif
 
@@ -15,19 +15,19 @@
             var route = $(button).attr('data-route');
 
             swal({
-                title: "Finish Order?",
-                text: "Are you sure you want to finish this order? The order and all its pieces will be marked as finished.",
+                title: @json(__('order.finish_dialog.title')),
+                text: @json(__('order.finish_dialog.text')),
                 icon: "info",
                 buttons: {
                     cancel: {
-                        text: "Cancel",
+                        text: @json(trans('backpack::crud.cancel')),
                         value: null,
                         visible: true,
                         className: "bg-secondary",
                         closeModal: true,
                     },
                     confirm: {
-                        text: "Finish",
+                        text: @json(__('order.buttons.finish')),
                         value: true,
                         visible: true,
                         className: "bg-success",
@@ -45,7 +45,7 @@
                             if (result.success) {
                                 new Noty({
                                     type: "success",
-                                    text: "<strong>Order Finished</strong><br>The order and all pieces have been marked as finished."
+                                    text: @json('<strong>'.e(__('order.finish_dialog.success_title')).'</strong><br>'.e(__('order.finish_dialog.success_text')))
                                 }).show();
 
                                 if (typeof crud != 'undefined' && typeof crud.table != 'undefined') {
@@ -57,8 +57,8 @@
                                 }
                             } else {
                                 swal({
-                                    title: "Error",
-                                    text: result.message || "An error occurred while finishing the order.",
+                                    title: @json(trans('backpack::base.error')),
+                                    text: result.message || @json(__('order.finish_dialog.error')),
                                     icon: "error",
                                     timer: 4000,
                                     buttons: false,
@@ -66,13 +66,13 @@
                             }
                         },
                         error: function(result) {
-                            var message = "An error occurred while finishing the order.";
+                            var message = @json(__('order.finish_dialog.error'));
                             if (result.responseJSON && result.responseJSON.message) {
                                 message = result.responseJSON.message;
                             }
 
                             swal({
-                                title: "Error",
+                                title: @json(trans('backpack::base.error')),
                                 text: message,
                                 icon: "error",
                                 timer: 4000,

@@ -3,31 +3,31 @@
         <div class="card-header">
             <div class="d-flex flex-wrap align-items-center justify-content-between gap-3">
                 <div>
-                    <h3 class="card-title mb-0">Orders by Product Type</h3>
-                    <div class="text-muted small">Orders count and total value per product type, excluding draft orders</div>
+                    <h3 class="card-title mb-0">{{ __('dashboard.product_type.title') }}</h3>
+                    <div class="text-muted small">{{ __('dashboard.product_type.subtitle') }}</div>
                 </div>
             </div>
             <div class="d-flex flex-wrap align-items-end gap-2 mt-2">
                 <div>
-                    <label class="form-label small mb-1" for="product-type-stats-from">From</label>
+                    <label class="form-label small mb-1" for="product-type-stats-from">{{ __('dashboard.chart.from') }}</label>
                     <input type="date" id="product-type-stats-from" class="form-control form-control-sm">
                 </div>
                 <div>
-                    <label class="form-label small mb-1" for="product-type-stats-to">To</label>
+                    <label class="form-label small mb-1" for="product-type-stats-to">{{ __('dashboard.chart.to') }}</label>
                     <input type="date" id="product-type-stats-to" class="form-control form-control-sm">
                 </div>
-                <button type="button" class="btn btn-sm btn-primary" id="product-type-stats-apply">Apply</button>
-                <button type="button" class="btn btn-sm btn-outline-secondary" id="product-type-stats-reset">Last 30 days</button>
+                <button type="button" class="btn btn-sm btn-primary" id="product-type-stats-apply">{{ __('dashboard.chart.apply') }}</button>
+                <button type="button" class="btn btn-sm btn-outline-secondary" id="product-type-stats-reset">{{ __('dashboard.chart.last_30_days') }}</button>
             </div>
         </div>
         <div class="card-body">
             <div class="row g-3 mb-3">
                 <div class="col-6">
-                    <div class="text-muted small">Orders</div>
+                    <div class="text-muted small">{{ __('dashboard.product_type.orders') }}</div>
                     <div class="h3 mb-0" id="product-type-stats-total-orders">—</div>
                 </div>
                 <div class="col-6">
-                    <div class="text-muted small">Total value</div>
+                    <div class="text-muted small">{{ __('dashboard.product_type.total_value') }}</div>
                     <div class="h3 mb-0" id="product-type-stats-total-value">—</div>
                 </div>
             </div>
@@ -42,6 +42,7 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
 <script>
 (function () {
+    var i18n = @json(__('dashboard.product_type'));
     var chartInstance = null;
     var chartUrl = @json(url(config('backpack.base.route_prefix') . '/dashboard/product-type-stats-chart'));
     var canvas = document.getElementById('product-type-stats-chart');
@@ -73,7 +74,7 @@
                 labels: data.labels,
                 datasets: [
                     {
-                        label: 'Value (₾)',
+                        label: i18n.value,
                         data: data.values,
                         backgroundColor: 'rgba(47, 179, 68, 0.85)',
                         yAxisID: 'yValue',
@@ -81,7 +82,7 @@
                         maxBarThickness: 48
                     },
                     {
-                        label: 'Orders count',
+                        label: i18n.orders_count,
                         data: data.counts,
                         backgroundColor: 'rgba(32, 107, 196, 0.85)',
                         yAxisID: 'yCount',
@@ -120,7 +121,7 @@
                     yValue: {
                         position: 'left',
                         beginAtZero: true,
-                        title: { display: true, text: 'Value (₾)' },
+                        title: { display: true, text: i18n.value },
                         ticks: {
                             callback: function (value) {
                                 return Number(value).toLocaleString();
@@ -130,7 +131,7 @@
                     yCount: {
                         position: 'right',
                         beginAtZero: true,
-                        title: { display: true, text: 'Orders' },
+                        title: { display: true, text: i18n.axis_orders },
                         grid: { drawOnChartArea: false },
                         ticks: {
                             precision: 0,

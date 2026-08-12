@@ -27,7 +27,7 @@ class ClientBalanceCrudController extends CrudController
     {
         CRUD::setModel(\App\Models\Client::class);
         CRUD::setRoute(config('backpack.base.route_prefix') . '/client-balance');
-        CRUD::setEntityNameStrings('client balance', 'client balances');
+        CRUD::setEntityNameStrings(__('client_balance.entity'), __('client_balance.entity_plural'));
         
         // Disable create, update, delete operations (read-only)
         $this->crud->denyAccess(['create', 'update', 'delete', 'show']);
@@ -69,14 +69,14 @@ class ClientBalanceCrudController extends CrudController
 
         CRUD::addColumn([
             'name' => 'id',
-            'label' => 'ID',
+            'label' => __('client.id'),
             'type' => 'number',
             'searchLogic' => false,
         ]);
 
         CRUD::addColumn([
             'name' => 'name_with_id',
-            'label' => 'Client',
+            'label' => __('client_balance.client'),
             'type' => 'text',
             'limit' => 9999,
             // Global search should only match the real clients.name column
@@ -87,9 +87,9 @@ class ClientBalanceCrudController extends CrudController
 
         CRUD::addColumn([
             'name' => 'client_type',
-            'label' => 'Type',
+            'label' => __('client.type'),
             'type' => 'boolean',
-            'options' => [0 => 'Individual', 1 => 'Legal'],
+            'options' => __('client.types'),
             'searchLogic' => false,
             'wrapper' => [
                 'element' => 'span',
@@ -101,14 +101,14 @@ class ClientBalanceCrudController extends CrudController
 
         CRUD::addColumn([
             'name' => 'phone_number',
-            'label' => 'Phone',
+            'label' => __('client.phone'),
             'type' => 'phone',
             'searchLogic' => false,
         ]);
 
         CRUD::addColumn([
             'name' => 'email',
-            'label' => 'Email',
+            'label' => __('client.email'),
             'type' => 'email',
             'searchLogic' => false,
         ]);
@@ -117,7 +117,7 @@ class ClientBalanceCrudController extends CrudController
         // ₾ stays in the column title only so Excel export cells are plain numbers.
         CRUD::addColumn([
             'name' => 'starting_balance',
-            'label' => 'Starting Balance (₾)',
+            'label' => __('client_balance.starting_balance'),
             'type' => 'number',
             'decimals' => 0,
             'searchLogic' => false,
@@ -129,7 +129,7 @@ class ClientBalanceCrudController extends CrudController
         // Payments total (from the latest daily snapshot)
         CRUD::addColumn([
             'name' => 'payments_total',
-            'label' => 'Payments Total (₾)',
+            'label' => __('client_balance.payments_total_gel'),
             'type' => 'number',
             'decimals' => 0,
             'searchLogic' => false,
@@ -141,7 +141,7 @@ class ClientBalanceCrudController extends CrudController
         // Orders total (from the latest daily snapshot)
         CRUD::addColumn([
             'name' => 'orders_total',
-            'label' => 'Orders Total (₾)',
+            'label' => __('client_balance.orders_total_gel'),
             'type' => 'number',
             'decimals' => 0,
             'searchLogic' => false,
@@ -153,7 +153,7 @@ class ClientBalanceCrudController extends CrudController
         // Balance (from the latest daily snapshot)
         CRUD::addColumn([
             'name' => 'balance',
-            'label' => 'Balance (₾)',
+            'label' => __('client_balance.balance_gel'),
             'type' => 'number',
             'decimals' => 0,
             'searchLogic' => false,
@@ -178,7 +178,7 @@ class ClientBalanceCrudController extends CrudController
         CRUD::addFilter([
             'type' => 'date',
             'name' => 'balance_date',
-            'label' => 'Balance as of date',
+            'label' => __('client_balance.filters.balance_date'),
         ], false, function ($value) {
             // No-op: handled globally in setupListOperation via selectedBalanceDate().
         });
@@ -186,12 +186,9 @@ class ClientBalanceCrudController extends CrudController
         CRUD::addFilter([
             'name' => 'client_type',
             'type' => 'select2',
-            'label' => 'Client Type'
+            'label' => __('client.client_type')
         ], function() {
-            return [
-                0 => 'Individual',
-                1 => 'Legal',
-            ];
+            return __('client.types');
         }, function($value) {
             $this->crud->addClause('where', 'client_type', $value);
         });
@@ -199,7 +196,7 @@ class ClientBalanceCrudController extends CrudController
         CRUD::addFilter([
             'type' => 'text',
             'name' => 'name',
-            'label' => 'Name'
+            'label' => __('client.name')
         ],
         false,
         function($value) {
@@ -209,7 +206,7 @@ class ClientBalanceCrudController extends CrudController
         CRUD::addFilter([
             'type' => 'text',
             'name' => 'email',
-            'label' => 'Email'
+            'label' => __('client.email')
         ],
         false,
         function($value) {
@@ -219,7 +216,7 @@ class ClientBalanceCrudController extends CrudController
         CRUD::addFilter([
             'type' => 'text',
             'name' => 'phone_number',
-            'label' => 'Phone'
+            'label' => __('client.phone')
         ],
         false,
         function($value) {
@@ -230,9 +227,9 @@ class ClientBalanceCrudController extends CrudController
         CRUD::addFilter([
             'name' => 'payments_total',
             'type' => 'range',
-            'label' => 'Payments Total',
-            'label_from' => 'Min',
-            'label_to' => 'Max',
+            'label' => __('client_balance.filters.payments_total'),
+            'label_from' => __('client_balance.filters.min'),
+            'label_to' => __('client_balance.filters.max'),
         ], false, function ($value) {
             $range = json_decode($value);
             $this->applyLatestBalanceRange($this->crud->query, 'payments_total', $range->from ?? null, $range->to ?? null);
@@ -241,9 +238,9 @@ class ClientBalanceCrudController extends CrudController
         CRUD::addFilter([
             'name' => 'orders_total',
             'type' => 'range',
-            'label' => 'Orders Total',
-            'label_from' => 'Min',
-            'label_to' => 'Max',
+            'label' => __('client_balance.filters.orders_total'),
+            'label_from' => __('client_balance.filters.min'),
+            'label_to' => __('client_balance.filters.max'),
         ], false, function ($value) {
             $range = json_decode($value);
             $this->applyLatestBalanceRange($this->crud->query, 'orders_total', $range->from ?? null, $range->to ?? null);
@@ -252,9 +249,9 @@ class ClientBalanceCrudController extends CrudController
         CRUD::addFilter([
             'name' => 'balance',
             'type' => 'range',
-            'label' => 'Balance',
-            'label_from' => 'Min',
-            'label_to' => 'Max',
+            'label' => __('client_balance.filters.balance'),
+            'label_from' => __('client_balance.filters.min'),
+            'label_to' => __('client_balance.filters.max'),
         ], false, function ($value) {
             $range = json_decode($value);
             $this->applyLatestBalanceRange($this->crud->query, 'balance', $range->from ?? null, $range->to ?? null);
@@ -551,7 +548,7 @@ class ClientBalanceCrudController extends CrudController
         $stats = $this->aggregateStats($this->getFilteredClientsForStats());
 
         return response()->json(array_merge([
-            'message' => "Recalculated balances for {$count} client(s).",
+            'message' => __('client_balance.recalculate.done', ['count' => $count]),
         ], $stats));
     }
 }

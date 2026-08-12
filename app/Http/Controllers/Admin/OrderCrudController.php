@@ -11,6 +11,7 @@ use App\Models\Order;
 use App\Models\Piece;
 use App\Models\Service;
 use App\Models\Product;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Carbon;
@@ -45,7 +46,7 @@ class OrderCrudController extends CrudController
     {
         CRUD::setModel(\App\Models\Order::class);
         CRUD::setRoute(config('backpack.base.route_prefix') . '/order');
-        CRUD::setEntityNameStrings('order', 'orders');
+        CRUD::setEntityNameStrings(__('order.entity'), __('order.entity_plural'));
         
         // Enable export buttons
         $this->crud->enableExportButtons();
@@ -78,13 +79,13 @@ class OrderCrudController extends CrudController
         
         CRUD::addColumn([
             'name' => 'id',
-            'label' => 'ID',
+            'label' => __('order.id'),
             'type' => 'number',
         ]);
 
         CRUD::addColumn([
             'name' => 'client_id',
-            'label' => 'Client',
+            'label' => __('order.client'),
             'type' => 'select',
             'entity' => 'client',
             'attribute' => 'name',
@@ -92,7 +93,7 @@ class OrderCrudController extends CrudController
 
         CRUD::addColumn([
             'name' => 'authorUser',
-            'label' => 'Author',
+            'label' => __('order.author'),
             'type' => 'relationship',
             'entity' => 'authorUser',
             'attribute' => 'name',
@@ -100,7 +101,7 @@ class OrderCrudController extends CrudController
 
         CRUD::addColumn([
             'name' => 'status',
-            'label' => 'Status',
+            'label' => __('order.status'),
             'type' => 'custom_html',
             'value' => function ($entry) {
                 return status_badge($entry->status);
@@ -109,20 +110,20 @@ class OrderCrudController extends CrudController
 
         CRUD::addColumn([
             'name' => 'paid',
-            'label' => 'Paid',
+            'label' => __('order.paid'),
             'type' => 'custom_html',
             'value' => function ($entry) {
                 if ($entry->paid) {
-                    return '<span class="badge text-bg-success">Yes</span>';
+                    return '<span class="badge text-bg-success">' . e(trans('backpack::crud.yes')) . '</span>';
                 } else {
-                    return '<span class="badge text-bg-danger">No</span>';
+                    return '<span class="badge text-bg-danger">' . e(trans('backpack::crud.no')) . '</span>';
                 }
             }
         ]);
 
         CRUD::addColumn([
             'name' => 'order_type',
-            'label' => 'Order Type',
+            'label' => __('order.order_type'),
             'type' => 'custom_html',
             'value' => function ($entry) {
                 return order_type_ge($entry->order_type);
@@ -131,7 +132,7 @@ class OrderCrudController extends CrudController
 
         CRUD::addColumn([
             'name' => 'product_type',
-            'label' => 'Product Type',
+            'label' => __('order.product_type'),
             'type' => 'custom_html',
             'value' => function ($entry) {
                 return product_type_ge($entry->product_type);
@@ -140,21 +141,21 @@ class OrderCrudController extends CrudController
 
         CRUD::addColumn([
             'name' => 'currency_rate',
-            'label' => 'Currency Rate',
+            'label' => __('order.currency_rate'),
             'type' => 'number',
             'decimals' => 4,
         ]);
         
         CRUD::addColumn([
             'name' => 'price_gel',
-            'label' => 'Price (₾)',
+            'label' => __('order.price_gel'),
             'type' => 'number',
             'decimals' => 0
         ]);
 
         CRUD::addColumn([
             'name' => 'paid_amount',
-            'label' => 'Paid Amount (₾)',
+            'label' => __('order.paid_amount_gel'),
             'type' => 'custom_html',
             'value' => function ($entry) {
                 return number_format($entry->calculatePaidAmount(), 2);
@@ -163,13 +164,13 @@ class OrderCrudController extends CrudController
 
         CRUD::addColumn([
             'name' => 'created_at',
-            'label' => 'Created At',
+            'label' => __('order.created_at'),
             'type' => 'datetime',
         ]);
 
         CRUD::addColumn([
             'name' => 'confirm_date',
-            'label' => 'Confirm Date',
+            'label' => __('order.confirm_date'),
             'type' => 'datetime',
         ]);
 
@@ -210,7 +211,7 @@ class OrderCrudController extends CrudController
         CRUD::addFilter([
             'type' => 'text',
             'name' => 'id',
-            'label' => 'ID',
+            'label' => __('order.id'),
         ],
         false,
         function ($value) {
@@ -221,7 +222,7 @@ class OrderCrudController extends CrudController
         CRUD::addFilter([
             'type' => 'select2',
             'name' => 'client_id',
-            'label' => 'Client',
+            'label' => __('order.client'),
         ],
         function () {
             return \App\Models\Client::all()->pluck('name', 'id')->toArray();
@@ -234,7 +235,7 @@ class OrderCrudController extends CrudController
         CRUD::addFilter([
             'type' => 'select2',
             'name' => 'author',
-            'label' => 'Author',
+            'label' => __('order.author'),
         ],
         function () {
             return \App\Models\User::orderBy('name')->pluck('name', 'id')->toArray();
@@ -246,7 +247,7 @@ class OrderCrudController extends CrudController
         CRUD::addFilter([
             'name' => 'created_at',
             'type' => 'date_range',
-            'label' => 'Order Date Range',
+            'label' => __('order.order_date_range'),
         ],
         false,
         function ($value) {
@@ -265,16 +266,10 @@ class OrderCrudController extends CrudController
         CRUD::addFilter([
             'type' => 'select2',
             'name' => 'status',
-            'label' => 'Status',
+            'label' => __('order.status'),
         ],
         function () {
-            return [
-                'draft' => 'Draft',
-                'new' => 'New',
-                'working' => 'Working',
-                'ready' => 'Ready',
-                'finished' => 'Finished',
-            ];
+            return Arr::only(__('status'), ['draft', 'new', 'working', 'ready', 'finished']);
         },
         function ($value) {
             CRUD::addClause('where', 'status', $value);
@@ -284,13 +279,10 @@ class OrderCrudController extends CrudController
         CRUD::addFilter([
             'type' => 'select2',
             'name' => 'order_type',
-            'label' => 'Order Type',
+            'label' => __('order.order_type'),
         ],
         function () {
-            return [
-                'retail' => 'საცალო',
-                'wholesale' => 'საბითუმო',
-            ];
+            return __('order_type');
         },
         function ($value) {
             CRUD::addClause('where', 'order_type', $value);
@@ -300,16 +292,10 @@ class OrderCrudController extends CrudController
         CRUD::addFilter([
             'type' => 'select2',
             'name' => 'product_type',
-            'label' => 'Product Type',
+            'label' => __('order.product_type'),
         ],
         function () {
-            return [
-                'mirror' => 'სარკე',
-                'glass' => 'შუშა',
-                'lamix' => 'ლამექსი',
-                'glass_pkg' => 'შუშაპაკეტი',
-                'service' => 'მომსახურება',
-            ];
+            return __('product_type');
         },
         function ($value) {
             CRUD::addClause('where', 'product_type', $value);
@@ -320,7 +306,7 @@ class OrderCrudController extends CrudController
         CRUD::addFilter([
             'type' => 'select2_multiple',
             'name' => 'products',
-            'label' => 'Products',
+            'label' => __('order.products'),
         ],
         function () {
             return Product::orderBy('title')->pluck('title', 'id')->toArray();
@@ -340,7 +326,7 @@ class OrderCrudController extends CrudController
         CRUD::addFilter([
             'type' => 'range',
             'name' => 'price_gel',
-            'label' => 'Price (GEL)',
+            'label' => __('order.price_gel'),
             'label_from' => 'Min price',
             'label_to' => 'Max price',
         ],
@@ -367,7 +353,7 @@ class OrderCrudController extends CrudController
         CRUD::addFilter([
             'type' => 'dropdown',
             'name' => 'paid',
-            'label' => 'Paid',
+            'label' => __('order.paid'),
         ],
         [
             0 => 'No',
@@ -407,12 +393,9 @@ class OrderCrudController extends CrudController
         
         CRUD::addField([
             'name' => 'order_type',
-            'label' => 'Order Type',
+            'label' => __('order.order_type'),
             'type' => 'select_from_array',
-            'options' => [
-                'retail' => 'საცალო',
-                'wholesale' => 'საბითუმო',
-            ],
+            'options' => __('order_type'),
             'allows_null' => false,
             'default' => 'retail',
             'attributes' => [
@@ -422,7 +405,7 @@ class OrderCrudController extends CrudController
 
         CRUD::addField([
             'name' => 'client_id',
-            'label' => 'Client',
+            'label' => __('order.client'),
             'type' => 'select2',
             'entity' => 'client',
             'attribute' => 'name_with_id',
@@ -431,7 +414,7 @@ class OrderCrudController extends CrudController
             'default' => null,
             'attributes' => [
                 'required' => true,
-                'data-placeholder' => 'Select a client',
+                'data-placeholder' => __('order.select_client'),
             ],
         ]);
 
@@ -439,7 +422,7 @@ class OrderCrudController extends CrudController
             'name' => 'new_client_button',
             'type' => 'custom_html',
             'value' => '<button type="button" id="newClientBtn" class="btn btn-sm btn-outline-primary">
-                <i class="la la-plus"></i> New Client
+                <i class="la la-plus"></i> '.e(__('order.new_client')).'
             </button>',
         ]);
 
@@ -447,12 +430,12 @@ class OrderCrudController extends CrudController
 
         CRUD::addField([
             'name' => 'currency_rate',
-            'label' => 'USD Rate',
+            'label' => __('order.usd_rate'),
             'type' => 'number',
             // Prefill with the manual rate remembered from the last order that
             // used one; fall back to the live NBG rate when none has been set.
             'default' => Cache::get(self::MANUAL_RATE_CACHE_KEY, Currency::exchangeRate()),
-            'hint' => 'Actual current USD rate: ' . Currency::exchangeRate(),
+            'hint' => __('order.hints.usd_rate', ['rate' => Currency::exchangeRate()]),
             'attributes' => [
                 'required' => true,
                 'step' => '0.0001',
@@ -466,15 +449,9 @@ class OrderCrudController extends CrudController
 
         CRUD::addField([
             'name' => 'product_type',
-            'label' => 'Order Product Type',
+            'label' => __('order.order_product_type'),
             'type' => 'select_from_array',
-            'options' => [
-                'mirror' => 'სარკე',
-                'glass' => 'შუშა',
-                'lamix' => 'ლამექსი',
-                'glass_pkg' => 'მინაპაკეტი',
-                'service' => 'მომსახურება'
-            ],
+            'options' => __('product_type'),
             'allows_null' => true,
             'default' => null,
             'attributes' => [
@@ -497,20 +474,20 @@ class OrderCrudController extends CrudController
 
         CRUD::addField([
             'name'       => 'products',
-            'label'      => 'Products',
+            'label'      => __('order.products'),
             'type'       => 'repeatable',
             'init_rows'  => 1,
             'min_rows'   => 1,
-            'new_item_label' => 'New Product',
+            'new_item_label' => __('order.new_product'),
             'fields'  => [
                 [
                     'name'    => 'product_id',
-                    'label'   => 'Product',
+                    'label'   => __('order.product'),
                     'type'    => 'select2_from_array',
                     'options' => Product::all()->pluck('title', 'id')->toArray(),
                     'allows_null' => true,
                     'default' => null,
-                    'placeholder' => 'Select a product',
+                    'placeholder' => __('order.select_product'),
                     'attributes' => [
                         'required' => true,
                     ],
@@ -520,18 +497,18 @@ class OrderCrudController extends CrudController
                 ],
                 [
                     'name'    => 'price',
-                    'label'   => 'Price (USD)',
+                    'label'   => __('order.price_usd'),
                     'type'    => 'number',
                     'attributes' => $priceAttributes,
                     'hint' => $canEditProductPrice
                         ? null
-                        : 'Auto-filled from the product (or client custom price). Only administrators can change it.',
+                        : __('order.hints.product_price_locked'),
                     'wrapper' => [
                         'class' => 'form-group col-md-2'
                     ],
                 ],
             ],
-            'hint' => 'Add products to this order (filtered by Order Product Type)',
+            'hint' => __('order.hints.products'),
         ]);
 
         // Nested Pieces → Services UI. Each piece card owns its own services list.
@@ -540,9 +517,9 @@ class OrderCrudController extends CrudController
         // pieces[]/services[] payload that store()/update() below already understand.
         CRUD::addField([
             'name'  => 'pieces_services',
-            'label' => 'Pieces',
+            'label' => __('order.pieces'),
             'type'  => 'pieces_services',
-            'hint'  => 'Add pieces to this order. Each piece can have its own services.',
+            'hint'  => __('order.hints.pieces'),
         ]);
 
         // Hidden on create: new orders always start as draft. Made a visible select on edit
@@ -556,7 +533,7 @@ class OrderCrudController extends CrudController
 
         CRUD::addField([
             'name' => 'paid',
-            'label' => 'Paid',
+            'label' => __('order.paid'),
             'type' => 'checkbox',
             'default' => false,
         ]);
@@ -567,44 +544,44 @@ class OrderCrudController extends CrudController
         // duplicates. Rendered by resources/views/vendor/backpack/crud/fields/order_payments.blade.php.
         CRUD::addField([
             'name'  => 'order_payments',
-            'label' => 'Payments',
+            'label' => __('order.payments'),
             'type'  => 'order_payments',
             'wrapper' => [
                 'class' => 'form-group col-md-12'
             ],
-            'hint' => 'A payment is saved the moment you add it, and is linked to this order when you save the order. Check the list above before adding another one — to fix a payment, edit or delete it instead of creating a second one.',
+            'hint' => __('order.hints.payments_create'),
         ]);
 
         CRUD::addField([
             'name' => 'atachment',
-            'label' => 'Atachment',
+            'label' => __('order.attachment'),
             'type' => 'upload',
             'upload' => true,
             'disk' => 'public',
             'attributes' => [
                 'accept' => '.pdf,.png,.jpeg,.jpg',
             ],
-            'hint' => 'Allowed types: PDF, PNG, JPEG, JPG',
+            'hint' => __('order.hints.attachment'),
         ]);
 
         CRUD::addField([
             'name' => 'expenses',
-            'label' => 'Expenses (m²)',
+            'label' => __('order.expenses_m2'),
             'type' => 'number',
             'attributes' => [
                 'step' => '0.01',
                 'min' => '0',
             ],
-            'hint' => 'Auto-calculated from piece width, height and quantity. You can override it manually if it does not match the real expense.',
+            'hint' => __('order.hints.expenses_create'),
         ]);
 
         CRUD::addField([
             'name' => 'comment',
-            'label' => 'Comment',
+            'label' => __('order.comment'),
             'type' => 'textarea',
             'attributes' => [
                 'rows' => 3,
-                'placeholder' => 'Optional notes for the production team...',
+                'placeholder' => __('order.comment_placeholder'),
             ],
         ]);
 
@@ -639,20 +616,14 @@ class OrderCrudController extends CrudController
             'wrapper' => [
                 'class' => 'form-group col-md-12 readonly-field'
             ],
-            'hint' => 'Order Product Type cannot be changed after creation',
+            'hint' => __('order.hints.product_type_locked'),
         ]);
 
         // Status is hidden on create (always draft); make it a visible, editable select on edit.
         $this->crud->modifyField('status', [
-            'label' => 'Status',
+            'label' => __('order.status'),
             'type' => 'select_from_array',
-            'options' => [
-                'draft' => 'Draft',
-                'new' => 'New',
-                'working' => 'Working',
-                'ready' => 'Ready',
-                'finished' => 'Finished',
-            ],
+            'options' => Arr::only(__('status'), ['draft', 'new', 'working', 'ready', 'finished']),
             'allows_null' => false,
             'default' => 'draft',
         ]);
@@ -671,7 +642,7 @@ class OrderCrudController extends CrudController
         // On edit the payment is linked to the order straight away, so the "linked when
         // you save" note from the create form does not apply here.
         $this->crud->modifyField('order_payments', [
-            'hint' => 'Payments already on this order are listed above. To correct one, edit or delete it — adding a second payment leaves the wrong one behind.',
+            'hint' => __('order.hints.payments_edit'),
         ]);
 
         // Pieces & services are hydrated directly from the entry inside the
@@ -681,7 +652,7 @@ class OrderCrudController extends CrudController
                 'step' => '0.01',
                 'min' => '0',
             ],
-            'hint' => 'Auto-calculated from pieces. You can override it manually if it does not match the real expense.',
+            'hint' => __('order.hints.expenses_edit'),
         ]);
         
         // Show the saved order price (GEL) in a highlighted row near the end of the edit
@@ -734,13 +705,13 @@ class OrderCrudController extends CrudController
         
         CRUD::addColumn([
             'name' => 'id',
-            'label' => 'ID',
+            'label' => __('order.id'),
             'type' => 'number',
         ]);
         
         CRUD::addColumn([
             'name' => 'client_id',
-            'label' => 'Client',
+            'label' => __('order.client'),
             'type' => 'relationship',
             'entity' => 'client',
             'attribute' => 'name_with_id',
@@ -750,7 +721,7 @@ class OrderCrudController extends CrudController
         
         CRUD::addColumn([
             'name' => 'status',
-            'label' => 'Status',
+            'label' => __('order.status'),
             'type' => 'custom_html',
             'value' => function ($entry) {
                 return status_badge($entry->status);
@@ -759,34 +730,34 @@ class OrderCrudController extends CrudController
 
         CRUD::addColumn([
             'name' => 'paid',
-            'label' => 'Paid',
+            'label' => __('order.paid'),
             'type' => 'custom_html',
             'value' => function ($entry) {
                 if ($entry->paid) {
-                    return '<span class="badge text-bg-success">Yes</span>';
+                    return '<span class="badge text-bg-success">' . e(trans('backpack::crud.yes')) . '</span>';
                 } else {
-                    return '<span class="badge text-bg-danger">No</span>';
+                    return '<span class="badge text-bg-danger">' . e(trans('backpack::crud.no')) . '</span>';
                 }
             }
         ]);
 
         CRUD::addColumn([
             'name' => 'comment',
-            'label' => 'Comment',
+            'label' => __('order.comment'),
             'type' => 'text',
             'limit' => 1000,
         ]);
 
         CRUD::addColumn([
             'name' => 'finish_comment',
-            'label' => 'Finish Comment',
+            'label' => __('order.finish_comment'),
             'type' => 'text',
             'limit' => 1000,
         ]);
 
         CRUD::addColumn([
             'name' => 'order_type',
-            'label' => 'Order Type',
+            'label' => __('order.order_type'),
             'type' => 'custom_html',
             'value' => function ($entry) {
                 return order_type_ge($entry->order_type);
@@ -795,7 +766,7 @@ class OrderCrudController extends CrudController
         
         CRUD::addColumn([
             'name' => 'product_type',
-            'label' => 'Product Type',
+            'label' => __('order.product_type'),
             'type' => 'custom_html',
             'value' => function ($entry) {
                 return product_type_ge($entry->product_type);
@@ -805,7 +776,7 @@ class OrderCrudController extends CrudController
 
         CRUD::addColumn([
             'name' => 'products',
-            'label' => 'Products',
+            'label' => __('order.products'),
             'type' => 'custom_html',
             'value' => function ($entry) {
                 $products = $entry->products;
@@ -826,7 +797,7 @@ class OrderCrudController extends CrudController
 
         CRUD::addColumn([
             'name' => 'currency_rate',
-            'label' => 'Currency Rate',
+            'label' => __('order.currency_rate'),
             'type' => 'number',
             'decimals' => 4,
         ]);
@@ -834,7 +805,7 @@ class OrderCrudController extends CrudController
 
         CRUD::addColumn([
             'name' => 'price_gel',
-            'label' => 'Price (GEL)',
+            'label' => __('order.price_gel'),
             'type' => 'number',
             'value' => function ($entry) {
                 // List column: rendering a page must not persist piece prices.
@@ -845,7 +816,7 @@ class OrderCrudController extends CrudController
 
         CRUD::addColumn([
             'name' => 'paid_amount',
-            'label' => 'Paid Amount',
+            'label' => __('order.paid_amount'),
             'type' => 'custom_html',
             'value' => function ($entry) {
                 $amount = number_format($entry->calculatePaidAmount(), 2) . ' ₾';
@@ -856,7 +827,7 @@ class OrderCrudController extends CrudController
 
         CRUD::addColumn([
             'name' => 'pieces',
-            'label' => 'Pieces',
+            'label' => __('order.pieces'),
             'type' => 'custom_html',
             'value' => function ($entry) {
                 $entry->load(['pieces.product', 'services']);
@@ -928,18 +899,18 @@ class OrderCrudController extends CrudController
                     ));
                     
                     $html .= '<div class="mb-3 p-3 border rounded piece-item">';
-                    $html .= '<div class="fw-bold d-block mb-2">Piece #' . $piece->id . ($piece->product ? ' - ' . htmlspecialchars($piece->product->title, ENT_QUOTES, 'UTF-8') : '') . '</div>';
+                    $html .= '<div class="fw-bold d-block mb-2">' . e(__('order.piece.title', ['id' => $piece->id])) . ($piece->product ? ' - ' . htmlspecialchars($piece->product->title, ENT_QUOTES, 'UTF-8') : '') . '</div>';
                     $html .= '<div class="mb-2 small">';
-                    $html .= '<span>Size: </span><strong>' . number_format($piece->width, 2) . ' × ' . number_format($piece->height, 2) . ' cm</strong> | ';
-                    $html .= '<span>Quantity: </span><strong>' . $piece->quantity . '</strong> | ';
-                    $html .= '<span>Area: </span><strong>' . number_format($piece->getArea(), 2) . ' m²</strong>';
+                    $html .= '<span>' . e(__('order.piece.size')) . ' </span><strong>' . number_format($piece->width, 2) . ' × ' . number_format($piece->height, 2) . ' cm</strong> | ';
+                    $html .= '<span>' . e(__('order.piece.quantity')) . ' </span><strong>' . $piece->quantity . '</strong> | ';
+                    $html .= '<span>' . e(__('order.piece.area')) . ' </span><strong>' . number_format($piece->getArea(), 2) . ' m²</strong>';
                     $html .= '</div>';
 
                     // Per-piece production stage selector (saves inline via AJAX).
                     // "Completed through" the highest completed stage (piece_stage pivot).
                     $pieceStage = $piece->currentStageName();
                     $html .= '<div class="mb-2 d-print-none">';
-                    $html .= '<label class="small me-2 fw-bold">Stage (ეტაპი):</label>';
+                    $html .= '<label class="small me-2 fw-bold">' . e(__('order.piece.stage')) . ':</label>';
                     $html .= '<select class="form-select form-select-sm d-inline-block" style="width:auto;" data-piece-stage-select data-piece-id="' . $piece->id . '">';
                     $html .= '<option value="">—</option>';
                     foreach ($pieceStageSlugs as $slug) {
@@ -953,11 +924,11 @@ class OrderCrudController extends CrudController
                     $html .= '</div>';
                     
                     if ($pieceServices->count() > 0) {
-                        $html .= '<div class="mt-2 pt-2 border-top"><div class="small mb-2">Services (' . $pieceServices->count() . '):</div>';
+                        $html .= '<div class="mt-2 pt-2 border-top"><div class="small mb-2">' . e(__('order.piece.services', ['count' => $pieceServices->count()])) . '</div>';
                         foreach ($pieceServices as $service) $html .= $renderService($service, $entry);
                         $html .= '</div>';
                     } else {
-                        $html .= '<div class="mt-2 pt-2 border-top small">No services assigned to this piece</div>';
+                        $html .= '<div class="mt-2 pt-2 border-top small">' . e(__('order.piece.no_services')) . '</div>';
                     }
                     $html .= '</div>';
                 }
@@ -1120,7 +1091,7 @@ class OrderCrudController extends CrudController
             // Draft orders are editable by anyone with update access; new orders
             // only by administrators; any other status not at all.
             if (!$order->canBeEditedBy(backpack_user())) {
-                abort(403, 'You do not have permission to edit this order.');
+                abort(403, __('order.messages.no_permission_edit'));
             }
 
             // Update order basic fields. Attachment is omitted unless a new file is
@@ -1295,7 +1266,7 @@ class OrderCrudController extends CrudController
         $entries = $this->crud->getRequest()->input('entries');
 
         if (empty($entries)) {
-            return response()->json(['message' => 'No entries selected.'], 400);
+            return response()->json(['message' => __('order.messages.no_entries_selected')], 400);
         }
 
         $user = backpack_user();
@@ -1316,10 +1287,9 @@ class OrderCrudController extends CrudController
             }
         }
 
-        $message = $deleted . ' ' . ($deleted === 1 ? 'entry' : 'entries') . ' deleted successfully.';
+        $message = trans_choice('order.messages.bulk_deleted', $deleted, ['count' => $deleted]);
         if ($skipped > 0) {
-            $message .= ' ' . $skipped . ' ' . ($skipped === 1 ? 'entry was' : 'entries were')
-                . ' skipped (only draft orders can be deleted; new orders require an administrator).';
+            $message .= ' ' . trans_choice('order.messages.bulk_skipped', $skipped, ['count' => $skipped]);
         }
 
         return response()->json([
@@ -1485,14 +1455,14 @@ class OrderCrudController extends CrudController
         if (!$order) {
             return response()->json([
                 'success' => false,
-                'message' => 'Order not found'
+                'message' => __('order.messages.not_found')
             ], 404);
         }
         
         if ($order->status !== 'draft') {
             return response()->json([
                 'success' => false,
-                'message' => 'Only draft orders can be confirmed'
+                'message' => __('order.messages.only_draft_confirm')
             ], 400);
         }
         
@@ -1503,7 +1473,7 @@ class OrderCrudController extends CrudController
         
         return response()->json([
             'success' => true,
-            'message' => 'Order confirmed successfully'
+            'message' => __('order.messages.confirmed')
         ]);
     }
 
@@ -1520,14 +1490,14 @@ class OrderCrudController extends CrudController
         if (!$order) {
             return response()->json([
                 'success' => false,
-                'message' => 'Order not found',
+                'message' => __('order.messages.not_found'),
             ], 404);
         }
 
         if ($order->status !== 'ready') {
             return response()->json([
                 'success' => false,
-                'message' => 'Only ready orders can be finished',
+                'message' => __('order.messages.only_ready_finish'),
             ], 400);
         }
 
@@ -1540,7 +1510,7 @@ class OrderCrudController extends CrudController
 
         return response()->json([
             'success' => true,
-            'message' => 'Order finished successfully',
+            'message' => __('order.messages.finished'),
         ]);
     }
 
@@ -1560,7 +1530,7 @@ class OrderCrudController extends CrudController
         if (!$piece) {
             return response()->json([
                 'success' => false,
-                'message' => 'Piece not found',
+                'message' => __('order.messages.piece_not_found'),
             ], 404);
         }
 
@@ -1578,7 +1548,7 @@ class OrderCrudController extends CrudController
             if (!$stage) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Invalid stage',
+                    'message' => __('order.messages.invalid_stage'),
                 ], 422);
             }
 

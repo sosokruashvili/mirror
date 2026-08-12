@@ -28,7 +28,7 @@ class ClientCrudController extends CrudController
     {
         CRUD::setModel(\App\Models\Client::class);
         CRUD::setRoute(config('backpack.base.route_prefix') . '/client');
-        CRUD::setEntityNameStrings('client', 'clients');
+        CRUD::setEntityNameStrings(__('client.entity'), __('client.entity_plural'));
         
         // Enable export buttons
         $this->crud->enableExportButtons();
@@ -44,25 +44,25 @@ class ClientCrudController extends CrudController
     {
         CRUD::addColumn([
             'name' => 'id',
-            'label' => 'ID',
+            'label' => __('client.id'),
             'type' => 'number',
         ]);
 
         CRUD::addColumn([
             'name' => 'name',
-            'label' => 'Name',
+            'label' => __('client.name'),
             'type' => 'text',
         ]);
 
         CRUD::addColumn([
             'name' => 'email',
-            'label' => 'Email',
+            'label' => __('client.email'),
             'type' => 'email',
         ]);
 
         CRUD::addColumn([
             'name' => 'phone_number',
-            'label' => 'Phone',
+            'label' => __('client.phone'),
             'type' => 'phone',
         ]);
 
@@ -70,9 +70,9 @@ class ClientCrudController extends CrudController
         // Add client type column
         CRUD::addColumn([
             'name' => 'client_type',
-            'label' => 'Type',
+            'label' => __('client.type'),
             'type' => 'boolean',
-            'options' => [0 => 'Individual', 1 => 'Legal'],
+            'options' => __('client.types'),
             'wrapper' => [
                 'element' => 'span',
                 'class' => function ($crud, $column, $entry, $related_key) {
@@ -83,16 +83,20 @@ class ClientCrudController extends CrudController
         
         CRUD::setFromDb();
 
+        // setFromDb() derives labels from the column names ("Personal", "Starting
+        // balance", ...), which bypasses the lang files - relabel those here.
+        CRUD::modifyColumn('address', ['label' => __('client.address')]);
+        CRUD::modifyColumn('personal_id', ['label' => __('client.personal_id')]);
+        CRUD::modifyColumn('legal_id', ['label' => __('client.legal_id')]);
+        CRUD::modifyColumn('starting_balance', ['label' => __('client.starting_balance')]);
+
         // Add Filters
         CRUD::addFilter([
             'name' => 'client_type',
             'type' => 'select2',
-            'label' => 'Client Type'
+            'label' => __('client.client_type')
         ], function() {
-            return [
-                0 => 'Individual',
-                1 => 'Legal',
-            ];
+            return __('client.types');
         }, function($value) {
             $this->crud->addClause('where', 'client_type', $value);
         });
@@ -100,7 +104,7 @@ class ClientCrudController extends CrudController
         CRUD::addFilter([
             'type' => 'text',
             'name' => 'name',
-            'label' => 'Name'
+            'label' => __('client.name')
         ],
         false,
         function($value) {
@@ -110,7 +114,7 @@ class ClientCrudController extends CrudController
         CRUD::addFilter([
             'type' => 'text',
             'name' => 'email',
-            'label' => 'Email'
+            'label' => __('client.email')
         ],
         false,
         function($value) {
@@ -120,7 +124,7 @@ class ClientCrudController extends CrudController
         CRUD::addFilter([
             'type' => 'text',
             'name' => 'phone_number',
-            'label' => 'Phone'
+            'label' => __('client.phone')
         ],
         false,
         function($value) {
@@ -130,7 +134,7 @@ class ClientCrudController extends CrudController
         CRUD::addFilter([
             'type' => 'text',
             'name' => 'address',
-            'label' => 'Address'
+            'label' => __('client.address')
         ],
         false,
         function($value) {
@@ -149,14 +153,11 @@ class ClientCrudController extends CrudController
         // Add client type select at the top
         CRUD::addField([
             'name' => 'client_type',
-            'label' => 'Client Type',
+            'label' => __('client.client_type'),
             'type' => 'select_from_array',
-            'options' => [
-                0 => 'Individual',
-                1 => 'Legal'
-            ],
+            'options' => __('client.types'),
             'default' => 0,
-            'hint' => 'Select client type: Individual or Legal',
+            'hint' => __('client.hints.client_type'),
             'wrapper' => [
                 'class' => 'form-group col-md-12'
             ]
@@ -164,7 +165,7 @@ class ClientCrudController extends CrudController
 
         CRUD::addField([
             'name' => 'name',
-            'label' => 'Name',
+            'label' => __('client.name'),
             'type' => 'text',
             'validationRules' => 'required',
             'wrapper' => [
@@ -174,7 +175,7 @@ class ClientCrudController extends CrudController
 
         CRUD::addField([
             'name' => 'personal_id',
-            'label' => 'Personal ID',
+            'label' => __('client.personal_id'),
             'type' => 'text',
             'validationRules' => 'required_if:client_type,0|nullable|string|max:255|unique:clients,personal_id',
             'wrapper' => [
@@ -182,13 +183,13 @@ class ClientCrudController extends CrudController
                 'style' => 'display: none;'
             ],
             'attributes' => [
-                'placeholder' => 'Enter personal ID number',
+                'placeholder' => __('client.placeholders.personal_id'),
             ]
         ]);
 
         CRUD::addField([
             'name' => 'address',
-            'label' => 'Address',
+            'label' => __('client.address'),
             'type' => 'textarea',
             'validationRules' => 'required',
             'wrapper' => [
@@ -202,7 +203,7 @@ class ClientCrudController extends CrudController
         
         CRUD::addField([
             'name' => 'legal_id',
-            'label' => 'Legal ID',
+            'label' => __('client.legal_id'),
             'type' => 'text',
             'validationRules' => 'required_if:client_type,1',
             'wrapper' => [
@@ -210,14 +211,14 @@ class ClientCrudController extends CrudController
                 'style' => 'display: none;'
             ],
             'attributes' => [
-                'placeholder' => 'Enter legal ID number'
+                'placeholder' => __('client.placeholders.legal_id')
             ]
         ]);
 
 
         CRUD::addField([
             'name' => 'email',
-            'label' => 'Email',
+            'label' => __('client.email'),
             'type' => 'email',
             'validationRules' => 'nullable|email|unique:clients,email',
             'wrapper' => [
@@ -228,7 +229,7 @@ class ClientCrudController extends CrudController
 
         CRUD::addField([   // phone
             'name'  => 'phone_number', // db column for phone
-            'label' => 'Phone',
+            'label' => __('client.phone'),
             'type'  => 'phone',
             'validationRules' => 'required|unique:clients,phone_number',
             'wrapper' => [
@@ -253,18 +254,26 @@ class ClientCrudController extends CrudController
 
         CRUD::addField([
             'name' => 'starting_balance',
-            'label' => 'Starting Balance',
+            'label' => __('client.starting_balance'),
             'type' => 'number',
             'default' => 0,
             'attributes' => [
                 'step' => '0.01',
             ],
-            'hint' => 'Opening balance carried over from before the system. Positive = client credit, negative = client owes.',
+            'hint' => __('client.hints.starting_balance'),
             'wrapper' => [
                 'class' => 'form-group col-md-6'
             ]
         ]);
 
+
+        // Labels the toggle below writes back into the DOM. Pre-encoded here so
+        // the inline script stays readable and the translations are escaped once.
+        $required = ' <span class="text-danger">*</span>';
+        $personalIdLabel = json_encode(e(__('client.personal_id')));
+        $legalIdLabel = json_encode(e(__('client.legal_id')));
+        $personalIdLabelRequired = json_encode(e(__('client.personal_id')) . $required);
+        $legalIdLabelRequired = json_encode(e(__('client.legal_id')) . $required);
 
         // Add JavaScript to handle the select functionality
         CRUD::addField([
@@ -291,8 +300,8 @@ class ClientCrudController extends CrudController
                             // Update labels with asterisk
                             const personalLabel = personalIdField.querySelector("label");
                             const legalLabel = legalIdField.querySelector("label");
-                            if (personalLabel) personalLabel.innerHTML = "Personal ID";
-                            if (legalLabel) legalLabel.innerHTML = "Legal ID <span class=\"text-danger\">*</span>";
+                            if (personalLabel) personalLabel.innerHTML = ' . $personalIdLabel . ';
+                            if (legalLabel) legalLabel.innerHTML = ' . $legalIdLabelRequired . ';
                         } else {
                             // Individual client - show personal ID, hide legal ID
                             personalIdField.style.display = "block";
@@ -304,8 +313,8 @@ class ClientCrudController extends CrudController
                             // Update labels with asterisk
                             const personalLabel = personalIdField.querySelector("label");
                             const legalLabel = legalIdField.querySelector("label");
-                            if (personalLabel) personalLabel.innerHTML = "Personal ID <span class=\"text-danger\">*</span>";
-                            if (legalLabel) legalLabel.innerHTML = "Legal ID";
+                            if (personalLabel) personalLabel.innerHTML = ' . $personalIdLabelRequired . ';
+                            if (legalLabel) legalLabel.innerHTML = ' . $legalIdLabel . ';
                         }
                     }
                     
@@ -381,7 +390,7 @@ class ClientCrudController extends CrudController
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to create client: ' . $e->getMessage()
+                'message' => __('client.messages.create_failed', ['error' => $e->getMessage()])
             ], 422);
         }
     }

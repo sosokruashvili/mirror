@@ -24,7 +24,7 @@ class CashierExpenseCrudController extends CrudController
     {
         CRUD::setModel(CashierExpense::class);
         CRUD::setRoute(config('backpack.base.route_prefix') . '/cashier-expense');
-        CRUD::setEntityNameStrings('expense-purchase', 'Expenses-Purchases');
+        CRUD::setEntityNameStrings(__('cashier_expense.entity'), __('cashier_expense.entity_plural'));
 
         $this->crud->enableExportButtons();
     }
@@ -36,19 +36,19 @@ class CashierExpenseCrudController extends CrudController
 
         CRUD::addColumn([
             'name' => 'id',
-            'label' => 'ID',
+            'label' => __('cashier_expense.id'),
             'type' => 'number',
         ]);
 
         CRUD::addColumn([
             'name' => 'type',
-            'label' => 'Type',
+            'label' => __('cashier_expense.type'),
             'type' => 'text',
         ]);
 
         CRUD::addColumn([
             'name' => 'category_id',
-            'label' => 'Category',
+            'label' => __('cashier_expense.category'),
             'type' => 'select',
             'entity' => 'category',
             'attribute' => 'name',
@@ -57,7 +57,7 @@ class CashierExpenseCrudController extends CrudController
 
         CRUD::addColumn([
             'name' => 'supplier_id',
-            'label' => 'Supplier',
+            'label' => __('cashier_expense.supplier'),
             'type' => 'select',
             'entity' => 'supplier',
             'attribute' => 'name',
@@ -66,7 +66,7 @@ class CashierExpenseCrudController extends CrudController
 
         CRUD::addColumn([
             'name' => 'product_id',
-            'label' => 'Product',
+            'label' => __('cashier_expense.product'),
             'type' => 'select',
             'entity' => 'product',
             'attribute' => 'title',
@@ -75,7 +75,7 @@ class CashierExpenseCrudController extends CrudController
 
         CRUD::addColumn([
             'name' => 'price_usd',
-            'label' => 'Purchase Price ($)',
+            'label' => __('cashier_expense.price_usd'),
             'type' => 'number',
             'decimals' => 2,
             'prefix' => '$',
@@ -83,21 +83,21 @@ class CashierExpenseCrudController extends CrudController
 
         CRUD::addColumn([
             'name' => 'amount_gel',
-            'label' => 'Amount (₾)',
+            'label' => __('cashier_expense.amount_gel'),
             'type' => 'number',
             'decimals' => 2,
         ]);
 
         CRUD::addColumn([
             'name' => 'credit',
-            'label' => 'Credit (₾)',
+            'label' => __('cashier_expense.credit'),
             'type' => 'number',
             'decimals' => 2,
         ]);
 
         CRUD::addColumn([
             'name' => 'payment_progress',
-            'label' => 'Paid (%)',
+            'label' => __('cashier_expense.payment_progress'),
             'type' => 'custom_html',
             'value' => function ($entry) {
                 $amount = (float) $entry->amount_gel;
@@ -112,12 +112,11 @@ class CashierExpenseCrudController extends CrudController
                 $paid = $amount - $credit;
                 $paidPercent = $paid / $amount * 100;
 
-                $title = sprintf(
-                    'Paid %s ₾ · Credit %s ₾ · Total %s ₾',
-                    number_format($paid, 2),
-                    number_format($credit, 2),
-                    number_format($amount, 2)
-                );
+                $title = __('cashier_expense.progress_title', [
+                    'paid' => number_format($paid, 2),
+                    'credit' => number_format($credit, 2),
+                    'total' => number_format($amount, 2),
+                ]);
 
                 return sprintf(
                     '<div class="d-flex align-items-center" style="min-width: 110px;" title="%s">'
@@ -154,28 +153,28 @@ class CashierExpenseCrudController extends CrudController
 
         CRUD::addColumn([
             'name' => 'description',
-            'label' => 'Description',
+            'label' => __('cashier_expense.description'),
             'type' => 'text',
             'limit' => 80,
         ]);
 
         CRUD::addColumn([
             'name' => 'file',
-            'label' => 'File',
+            'label' => __('cashier_expense.file'),
             'type' => 'upload',
             'disk' => 'public',
         ]);
 
         CRUD::addColumn([
             'name' => 'expense_date',
-            'label' => 'Date',
+            'label' => __('cashier_expense.expense_date'),
             'type' => 'datetime',
         ]);
 
         CRUD::addFilter([
             'name' => 'type',
             'type' => 'select2',
-            'label' => 'Type',
+            'label' => __('cashier_expense.type'),
         ], function () {
             return CashierExpense::types();
         }, function ($value) {
@@ -185,7 +184,7 @@ class CashierExpenseCrudController extends CrudController
         CRUD::addFilter([
             'name' => 'category_id',
             'type' => 'select2',
-            'label' => 'Category',
+            'label' => __('cashier_expense.category'),
         ], function () {
             return ExpenseCategory::filterOptions();
         }, function ($value) {
@@ -195,7 +194,7 @@ class CashierExpenseCrudController extends CrudController
         CRUD::addFilter([
             'name' => 'supplier_id',
             'type' => 'select2',
-            'label' => 'Supplier',
+            'label' => __('cashier_expense.supplier'),
         ], function () {
             return \App\Models\Supplier::query()->orderBy('name')->pluck('name', 'id')->toArray();
         }, function ($value) {
@@ -205,7 +204,7 @@ class CashierExpenseCrudController extends CrudController
         CRUD::addFilter([
             'name' => 'product_id',
             'type' => 'select2',
-            'label' => 'Product',
+            'label' => __('cashier_expense.product'),
         ], function () {
             return Product::query()->orderBy('title')->pluck('title', 'id')->toArray();
         }, function ($value) {
@@ -215,7 +214,7 @@ class CashierExpenseCrudController extends CrudController
         CRUD::addFilter([
             'type' => 'date_range',
             'name' => 'expense_date',
-            'label' => 'Date Range',
+            'label' => __('cashier_expense.filters.date_range'),
         ], false, function ($value) {
             $dates = json_decode($value, true);
             if (!empty($dates['from'])) {
@@ -246,7 +245,7 @@ class CashierExpenseCrudController extends CrudController
 
         CRUD::addField([
             'name' => 'type',
-            'label' => 'Type',
+            'label' => __('cashier_expense.type'),
             'type' => 'select_from_array',
             'options' => CashierExpense::types(),
             'allows_null' => false,
@@ -255,7 +254,7 @@ class CashierExpenseCrudController extends CrudController
 
         CRUD::addField([
             'name' => 'category_id',
-            'label' => 'Category',
+            'label' => __('cashier_expense.category'),
             'type' => 'select_optgroup_array',
             'options' => ExpenseCategory::groupedLeafOptions(),
             'allows_null' => false,
@@ -263,7 +262,7 @@ class CashierExpenseCrudController extends CrudController
 
         CRUD::addField([
             'name' => 'supplier_id',
-            'label' => 'Supplier',
+            'label' => __('cashier_expense.supplier'),
             'type' => 'select',
             'entity' => 'supplier',
             'model' => \App\Models\Supplier::class,
@@ -272,7 +271,7 @@ class CashierExpenseCrudController extends CrudController
                 return $query->orderBy('name', 'ASC')->get();
             }),
             'allows_null' => true,
-            'hint' => 'Only suppliers linked to the selected category.',
+            'hint' => __('cashier_expense.hints.supplier'),
             // Hidden until a category that has suppliers is picked (JS toggles d-none).
             'wrapper' => [
                 'class' => 'form-group col-sm-12 mb-3 d-none',
@@ -281,7 +280,7 @@ class CashierExpenseCrudController extends CrudController
 
         CRUD::addField([
             'name' => 'product_id',
-            'label' => 'Product',
+            'label' => __('cashier_expense.product'),
             'type' => 'select2',
             'entity' => 'product',
             'attribute' => 'title',
@@ -291,9 +290,9 @@ class CashierExpenseCrudController extends CrudController
                 return $query->orderBy('title')->get();
             }),
             'attributes' => [
-                'data-placeholder' => 'Search and select a product',
+                'data-placeholder' => __('cashier_expense.placeholders.product'),
             ],
-            'hint' => 'Only for საწარმოო purchases.',
+            'hint' => __('cashier_expense.hints.product'),
             // Hidden until a საწარმოო category is picked (JS toggles d-none).
             'wrapper' => [
                 'class' => 'form-group col-sm-12 mb-3 d-none',
@@ -302,15 +301,15 @@ class CashierExpenseCrudController extends CrudController
 
         CRUD::addField([
             'name' => 'price_usd',
-            'label' => 'Purchase Price (USD)',
+            'label' => __('cashier_expense.price_usd_field'),
             'type' => 'number',
             'attributes' => [
                 'step' => '0.01',
                 'min' => '0',
-                'placeholder' => 'Select supplier and product',
+                'placeholder' => __('cashier_expense.placeholders.price_usd'),
             ],
             'prefix' => '$',
-            'hint' => 'Auto-filled from Supplier Prices when the supplier and product match.',
+            'hint' => __('cashier_expense.hints.price_usd'),
             // Product purchases only; JS toggles this with the product field.
             'wrapper' => [
                 'class' => 'form-group col-sm-12 mb-3 d-none',
@@ -319,7 +318,7 @@ class CashierExpenseCrudController extends CrudController
 
         CRUD::addField([
             'name' => 'amount_gel',
-            'label' => 'Amount (GEL)',
+            'label' => __('cashier_expense.amount_gel_field'),
             'type' => 'number',
             'attributes' => [
                 'step' => '0.01',
@@ -327,7 +326,7 @@ class CashierExpenseCrudController extends CrudController
                 'required' => true,
             ],
             'suffix' => '₾',
-            'hint' => 'Full price of the expense.',
+            'hint' => __('cashier_expense.hints.amount_gel'),
             'wrapper' => [
                 'class' => 'form-group col-md-6',
             ],
@@ -335,7 +334,7 @@ class CashierExpenseCrudController extends CrudController
 
         CRUD::addField([
             'name' => 'credit',
-            'label' => 'Credit (GEL)',
+            'label' => __('cashier_expense.credit_field'),
             'type' => 'number',
             'default' => 0,
             'attributes' => [
@@ -343,7 +342,7 @@ class CashierExpenseCrudController extends CrudController
                 'min' => '0',
             ],
             'suffix' => '₾',
-            'hint' => 'Amount of credit from the full price (unpaid portion).',
+            'hint' => __('cashier_expense.hints.credit'),
             'wrapper' => [
                 'class' => 'form-group col-md-6',
             ],
@@ -351,25 +350,25 @@ class CashierExpenseCrudController extends CrudController
 
         CRUD::addField([
             'name' => 'description',
-            'label' => 'Description',
+            'label' => __('cashier_expense.description'),
             'type' => 'textarea',
         ]);
 
         CRUD::addField([
             'name' => 'file',
-            'label' => 'File',
+            'label' => __('cashier_expense.file'),
             'type' => 'upload',
             'upload' => true,
             'disk' => 'public',
             'attributes' => [
                 'accept' => '.pdf,.png,.jpeg,.jpg',
             ],
-            'hint' => 'Allowed types: PDF, PNG, JPEG, JPG',
+            'hint' => __('cashier_expense.hints.file'),
         ]);
 
         CRUD::addField([
             'name' => 'expense_date',
-            'label' => 'Date',
+            'label' => __('cashier_expense.expense_date'),
             'type' => 'datetime_picker',
             'default' => now()->format('Y-m-d H:i:s'),
         ]);
@@ -412,7 +411,7 @@ class CashierExpenseCrudController extends CrudController
                 $flat += $items;
             }
             if (! array_key_exists($entry->category_id, $flat)) {
-                $options[''][$entry->category_id] = $entry->category->name . ' (has children — pick a leaf)';
+                $options[''][$entry->category_id] = __('cashier_expense.category_has_children', ['name' => $entry->category->name]);
                 CRUD::modifyField('category_id', ['options' => $options]);
             }
         }

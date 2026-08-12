@@ -49,9 +49,9 @@ class CustomPriceRequest extends FormRequest
     public function attributes()
     {
         return [
-            'client_id' => 'client',
-            'product_id' => 'product',
-            'price_usd' => 'price (USD)',
+            'client_id' => __('custom_price.attributes.client'),
+            'product_id' => __('custom_price.attributes.product'),
+            'price_usd' => __('custom_price.attributes.price_usd'),
         ];
     }
 
@@ -63,12 +63,12 @@ class CustomPriceRequest extends FormRequest
     public function messages()
     {
         return [
-            'client_id.required' => 'Please select a client.',
-            'product_id.required' => 'Please select a product.',
-            'product_id.unique' => 'This client already has a custom price for this product.',
-            'price_usd.required' => 'Please enter a price.',
-            'price_usd.numeric' => 'Price must be a valid number.',
-            'price_usd.min' => 'Price must be at least 0.',
+            'client_id.required' => __('custom_price.messages.client_required'),
+            'product_id.required' => __('custom_price.messages.product_required'),
+            'product_id.unique' => __('custom_price.messages.product_unique'),
+            'price_usd.required' => __('custom_price.messages.price_required'),
+            'price_usd.numeric' => __('custom_price.messages.price_numeric'),
+            'price_usd.min' => __('custom_price.messages.price_min'),
         ];
     }
 }

@@ -45,7 +45,7 @@ class ExpenseCategoryRequest extends FormRequest
             $parent = ExpenseCategory::find($parentId);
 
             if ($self && $parent && $parent->lft >= $self->lft && $parent->rgt <= $self->rgt) {
-                $validator->errors()->add('parent_id', 'A category cannot be nested under itself or its descendants.');
+                $validator->errors()->add('parent_id', __('expense_category.messages.self_nesting'));
             }
         });
     }
@@ -53,8 +53,8 @@ class ExpenseCategoryRequest extends FormRequest
     public function attributes(): array
     {
         return [
-            'name' => 'name',
-            'parent_id' => 'parent',
+            'name' => __('expense_category.attributes.name'),
+            'parent_id' => __('expense_category.attributes.parent'),
         ];
     }
 }

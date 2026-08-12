@@ -2,7 +2,7 @@
     <div class="col-md-6 col-lg mb-3 mb-lg-0">
         <div class="card bg-warning text-white mb-0">
             <div class="card-header">
-                <h4 class="mb-0">Total Amount</h4>
+                <h4 class="mb-0">{{ __('cashier_expense.stats.total_amount') }}</h4>
             </div>
             <div class="card-body">
                 <h2 class="mb-0" id="stats-total-amount">{{ number_format($widget['totalAmount'], 2) }} ₾</h2>
@@ -12,7 +12,7 @@
     <div class="col-md-6 col-lg mb-3 mb-lg-0">
         <div class="card bg-danger text-white mb-0">
             <div class="card-header">
-                <h4 class="mb-0">Total Credit</h4>
+                <h4 class="mb-0">{{ __('cashier_expense.stats.total_credit') }}</h4>
             </div>
             <div class="card-body">
                 <h2 class="mb-0" id="stats-total-credit">{{ number_format($widget['totalCredit'], 2) }} ₾</h2>
@@ -22,7 +22,7 @@
     <div class="col-md-6 col-lg mb-3 mb-lg-0">
         <div class="card bg-success text-white mb-0">
             <div class="card-header">
-                <h4 class="mb-0">Cash Paid</h4>
+                <h4 class="mb-0">{{ __('cashier_expense.stats.total_cash') }}</h4>
             </div>
             <div class="card-body">
                 <h2 class="mb-0" id="stats-total-cash">{{ number_format($widget['totalCash'], 2) }} ₾</h2>
@@ -32,7 +32,7 @@
     <div class="col-md-6 col-lg mb-3 mb-lg-0">
         <div class="card bg-info text-white mb-0">
             <div class="card-header">
-                <h4 class="mb-0">Transfer Paid</h4>
+                <h4 class="mb-0">{{ __('cashier_expense.stats.total_transfer') }}</h4>
             </div>
             <div class="card-body">
                 <h2 class="mb-0" id="stats-total-transfer">{{ number_format($widget['totalTransfer'], 2) }} ₾</h2>
@@ -42,7 +42,7 @@
     <div class="col-md-6 col-lg">
         <div class="card bg-primary text-white mb-0">
             <div class="card-header">
-                <h4 class="mb-0">PM Transfer Paid</h4>
+                <h4 class="mb-0">{{ __('cashier_expense.stats.total_pm_transfer') }}</h4>
             </div>
             <div class="card-body">
                 <h2 class="mb-0" id="stats-total-pm-transfer">{{ number_format($widget['totalPmTransfer'], 2) }} ₾</h2>

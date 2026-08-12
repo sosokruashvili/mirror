@@ -42,20 +42,20 @@ class CashierExpenseRequest extends FormRequest
             if ($categoryId) {
                 $category = ExpenseCategory::find($categoryId);
                 if (! $category || $category->rgt !== $category->lft + 1) {
-                    $validator->errors()->add('category_id', 'Please select a leaf category (one without child categories).');
+                    $validator->errors()->add('category_id', __('cashier_expense.messages.category_not_leaf'));
                 }
             }
 
             $supplierId = $this->input('supplier_id');
             if ($supplierId && ! $this->supplierIsAllowed((int) $supplierId, $categoryId ? (int) $categoryId : null)) {
-                $validator->errors()->add('supplier_id', 'The selected supplier is not linked to this category.');
+                $validator->errors()->add('supplier_id', __('cashier_expense.messages.supplier_not_linked'));
             }
 
             $amount = $this->input('amount_gel');
             $credit = $this->input('credit');
             if ($amount !== null && $credit !== null && is_numeric($amount) && is_numeric($credit)
                 && (float) $credit > (float) $amount) {
-                $validator->errors()->add('credit', 'Credit cannot exceed the full amount.');
+                $validator->errors()->add('credit', __('cashier_expense.messages.credit_exceeds_amount'));
             }
         });
     }
@@ -125,16 +125,16 @@ class CashierExpenseRequest extends FormRequest
     public function attributes(): array
     {
         return [
-            'type' => 'type',
-            'category_id' => 'category',
-            'supplier_id' => 'supplier',
-            'product_id' => 'product',
-            'price_usd' => 'purchase price (USD)',
-            'amount_gel' => 'amount (GEL)',
-            'credit' => 'credit',
-            'description' => 'description',
-            'file' => 'file',
-            'expense_date' => 'expense date',
+            'type' => __('cashier_expense.attributes.type'),
+            'category_id' => __('cashier_expense.attributes.category'),
+            'supplier_id' => __('cashier_expense.attributes.supplier'),
+            'product_id' => __('cashier_expense.attributes.product'),
+            'price_usd' => __('cashier_expense.attributes.price_usd'),
+            'amount_gel' => __('cashier_expense.attributes.amount_gel'),
+            'credit' => __('cashier_expense.attributes.credit'),
+            'description' => __('cashier_expense.attributes.description'),
+            'file' => __('cashier_expense.attributes.file'),
+            'expense_date' => __('cashier_expense.attributes.expense_date'),
         ];
     }
 }

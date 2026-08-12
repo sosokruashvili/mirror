@@ -48,6 +48,54 @@ class Setting extends Model
     }
 
     /**
+     * Display label in the active locale.
+     *
+     * Settings rows are seeded with English label/description/group text. Those
+     * are translated by key through the setting lang file when an entry exists,
+     * and otherwise fall back to whatever is stored in the database - so adding
+     * a new setting never leaves a blank label.
+     */
+    public function translatedLabel(): string
+    {
+        return static::translateOrFallback('setting.labels.' . $this->key, (string) $this->label);
+    }
+
+    /**
+     * Display description in the active locale, or null when there is none.
+     */
+    public function translatedDescription(): ?string
+    {
+        if (blank($this->description)) {
+            return null;
+        }
+
+        return static::translateOrFallback('setting.descriptions.' . $this->key, (string) $this->description);
+    }
+
+    /**
+     * Display name for a settings group ("General" when the row has none).
+     */
+    public static function translatedGroup(?string $group): string
+    {
+        if (blank($group)) {
+            return __('setting.general_group');
+        }
+
+        return static::translateOrFallback('setting.groups.' . $group, $group);
+    }
+
+    /**
+     * __() returns the key itself when there is no translation; treat that as
+     * "not translated" and use the database text instead.
+     */
+    protected static function translateOrFallback(string $key, string $fallback): string
+    {
+        $translated = __($key);
+
+        return is_string($translated) && $translated !== $key ? $translated : $fallback;
+    }
+
+    /**
      * All settings keyed by their `key`, ordered for display, cached for the
      * request lifetime. Falls back to an empty collection if the table does
      * not exist yet (e.g. before migrations run).

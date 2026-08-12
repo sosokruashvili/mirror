@@ -17,7 +17,7 @@ class CashierCrudController extends CrudController
     {
         CRUD::setModel(CashierBalance::class);
         CRUD::setRoute(config('backpack.base.route_prefix') . '/cashier');
-        CRUD::setEntityNameStrings('cashier', 'cashier');
+        CRUD::setEntityNameStrings(__('cashier.entity'), __('cashier.entity_plural'));
 
         $this->crud->denyAccess(['create', 'update', 'delete', 'show']);
         $this->crud->enableExportButtons();
@@ -40,27 +40,27 @@ class CashierCrudController extends CrudController
 
         CRUD::addColumn([
             'name' => 'balance_date',
-            'label' => 'Date',
+            'label' => __('cashier.balance_date'),
             'type' => 'date',
         ]);
 
         CRUD::addColumn([
             'name' => 'amount',
-            'label' => 'Closing Balance (₾)',
+            'label' => __('cashier.amount'),
             'type' => 'number',
             'decimals' => 2,
         ]);
 
         CRUD::addColumn([
             'name' => 'created_at',
-            'label' => 'Snapshot At',
+            'label' => __('cashier.created_at'),
             'type' => 'datetime',
         ]);
 
         CRUD::addFilter([
             'type' => 'date_range',
             'name' => 'balance_date',
-            'label' => 'Date Range',
+            'label' => __('cashier.filters.date_range'),
         ], false, function ($value) {
             $dates = json_decode($value, true);
             if (!empty($dates['from'])) {
@@ -133,7 +133,7 @@ class CashierCrudController extends CrudController
         $count = $service->resnapshotAll();
 
         return response()->json(array_merge([
-            'message' => "Recalculated cashier balance for {$count} day(s).",
+            'message' => __('cashier.recalculate.done', ['count' => $count]),
         ], $service->getTodayStats()));
     }
 

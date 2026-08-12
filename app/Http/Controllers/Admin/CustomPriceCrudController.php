@@ -30,7 +30,7 @@ class CustomPriceCrudController extends CrudController
     {
         CRUD::setModel(\App\Models\CustomPrice::class);
         CRUD::setRoute(config('backpack.base.route_prefix') . '/custom-price');
-        CRUD::setEntityNameStrings('custom price', 'custom prices');
+        CRUD::setEntityNameStrings(__('custom_price.entity'), __('custom_price.entity_plural'));
         
         // Enable export buttons
         $this->crud->enableExportButtons();
@@ -52,13 +52,13 @@ class CustomPriceCrudController extends CrudController
         
         CRUD::addColumn([
             'name' => 'id',
-            'label' => 'ID',
+            'label' => __('custom_price.id'),
             'type' => 'number',
         ]);
 
         CRUD::addColumn([
             'name' => 'client_id',
-            'label' => 'Client',
+            'label' => __('custom_price.client'),
             'type' => 'select',
             'entity' => 'client',
             'attribute' => 'name_with_id',
@@ -76,7 +76,7 @@ class CustomPriceCrudController extends CrudController
 
         CRUD::addColumn([
             'name' => 'product_id',
-            'label' => 'Product',
+            'label' => __('custom_price.product'),
             'type' => 'select',
             'entity' => 'product',
             'attribute' => 'title',
@@ -86,7 +86,7 @@ class CustomPriceCrudController extends CrudController
 
         CRUD::addColumn([
             'name' => 'actual_price',
-            'label' => 'Original Price ($)',
+            'label' => __('custom_price.actual_price'),
             'type' => 'number',
             'decimals' => 2,
             'value' => function ($entry) {
@@ -96,14 +96,14 @@ class CustomPriceCrudController extends CrudController
 
         CRUD::addColumn([
             'name' => 'price_usd',
-            'label' => 'Custom Price ($)',
+            'label' => __('custom_price.price_usd'),
             'type' => 'number',
             'decimals' => 2,
         ]);
 
         CRUD::addColumn([
             'name' => 'created_at',
-            'label' => 'Created At',
+            'label' => __('custom_price.created_at'),
             'type' => 'datetime',
         ]);
 
@@ -111,7 +111,7 @@ class CustomPriceCrudController extends CrudController
         CRUD::addFilter([
             'name' => 'client_id',
             'type' => 'select2',
-            'label' => 'Client',
+            'label' => __('custom_price.client'),
         ],
         function () {
             return \App\Models\Client::all()->pluck('name_with_id', 'id')->toArray();
@@ -123,7 +123,7 @@ class CustomPriceCrudController extends CrudController
         CRUD::addFilter([
             'name' => 'product_id',
             'type' => 'select2',
-            'label' => 'Product',
+            'label' => __('custom_price.product'),
         ],
         function () {
             return \App\Models\Product::all()->pluck('title', 'id')->toArray();
@@ -145,7 +145,7 @@ class CustomPriceCrudController extends CrudController
 
         CRUD::addField([
             'name' => 'client_id',
-            'label' => 'Client',
+            'label' => __('custom_price.client'),
             'type' => 'select2',
             'entity' => 'client',
             'attribute' => 'name_with_id',
@@ -158,7 +158,7 @@ class CustomPriceCrudController extends CrudController
 
         CRUD::addField([
             'name' => 'product_id',
-            'label' => 'Product',
+            'label' => __('custom_price.product'),
             'type' => 'select2',
             'entity' => 'product',
             'attribute' => 'title',
@@ -171,7 +171,7 @@ class CustomPriceCrudController extends CrudController
 
         CRUD::addField([
             'name' => 'price_usd',
-            'label' => 'Price (USD)',
+            'label' => __('custom_price.price_usd_field'),
             'type' => 'number',
             'attributes' => [
                 'step' => '0.01',

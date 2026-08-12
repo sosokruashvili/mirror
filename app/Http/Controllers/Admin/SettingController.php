@@ -48,7 +48,7 @@ class SettingController extends Controller
     public function syncFromProd()
     {
         if (! $this->isDbSyncAvailable()) {
-            Alert::error('Database sync is not available in this environment.')->flash();
+            Alert::error(__('setting.dev.unavailable'))->flash();
 
             return redirect()->route('settings.edit');
         }
@@ -57,10 +57,10 @@ class SettingController extends Controller
         $output = trim(Artisan::output());
 
         if ($exitCode === 0) {
-            Alert::success('Database synced from production.')->flash();
+            Alert::success(__('setting.dev.synced'))->flash();
         } else {
             Log::error('db:sync-from-prod failed', ['output' => $output]);
-            Alert::error('Database sync failed: ' . $this->flashable($output))->flash();
+            Alert::error(__('setting.dev.failed', ['error' => $this->flashable($output)]))->flash();
         }
 
         return redirect()->route('settings.edit');
@@ -80,7 +80,7 @@ class SettingController extends Controller
         $lines = array_filter(array_map('trim', explode("\n", $output)), fn ($line) => $line !== '');
 
         // The last line is the failure reason; earlier ones are progress noise.
-        $message = (string) (end($lines) ?: 'no output — see the log for details');
+        $message = (string) (end($lines) ?: __('setting.dev.no_output'));
 
         return Str::limit(str_replace(['"', "'"], '', preg_replace('/\s+/', ' ', $message)), 300);
     }
@@ -117,7 +117,7 @@ class SettingController extends Controller
         $attributes = [];
         foreach ($settings as $setting) {
             $rules['settings.' . $setting->key] = $this->rulesForType($setting->type);
-            $attributes['settings.' . $setting->key] = $setting->label;
+            $attributes['settings.' . $setting->key] = $setting->translatedLabel();
         }
 
         $validated = $request->validate($rules, [], $attributes);
@@ -129,7 +129,7 @@ class SettingController extends Controller
             }
         }
 
-        Alert::success('Settings saved.')->flash();
+        Alert::success(__('setting.saved'))->flash();
 
         return redirect()->route('settings.edit');
     }

@@ -71,10 +71,13 @@ class CashierExpense extends Model
 
     public static function types(): array
     {
+        // Keys are the values stored in cashier_expenses.type and must not
+        // change; the labels are shared with payments.method, so they come
+        // from the one place those are translated.
         return [
-            self::TYPE_CASH => 'Cash',
-            self::TYPE_TRANSFER => 'Transfer',
-            self::TYPE_PM_TRANSFER => 'PM Transfer',
+            self::TYPE_CASH => __('payment.methods.' . self::TYPE_CASH),
+            self::TYPE_TRANSFER => __('payment.methods.' . self::TYPE_TRANSFER),
+            self::TYPE_PM_TRANSFER => __('payment.methods.' . self::TYPE_PM_TRANSFER),
         ];
     }
 }

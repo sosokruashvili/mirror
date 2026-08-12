@@ -22,7 +22,7 @@ class ExpenseCategoryCrudController extends CrudController
     {
         CRUD::setModel(ExpenseCategory::class);
         CRUD::setRoute(config('backpack.base.route_prefix') . '/expense-category');
-        CRUD::setEntityNameStrings('expense category', 'expense categories');
+        CRUD::setEntityNameStrings(__('expense_category.entity'), __('expense_category.entity_plural'));
     }
 
     protected function setupListOperation(): void
@@ -31,7 +31,7 @@ class ExpenseCategoryCrudController extends CrudController
 
         CRUD::addColumn([
             'name' => 'name',
-            'label' => 'Name',
+            'label' => __('expense_category.name'),
             'type' => 'closure',
             'function' => fn (ExpenseCategory $entry) => $entry->indentedName(),
             'searchLogic' => function ($query, $column, $searchTerm) {
@@ -41,7 +41,7 @@ class ExpenseCategoryCrudController extends CrudController
 
         CRUD::addColumn([
             'name' => 'parent_id',
-            'label' => 'Parent',
+            'label' => __('expense_category.parent'),
             'type' => 'select',
             'entity' => 'parent',
             'attribute' => 'name',
@@ -50,7 +50,7 @@ class ExpenseCategoryCrudController extends CrudController
 
         CRUD::addColumn([
             'name' => 'depth',
-            'label' => 'Depth',
+            'label' => __('expense_category.depth'),
             'type' => 'number',
         ]);
     }
@@ -61,17 +61,17 @@ class ExpenseCategoryCrudController extends CrudController
 
         CRUD::addField([
             'name' => 'name',
-            'label' => 'Name',
+            'label' => __('expense_category.name'),
             'type' => 'text',
         ]);
 
         CRUD::addField([
             'name' => 'parent_id',
-            'label' => 'Parent',
+            'label' => __('expense_category.parent'),
             'type' => 'select_from_array',
             'options' => ExpenseCategory::optionsForSelect(),
             'allows_null' => true,
-            'hint' => 'Leave empty for a top-level category. You can also nest via Reorder.',
+            'hint' => __('expense_category.hints.parent'),
         ]);
     }
 
@@ -83,17 +83,17 @@ class ExpenseCategoryCrudController extends CrudController
 
         CRUD::addField([
             'name' => 'name',
-            'label' => 'Name',
+            'label' => __('expense_category.name'),
             'type' => 'text',
         ]);
 
         CRUD::addField([
             'name' => 'parent_id',
-            'label' => 'Parent',
+            'label' => __('expense_category.parent'),
             'type' => 'select_from_array',
             'options' => ExpenseCategory::optionsForSelect($id ?: null),
             'allows_null' => true,
-            'hint' => 'Leave empty for a top-level category. You can also nest via Reorder.',
+            'hint' => __('expense_category.hints.parent'),
         ]);
     }
 
@@ -114,13 +114,13 @@ class ExpenseCategoryCrudController extends CrudController
 
         if ($category->children()->exists()) {
             return response()->json([
-                'error' => ['message' => 'Cannot delete a category that has child categories. Move or delete children first.'],
+                'error' => ['message' => __('expense_category.messages.has_children')],
             ], 403);
         }
 
         if ($category->expenses()->exists()) {
             return response()->json([
-                'error' => ['message' => 'Cannot delete a category that is used by expenses.'],
+                'error' => ['message' => __('expense_category.messages.in_use')],
             ], 403);
         }
 

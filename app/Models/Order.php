@@ -34,6 +34,7 @@ class Order extends Model
         'finish_comment',
         'expenses',
         'confirm_date',
+        'due_date',
     ];
     // protected $hidden = [];
 
@@ -41,6 +42,7 @@ class Order extends Model
         'paid' => 'boolean',
         'expenses' => 'decimal:2',
         'confirm_date' => 'datetime',
+        'due_date' => 'date',
     ];
 
     /**

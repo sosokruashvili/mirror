@@ -17,6 +17,73 @@ if (!function_exists('setting')) {
     }
 }
 
+if (!function_exists('order_due_date_progress')) {
+    /**
+     * Render a compact due-date progress bar for an order list column.
+     *
+     * Bar width is days-left on a fixed 10-day scale (10+ days = full, 0 = empty),
+     * so proportions are comparable across rows. Colors: green (≥5), yellow (3–4),
+     * red (≤2 or overdue). Grey when no due date is set.
+     *
+     * @param \App\Models\Order $order
+     * @return string HTML
+     */
+    function order_due_date_progress($order): string
+    {
+        if (!$order->due_date) {
+            return '<div class="d-flex align-items-center" style="min-width: 110px;" title="'
+                . e(__('order.no_due_date')) . '">'
+                . '<div class="progress flex-grow-1 me-2" style="height: 6px; min-width: 60px;">'
+                . '<div class="progress-bar bg-secondary" role="progressbar" style="width: 100%; opacity: 0.4;"></div>'
+                . '</div>'
+                . '<small class="text-muted">—</small>'
+                . '</div>';
+        }
+
+        $today = now()->startOfDay();
+        $due = $order->due_date->copy()->startOfDay();
+        $daysLeft = (int) $today->diffInDays($due, false);
+
+        // Fixed 10-day scale so fill length matches days left consistently.
+        $fullBarDays = 10;
+        $percent = $daysLeft <= 0
+            ? 0
+            : (int) min(100, round(($daysLeft / $fullBarDays) * 100));
+
+        if ($daysLeft >= 5) {
+            $barClass = 'bg-success';
+        } elseif ($daysLeft >= 3) {
+            $barClass = 'bg-warning';
+        } else {
+            $barClass = 'bg-danger';
+        }
+
+        if ($daysLeft < 0) {
+            $label = __('order.overdue_days', ['days' => abs($daysLeft)]);
+        } elseif ($daysLeft === 0) {
+            $label = __('order.due_today');
+        } else {
+            $label = __('order.days_left', ['days' => $daysLeft]);
+        }
+
+        $title = __('order.due_date') . ': ' . $due->format('Y-m-d') . ' — ' . $label;
+
+        return sprintf(
+            '<div class="d-flex align-items-center" style="min-width: 110px;" title="%s">'
+                . '<div class="progress flex-grow-1 me-2" style="height: 6px; min-width: 60px;">'
+                    . '<div class="progress-bar %s" role="progressbar" style="width: %d%%;"></div>'
+                . '</div>'
+                . '<small class="%s">%s</small>'
+            . '</div>',
+            e($title),
+            e($barClass),
+            $percent,
+            $daysLeft <= 2 ? 'text-danger' : 'text-muted',
+            e($label)
+        );
+    }
+}
+
 if (!function_exists('status_badge')) {
     /**
      * Generate a Bootstrap badge for order status

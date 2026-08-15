@@ -108,6 +108,27 @@ class OrderCrudController extends CrudController
             }
         ]);
 
+        // High priority so responsive mode keeps this column visible (it was
+        // collapsing at the end of the wide orders table).
+        CRUD::addColumn([
+            'name' => 'due_date',
+            'label' => __('order.due_date_progress'),
+            'type' => 'custom_html',
+            'value' => function ($entry) {
+                return order_due_date_progress($entry);
+            },
+            'priority' => 1,
+            'visibleInTable' => true,
+            'orderable' => true,
+            'orderLogic' => function ($query, $column, $columnDirection) {
+                $direction = strtoupper($columnDirection) === 'ASC' ? 'ASC' : 'DESC';
+
+                return $query
+                    ->orderByRaw('CASE WHEN due_date IS NULL THEN 1 ELSE 0 END')
+                    ->orderBy('due_date', $direction);
+            },
+        ]);
+
         CRUD::addColumn([
             'name' => 'paid',
             'label' => __('order.paid'),
@@ -262,9 +283,9 @@ class OrderCrudController extends CrudController
             }
         });
         
-        // Status filter
+        // Status filter (multiselect)
         CRUD::addFilter([
-            'type' => 'select2',
+            'type' => 'select2_multiple',
             'name' => 'status',
             'label' => __('order.status'),
         ],
@@ -272,7 +293,11 @@ class OrderCrudController extends CrudController
             return Arr::only(__('status'), ['draft', 'new', 'working', 'ready', 'finished']);
         },
         function ($value) {
-            CRUD::addClause('where', 'status', $value);
+            $statuses = $this->parseStatusFilterValue($value);
+
+            if (!empty($statuses)) {
+                CRUD::addClause('whereIn', 'status', $statuses);
+            }
         });
         
         // Order Type filter
@@ -573,6 +598,16 @@ class OrderCrudController extends CrudController
                 'min' => '0',
             ],
             'hint' => __('order.hints.expenses_create'),
+        ]);
+
+        CRUD::addField([
+            'name' => 'due_date',
+            'label' => __('order.due_date'),
+            'type' => 'date',
+            'hint' => __('order.hints.due_date'),
+            'wrapper' => [
+                'class' => 'form-group col-md-6',
+            ],
         ]);
 
         CRUD::addField([
@@ -965,6 +1000,7 @@ class OrderCrudController extends CrudController
                     'paid' => isset($fields['paid']) ? (bool)$fields['paid'] : false,
                     'atachment' => $fields['atachment'] ?? null,
                     'comment' => $fields['comment'] ?? null,
+                    'due_date' => !empty($fields['due_date']) ? $fields['due_date'] : null,
                 ]
             );
 
@@ -1105,6 +1141,7 @@ class OrderCrudController extends CrudController
                 'paid' => isset($fields['paid']) ? (bool)$fields['paid'] : false,
                 'comment' => $fields['comment'] ?? null,
                 'expenses' => $fields['expenses'] ?? null,
+                'due_date' => !empty($fields['due_date']) ? $fields['due_date'] : null,
             ];
 
             if (request()->hasFile('atachment')) {
@@ -1615,7 +1652,10 @@ class OrderCrudController extends CrudController
         }
         
         if (request()->has('status') && request()->get('status')) {
-            $query->where('status', request()->get('status'));
+            $statuses = $this->parseStatusFilterValue(request()->get('status'));
+            if (!empty($statuses)) {
+                $query->whereIn('status', $statuses);
+            }
         } else {
             $query->where('status', '!=', 'draft');
         }
@@ -1767,6 +1807,23 @@ class OrderCrudController extends CrudController
             ->findOrFail($id);
 
         return view('admin.order-invoice', compact('order'));
+    }
+
+    /**
+     * Parse the status filter value from a select2_multiple payload
+     * (JSON array) or a leftover single-select string.
+     *
+     * @return list<string>
+     */
+    private function parseStatusFilterValue(mixed $value): array
+    {
+        $statuses = json_decode((string) $value, true);
+
+        if (!is_array($statuses)) {
+            $statuses = $value !== null && $value !== '' ? [(string) $value] : [];
+        }
+
+        return array_values(array_filter($statuses, fn ($status) => $status !== null && $status !== ''));
     }
 
     /**

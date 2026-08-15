@@ -42,6 +42,7 @@ class OrderRequest extends FormRequest
             'atachment' => 'nullable|file|mimes:pdf,png,jpeg,jpg',
             'comment' => 'nullable|string|max:5000',
             'expenses' => 'nullable|numeric|min:0',
+            'due_date' => 'nullable|date',
         ];
     }
 

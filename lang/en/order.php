@@ -29,6 +29,12 @@ return [
     'paid_amount_gel' => 'Paid Amount (₾)',
     'created_at' => 'Created At',
     'confirm_date' => 'Confirm Date',
+    'due_date' => 'Due Date',
+    'due_date_progress' => 'Due',
+    'no_due_date' => 'No due date set',
+    'days_left' => ':days d',
+    'due_today' => 'today',
+    'overdue_days' => '-:days d',
     'order_date_range' => 'Order Date Range',
     'products' => 'Products',
     'product' => 'Product',
@@ -58,6 +64,7 @@ return [
         'expenses_create' => 'Auto-calculated from piece width, height and quantity. You can override it manually if it does not match the real expense.',
         'expenses_edit' => 'Auto-calculated from pieces. You can override it manually if it does not match the real expense.',
         'product_type_locked' => 'Order Product Type cannot be changed after creation',
+        'due_date' => 'Optional. Planned finish date — the orders list shows a days-left progress bar.',
     ],
 
     // Pieces detail block on the order show/preview page

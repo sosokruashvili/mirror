@@ -720,6 +720,13 @@ class OrderCrudController extends CrudController
         // Add styles for order preview page
         Widget::add()->type('style')->content('assets/css/order-preview.css');
 
+        // Inline so due-date blink styles are never stuck behind a stale Basset CSS copy.
+        Widget::add([
+            'type' => 'view',
+            'view' => 'vendor.backpack.crud.widgets.order_due_progress_styles',
+            'wrapper' => ['class' => 'd-none'],
+        ])->to('before_content');
+
         // Inline per-piece stage updater (used by the pieces column below).
         Widget::add()->type('script')->content('assets/js/piece-stage.js');
         
@@ -768,6 +775,22 @@ class OrderCrudController extends CrudController
             'value' => function ($entry) {
                 return status_badge($entry->status);
             }
+        ]);
+
+        CRUD::addColumn([
+            'name' => 'due_date',
+            'label' => __('order.due_date'),
+            'type' => 'custom_html',
+            'value' => function ($entry) {
+                if (!$entry->due_date) {
+                    return '<span class="text-muted">' . e(__('order.no_due_date')) . '</span>';
+                }
+
+                return '<div class="d-flex align-items-center gap-2">'
+                    . order_due_date_dot($entry)
+                    . '<span>' . e($entry->due_date->format('Y-m-d')) . '</span>'
+                    . '</div>';
+            },
         ]);
 
         CRUD::addColumn([

@@ -92,6 +92,37 @@ if (!function_exists('order_due_date_progress')) {
     }
 }
 
+if (!function_exists('order_due_date_dot')) {
+    /**
+     * Colored urgency dot for an order due date on preview pages.
+     *
+     * Green ≥5 days, yellow 3–4, red ≤2 or overdue (blinks). Empty when no due date.
+     *
+     * @param \App\Models\Order $order
+     * @return string HTML
+     */
+    function order_due_date_dot($order): string
+    {
+        if (!$order->due_date) {
+            return '';
+        }
+
+        $today = now()->startOfDay();
+        $due = $order->due_date->copy()->startOfDay();
+        $daysLeft = (int) $today->diffInDays($due, false);
+
+        if ($daysLeft >= 5) {
+            $class = 'order-due-dot-success';
+        } elseif ($daysLeft >= 3) {
+            $class = 'order-due-dot-warning';
+        } else {
+            $class = 'order-due-dot-danger order-due-dot-urgent urgent-red-pulse';
+        }
+
+        return '<span class="order-due-dot ' . $class . '" aria-hidden="true"></span>';
+    }
+}
+
 if (!function_exists('status_badge')) {
     /**
      * Generate a Bootstrap badge for order status

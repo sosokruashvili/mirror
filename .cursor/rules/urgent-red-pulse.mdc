@@ -1,0 +1,26 @@
+---
+description: Reuse the approved urgent red glow+fade pulse for attention indicators
+alwaysApply: true
+---
+
+# Urgent red pulse
+
+Approved attention treatment for urgent/overdue UI (due dates, alerts). Do not invent a new blink.
+
+- Color: `#dc3545` / `rgba(220, 53, 69, …)` (`--bs-danger`)
+- Class: `urgent-red-pulse` (also on `.order-due-dot-urgent`)
+- Motion: glow ripple **and** fade in/out, `1.4s ease-in-out infinite`
+- Styles live inline in `resources/views/vendor/backpack/crud/widgets/order_due_progress_styles.blade.php` (avoid Basset-only CSS for this animation)
+
+```css
+.urgent-red-pulse {
+    box-shadow: 0 0 0 0 rgba(220, 53, 69, 0.7);
+    animation: urgent-red-pulse 1.4s ease-in-out infinite !important;
+}
+@keyframes urgent-red-pulse {
+    0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(220, 53, 69, 0.7); transform: scale(1); }
+    50% { opacity: 0.2; box-shadow: 0 0 0 6px rgba(220, 53, 69, 0); transform: scale(1.08); }
+}
+```
+
+Include that widget (or the same keyframes) on any page that uses the class. For due-date dots, keep green ≥5 days, yellow 3–4, this red ≤2 / overdue.

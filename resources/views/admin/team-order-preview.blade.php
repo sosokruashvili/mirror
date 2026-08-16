@@ -305,6 +305,15 @@
 			<span class="order-info-value">{{ order_type_ge($order->order_type ?? '') }}</span>
 			<span class="order-info-value">{{ product_type_ge($order->product_type ?? '') }}</span>
 			<span class="order-info-value">{{ number_format($order->price_gel ?? $order->calculateTotalPrice(false), 2) }} ₾</span>
+			<span class="order-info-value d-inline-flex align-items-center gap-2">
+				{{ __('order.due_date') }}:
+				@if($order->due_date)
+					{!! order_due_date_dot($order) !!}
+					{{ $order->due_date->format('Y-m-d') }}
+				@else
+					{{ __('order.no_due_date') }}
+				@endif
+			</span>
 		</div>
 		@if($order->comment)
 		<button type="button" class="btn btn-order-comment" data-comment="{{ e($order->comment) }}" onclick="showOrderComment(this)">

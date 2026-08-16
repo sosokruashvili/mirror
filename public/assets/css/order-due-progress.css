@@ -1,0 +1,15 @@
+/* Flashing urgency for order due dates with ≤2 days left. */
+.progress .progress-bar.order-due-urgent-bar {
+    transition: none !important;
+    animation: order-due-urgent-bar-pulse 1.2s ease-in-out infinite !important;
+}
+
+@keyframes order-due-urgent-bar-pulse {
+    0%,
+    100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.15;
+    }
+}

@@ -76,6 +76,13 @@ class OrderCrudController extends CrudController
 
         // Add widgets for orders count and total price
         $this->addOrderStatsWidgets();
+
+        // Inline styles (not Basset) so the urgent bar blink cannot get stuck on a stale CSS cache.
+        Widget::add([
+            'type' => 'view',
+            'view' => 'vendor.backpack.crud.widgets.order_due_progress_styles',
+            'wrapper' => ['class' => 'd-none'],
+        ])->to('before_content');
         
         CRUD::addColumn([
             'name' => 'id',

@@ -55,7 +55,7 @@ if (!function_exists('order_due_date_progress')) {
         } elseif ($daysLeft >= 3) {
             $barClass = 'bg-warning';
         } else {
-            $barClass = 'bg-danger';
+            $barClass = 'bg-danger order-due-urgent-bar';
         }
 
         if ($daysLeft < 0) {
@@ -68,17 +68,25 @@ if (!function_exists('order_due_date_progress')) {
 
         $title = __('order.due_date') . ': ' . $due->format('Y-m-d') . ' — ' . $label;
 
+        $isUrgent = $daysLeft <= 2;
+
+        // Keep a visible segment so the blink remains noticeable on 1–2 day bars.
+        $barStyle = 'width: ' . $percent . '%;';
+        if ($isUrgent) {
+            $barStyle .= ' min-width: ' . ($percent > 0 ? '12px' : '100%') . ';';
+        }
+
         return sprintf(
             '<div class="d-flex align-items-center" style="min-width: 110px;" title="%s">'
                 . '<div class="progress flex-grow-1 me-2" style="height: 6px; min-width: 60px;">'
-                    . '<div class="progress-bar %s" role="progressbar" style="width: %d%%;"></div>'
+                    . '<div class="progress-bar %s" role="progressbar" style="%s"></div>'
                 . '</div>'
                 . '<small class="%s">%s</small>'
             . '</div>',
             e($title),
             e($barClass),
-            $percent,
-            $daysLeft <= 2 ? 'text-danger' : 'text-muted',
+            e($barStyle),
+            $isUrgent ? 'text-danger' : 'text-muted',
             e($label)
         );
     }

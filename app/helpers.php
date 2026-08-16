@@ -51,11 +51,11 @@ if (!function_exists('order_due_date_progress')) {
             : (int) min(100, round(($daysLeft / $fullBarDays) * 100));
 
         if ($daysLeft >= 5) {
-            $barClass = 'bg-success';
+            $tone = 'success';
         } elseif ($daysLeft >= 3) {
-            $barClass = 'bg-warning';
+            $tone = 'warning';
         } else {
-            $barClass = 'bg-danger order-due-urgent-bar';
+            $tone = 'danger';
         }
 
         if ($daysLeft < 0) {
@@ -69,24 +69,23 @@ if (!function_exists('order_due_date_progress')) {
         $title = __('order.due_date') . ': ' . $due->format('Y-m-d') . ' — ' . $label;
 
         $isUrgent = $daysLeft <= 2;
-
-        // Keep a visible segment so the blink remains noticeable on 1–2 day bars.
-        $barStyle = 'width: ' . $percent . '%;';
-        if ($isUrgent) {
-            $barStyle .= ' min-width: ' . ($percent > 0 ? '12px' : '100%') . ';';
-        }
+        // Same bg-* utility on bar and tag so colors stay matched.
+        $barClass = 'bg-' . $tone . ($isUrgent ? ' order-due-urgent-bar' : '');
+        $labelClass = 'badge bg-' . $tone . ' order-due-days-tag'
+            . ($tone === 'warning' ? ' text-dark' : '')
+            . ($isUrgent ? ' order-due-urgent-label' : '');
 
         return sprintf(
-            '<div class="d-flex align-items-center" style="min-width: 110px;" title="%s">'
+            '<div class="d-flex align-items-center" style="min-width: 140px;" title="%s">'
                 . '<div class="progress flex-grow-1 me-2" style="height: 6px; min-width: 60px;">'
-                    . '<div class="progress-bar %s" role="progressbar" style="%s"></div>'
+                    . '<div class="progress-bar %s" role="progressbar" style="width: %d%%;"></div>'
                 . '</div>'
-                . '<small class="%s">%s</small>'
+                . '<span class="%s">%s</span>'
             . '</div>',
             e($title),
             e($barClass),
-            e($barStyle),
-            $isUrgent ? 'text-danger' : 'text-muted',
+            $percent,
+            e($labelClass),
             e($label)
         );
     }

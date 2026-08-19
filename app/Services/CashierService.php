@@ -24,10 +24,14 @@ class CashierService
     /**
      * Query for the expenses that count as cash-out on a given day.
      * Single source of truth for both the daily sum and the details-row list.
+     *
+     * Draft expenses are still being entered and are deliberately left out of
+     * the balance until they are confirmed.
      */
     public function cashExpensesQueryForDate(Carbon $date)
     {
         return CashierExpense::query()
+            ->confirmed()
             ->with('category')
             ->where('type', CashierExpense::TYPE_CASH)
             ->whereDate('expense_date', $date);

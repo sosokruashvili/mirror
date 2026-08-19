@@ -1,4 +1,8 @@
 <div class="row mb-3" id="cashier-expense-stats-widget">
+    {{-- Draft expenses count nowhere, so these totals can differ from the rows listed below. --}}
+    <div class="col-12 mb-2">
+        <small class="text-muted">{{ __('cashier_expense.stats.confirmed_only') }}</small>
+    </div>
     <div class="col-md-6 col-lg mb-3 mb-lg-0">
         <div class="card bg-warning text-white mb-0">
             <div class="card-header">

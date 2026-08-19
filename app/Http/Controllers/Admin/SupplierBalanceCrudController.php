@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Models\CashierExpense;
 use App\Models\Supplier;
 use Backpack\CRUD\app\Http\Controllers\CrudController;
 use Backpack\CRUD\app\Library\CrudPanel\CrudPanelFacade as CRUD;
@@ -10,7 +11,8 @@ use Backpack\CRUD\app\Library\CrudPanel\CrudPanelFacade as CRUD;
  * Class SupplierBalanceCrudController
  *
  * Read-only list of suppliers with balances computed live from their
- * Expenses-Purchases (cashier_expenses) rows:
+ * confirmed Expenses-Purchases (cashier_expenses) rows - drafts are still
+ * being entered and count nowhere:
  *   - Total Amount = SUM(amount_gel)      — everything purchased from them
  *   - Total Paid   = SUM(amount - credit) — what has actually been paid
  *   - Balance      = SUM(credit)          — the outstanding debt we owe them
@@ -40,8 +42,8 @@ class SupplierBalanceCrudController extends CrudController
     {
         // Aggregate the expense sums in the main query so the list stays a
         // single query (no N+1) and the columns can be sorted server-side.
-        $this->crud->addClause('withSum', 'cashierExpenses as expenses_total', 'amount_gel');
-        $this->crud->addClause('withSum', 'cashierExpenses as credit_total', 'credit');
+        $this->crud->addClause('withSum', 'confirmedCashierExpenses as expenses_total', 'amount_gel');
+        $this->crud->addClause('withSum', 'confirmedCashierExpenses as credit_total', 'credit');
 
         // Expandable rows: clicking a supplier row loads their expenses inline.
         // The custom list view makes the whole row (not just the +/- icon) the trigger.
@@ -106,8 +108,10 @@ class SupplierBalanceCrudController extends CrudController
             'orderLogic' => function ($query, $column, $columnDirection) {
                 return $query->orderByRaw(
                     '(SELECT COALESCE(SUM(amount_gel - credit), 0) FROM cashier_expenses'
-                    . ' WHERE cashier_expenses.supplier_id = suppliers.id) '
-                    . $this->sqlDirection($columnDirection)
+                    . ' WHERE cashier_expenses.supplier_id = suppliers.id'
+                    . ' AND cashier_expenses.status = ?) '
+                    . $this->sqlDirection($columnDirection),
+                    [CashierExpense::STATUS_CONFIRMED]
                 );
             },
             'value' => fn ($entry) => (float) $entry->expenses_total - (float) $entry->credit_total,
@@ -145,7 +149,7 @@ class SupplierBalanceCrudController extends CrudController
             'type' => 'simple',
             'label' => __('supplier_balance.filters.only_debt'),
         ], false, function () {
-            $this->crud->addClause('whereHas', 'cashierExpenses', function ($query) {
+            $this->crud->addClause('whereHas', 'confirmedCashierExpenses', function ($query) {
                 $query->where('credit', '>', 0);
             });
         });
@@ -175,21 +179,21 @@ class SupplierBalanceCrudController extends CrudController
 
         $supplier = Supplier::query()
             ->with([
-                'cashierExpenses' => function ($query) {
+                'confirmedCashierExpenses' => function ($query) {
                     $query->orderByDesc('expense_date')->orderByDesc('id');
                 },
-                'cashierExpenses.category',
-                'cashierExpenses.product',
+                'confirmedCashierExpenses.category',
+                'confirmedCashierExpenses.product',
             ])
             ->findOrFail($id);
 
-        $expensesTotal = (float) $supplier->cashierExpenses->sum('amount_gel');
-        $creditTotal = (float) $supplier->cashierExpenses->sum('credit');
+        $expensesTotal = (float) $supplier->confirmedCashierExpenses->sum('amount_gel');
+        $creditTotal = (float) $supplier->confirmedCashierExpenses->sum('credit');
 
         return view('vendor.backpack.crud.details_rows.supplier_balance', [
             'crud' => $this->crud,
             'entry' => $supplier,
-            'expenses' => $supplier->cashierExpenses,
+            'expenses' => $supplier->confirmedCashierExpenses,
             'expensesTotal' => $expensesTotal,
             'paidTotal' => $expensesTotal - $creditTotal,
             'creditTotal' => $creditTotal,

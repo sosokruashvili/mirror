@@ -4,6 +4,10 @@
 | Expenses-Purchases module (CashierExpenseCrudController + its stats widget
 | and CashierExpenseRequest).
 |
+| The `status` values (draft / confirmed) are stored in cashier_expenses.status
+| and their labels live in the shared status.php file - CashierExpense::statuses()
+| reads them from there. A draft expense counts nowhere.
+|
 | The `type` values (Cash / Transfer / PM Transfer) are stored in
 | cashier_expenses.type and are shared with payments, so their labels live in
 | payment.methods - CashierExpense::types() reads them from there.
@@ -19,6 +23,7 @@ return [
 
     // Columns & fields
     'id' => 'ID',
+    'status' => 'Status',
     'type' => 'Type',
     'category' => 'Category',
     'supplier' => 'Supplier',
@@ -47,6 +52,7 @@ return [
     ],
 
     'hints' => [
+        'status' => 'Draft expenses are editable and are not counted anywhere. Confirming an expense locks it and lets it into the cashier and supplier balances.',
         'supplier' => 'Only suppliers linked to the selected category.',
         'product' => 'Only for საწარმოო purchases.',
         'price_usd' => 'Auto-filled from Supplier Prices when the supplier and product match.',
@@ -60,6 +66,7 @@ return [
 
     // Stats widget above the list
     'stats' => [
+        'confirmed_only' => 'Confirmed expenses only — drafts are not counted.',
         'total_amount' => 'Total Amount',
         'total_credit' => 'Total Credit',
         'total_cash' => 'Cash Paid',
@@ -71,6 +78,7 @@ return [
     // lowercase in English the way Laravel's own messages read).
     'attributes' => [
         'type' => 'type',
+        'status' => 'status',
         'category' => 'category',
         'supplier' => 'supplier',
         'product' => 'product',

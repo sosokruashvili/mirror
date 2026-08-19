@@ -27,6 +27,21 @@ class CashierExpenseCrudController extends CrudController
         CRUD::setEntityNameStrings(__('cashier_expense.entity'), __('cashier_expense.entity_plural'));
 
         $this->crud->enableExportButtons();
+
+        // Confirmed expenses are frozen — they are already part of the cashier
+        // and supplier balances. The condition is checked per row, so Backpack
+        // hides the Edit/Delete buttons on confirmed rows AND rejects the
+        // edit/update/destroy routes for them. A null entry means the check is
+        // not about one specific row (e.g. the list page as a whole), so it
+        // passes; the ChecksAccess trait still denies the operation outright
+        // when the user lacks the page permission, and that runs after this.
+        // See CashierExpense::canBeEditedBy() / canBeDeletedBy().
+        $this->crud->setAccessCondition('update', function ($entry) {
+            return $entry === null || $entry->canBeEditedBy(backpack_user());
+        });
+        $this->crud->setAccessCondition('delete', function ($entry) {
+            return $entry === null || $entry->canBeDeletedBy(backpack_user());
+        });
     }
 
     protected function setupListOperation(): void
@@ -38,6 +53,15 @@ class CashierExpenseCrudController extends CrudController
             'name' => 'id',
             'label' => __('cashier_expense.id'),
             'type' => 'number',
+        ]);
+
+        CRUD::addColumn([
+            'name' => 'status',
+            'label' => __('cashier_expense.status'),
+            'type' => 'custom_html',
+            'value' => function ($entry) {
+                return status_badge($entry->status);
+            },
         ]);
 
         CRUD::addColumn([
@@ -172,6 +196,16 @@ class CashierExpenseCrudController extends CrudController
         ]);
 
         CRUD::addFilter([
+            'name' => 'status',
+            'type' => 'select2',
+            'label' => __('cashier_expense.status'),
+        ], function () {
+            return CashierExpense::statuses();
+        }, function ($value) {
+            $this->crud->addClause('where', 'status', $value);
+        });
+
+        CRUD::addFilter([
             'name' => 'type',
             'type' => 'select2',
             'label' => __('cashier_expense.type'),
@@ -242,6 +276,16 @@ class CashierExpenseCrudController extends CrudController
         ]);
         // Filename is versioned so browsers pick up fixes (Basset cache-busts via composer.lock only).
         Widget::add()->type('script')->content('assets/js/cashier-expense-supplier-v4.js');
+
+        CRUD::addField([
+            'name' => 'status',
+            'label' => __('cashier_expense.status'),
+            'type' => 'select_from_array',
+            'options' => CashierExpense::statuses(),
+            'allows_null' => false,
+            'default' => CashierExpense::STATUS_DRAFT,
+            'hint' => __('cashier_expense.hints.status'),
+        ]);
 
         CRUD::addField([
             'name' => 'type',
@@ -417,6 +461,19 @@ class CashierExpenseCrudController extends CrudController
         }
     }
 
+    protected function setupShowOperation(): void
+    {
+        $this->autoSetupShowOperation();
+
+        // The auto-generated columns come from the DB, so status would print the
+        // raw 'draft'/'confirmed' value; show the translated label instead.
+        CRUD::modifyColumn('status', [
+            'label' => __('cashier_expense.status'),
+            'type' => 'select_from_array',
+            'options' => CashierExpense::statuses(),
+        ]);
+    }
+
     /**
      * Include expenses whose category is the selected node or any descendant.
      */
@@ -472,10 +529,14 @@ class CashierExpenseCrudController extends CrudController
 
     /**
      * Compute the filter-aware summary totals.
+     *
+     * Confirmed expenses only: a draft counts nowhere until it is confirmed, so
+     * these totals can differ from the sum of the rows currently listed (the
+     * widget says so).
      */
     protected function calculateExpenseStats(): array
     {
-        $query = $this->applyExpenseFilters(CashierExpense::query());
+        $query = $this->applyExpenseFilters(CashierExpense::query()->confirmed());
 
         return [
             'totalAmount' => (float) (clone $query)->sum('amount_gel'),

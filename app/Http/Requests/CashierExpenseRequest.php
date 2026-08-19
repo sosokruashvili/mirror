@@ -19,6 +19,7 @@ class CashierExpenseRequest extends FormRequest
     {
         return [
             'type' => ['required', Rule::in(array_keys(CashierExpense::types()))],
+            'status' => ['required', Rule::in(array_keys(CashierExpense::statuses()))],
             'category_id' => [
                 'required',
                 'integer',
@@ -126,6 +127,7 @@ class CashierExpenseRequest extends FormRequest
     {
         return [
             'type' => __('cashier_expense.attributes.type'),
+            'status' => __('cashier_expense.attributes.status'),
             'category_id' => __('cashier_expense.attributes.category'),
             'supplier_id' => __('cashier_expense.attributes.supplier'),
             'product_id' => __('cashier_expense.attributes.product'),

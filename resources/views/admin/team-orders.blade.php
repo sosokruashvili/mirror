@@ -3,7 +3,11 @@
 @section('content')
 @php
     $isTeamUser = backpack_user() && backpack_user()->hasRole('team');
-    $dragStorageKey = 'teamOrdersGridOrder:v1:' . (backpack_user()->id ?? 'guest') . ':p' . (int) request()->query('page', 1);
+    $sort = $sort ?? 'newest';
+    // Sort is part of the key so a manual drag order saved under one sort mode
+    // does not scramble the cards after switching to another one.
+    $dragStorageKey = 'teamOrdersGridOrder:v1:' . (backpack_user()->id ?? 'guest')
+        . ':p' . (int) request()->query('page', 1) . ':s' . $sort;
     $showArchived = $showArchived ?? false;
     $dateFrom = $dateFrom ?? request()->query('from');
     $dateTo = $dateTo ?? request()->query('to');
@@ -198,6 +202,7 @@
     .order-actions {
         display: flex;
         flex-wrap: wrap;
+        align-items: center;
         gap: 6px;
         margin-top: 8px;
         touch-action: manipulation;
@@ -235,7 +240,15 @@
         min-height: 44px;
         touch-action: manipulation;
     }
-    
+
+    /* The due tag sits beside 13px buttons here, so it runs a step larger than
+       the same tag in the orders list column. */
+    .order-actions .order-due-days-tag {
+        font-size: 0.8rem;
+        padding: 0.35em 0.8em;
+        min-width: 3.75rem;
+    }
+
     .created-at {
         font-size: clamp(11px, 5cqw, 14px);
         color: #333;
@@ -766,6 +779,10 @@
                 <input type="hidden" name="view" value="archived" />
             @endif
 
+            {{-- Date range filter hidden for now. To bring it back, uncomment
+                 this block and restore the 'from'/'to' picks in
+                 TeamOrderController::resolveFilters(). --}}
+            {{--
             <div>
                 <label class="form-label mb-1 text-light">From</label>
                 <input type="date" class="form-control" name="from" value="{{ $dateFrom }}" />
@@ -775,6 +792,7 @@
                 <label class="form-label mb-1 text-light">To</label>
                 <input type="date" class="form-control" name="to" value="{{ $dateTo }}" />
             </div>
+            --}}
 
             <div>
                 <label class="form-label mb-1 text-light">პროდუქცია</label>
@@ -848,6 +866,15 @@
                     @foreach($clients as $client)
                         <option value="{{ $client->id }}" {{ $clientFilter == $client->id ? 'selected' : '' }}>{{ $client->name }}</option>
                     @endforeach
+                </select>
+            </div>
+
+            <div>
+                <label class="form-label mb-1 text-light">დახარისხება</label>
+                <select class="form-select" name="sort" style="width: 200px;" autocomplete="off">
+                    <option value="newest" {{ $sort === 'newest' ? 'selected' : '' }}>ახალი ჯერ</option>
+                    <option value="due_soon" {{ $sort === 'due_soon' ? 'selected' : '' }}>დარჩენილი დღე ↑ (სასწრაფო)</option>
+                    <option value="due_late" {{ $sort === 'due_late' ? 'selected' : '' }}>დარჩენილი დღე ↓</option>
                 </select>
             </div>
 
@@ -1025,6 +1052,9 @@
                             </div>
                             
                             <div class="order-actions">
+                                {{-- Due-date urgency sits first so it stays in the same
+                                     spot no matter which action buttons the card has. --}}
+                                {!! order_due_date_tag($order) !!}
                                 @if($showArchived)
                                 <button type="button" class="btn btn-danger btn-archive" onclick="unarchiveOrder({{ $order->id }})">
                                     დეარქივაცია
@@ -1167,6 +1197,8 @@
 
 @push('after_styles')
     @basset('https://cdn.jsdelivr.net/npm/select2@4.0.13/dist/css/select2.min.css')
+    {{-- Shared due-date urgency styles (dot, days-left tag, urgent blink) --}}
+    @include('vendor.backpack.crud.widgets.order_due_progress_styles')
 @endpush
 
 @push('after_scripts')

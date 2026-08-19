@@ -15,6 +15,12 @@ use Prologue\Alerts\Facades\Alert;
 class TeamOrderController extends Controller
 {
     /**
+     * The sort modes the team page offers, in the order they appear in the
+     * sort dropdown. The first one is the default.
+     */
+    public const SORT_MODES = ['newest', 'due_soon', 'due_late'];
+
+    /**
      * @return \Illuminate\Http\JsonResponse|\Illuminate\Http\RedirectResponse|null
      */
     private function rejectIfArchived(Order $order, Request $request)
@@ -78,6 +84,7 @@ class TeamOrderController extends Controller
             'stage' => $stageFilter,
             'current_stage' => $currentStageFilter,
             'client' => $clientFilter,
+            'sort' => $sort,
         ] = $this->resolveFilters($request);
 
         $activeFilters = [
@@ -88,6 +95,7 @@ class TeamOrderController extends Controller
             'stage' => $stageFilter,
             'current_stage' => $currentStageFilter,
             'client' => $clientFilter,
+            'sort' => $sort,
         ];
 
         // Persist the just-applied filters for this user.
@@ -160,8 +168,7 @@ class TeamOrderController extends Controller
             'services',
             'pieces' => fn ($q) => $q->withCount('brokenGlasses')->with('stages')->orderBy('id'),
         ])
-            ->whereNotIn('status', ['draft', 'finished'])
-            ->orderBy('created_at', 'desc');
+            ->whereNotIn('status', ['draft', 'finished']);
 
         if ($showArchived) {
             $ordersQuery->whereNotNull('archived_at');
@@ -179,12 +186,14 @@ class TeamOrderController extends Controller
             'to' => $dateTo,
         ]);
 
+        $this->applyOrderSort($ordersQuery, $sort);
+
         // Paginate at 32 cards per page. withQueryString() keeps the active
         // filter query string on every pagination link so paging never drops
         // the applied filters.
         $orders = $ordersQuery->paginate(32)->withQueryString();
 
-        return view('admin.team-orders', compact('orders', 'showArchived', 'productTypes', 'productTypeFilter', 'services', 'serviceFilter', 'stages', 'stageFilter', 'currentStageFilter', 'clients', 'clientFilter', 'dateFrom', 'dateTo', 'canRestoreFilters'));
+        return view('admin.team-orders', compact('orders', 'showArchived', 'productTypes', 'productTypeFilter', 'services', 'serviceFilter', 'stages', 'stageFilter', 'currentStageFilter', 'clients', 'clientFilter', 'dateFrom', 'dateTo', 'canRestoreFilters', 'sort'));
     }
 
     /**
@@ -212,11 +221,13 @@ class TeamOrderController extends Controller
 
         $this->applyOrderFilters($ordersQuery, $filters);
 
-        // Mirror the index page's ordering and 32-per-page pagination so the
+        // Mirror the index page's sorting and 32-per-page pagination so the
         // poll compares against the SAME set of orders the current page shows.
         // Comparing against every matching order would report every card on the
         // other pages as "new" and reload the page endlessly.
-        $page = $ordersQuery->orderBy('created_at', 'desc')->paginate(32);
+        $this->applyOrderSort($ordersQuery, $filters['sort']);
+
+        $page = $ordersQuery->paginate(32);
 
         return response()->json([
             'ids' => $page->pluck('id'),
@@ -227,7 +238,7 @@ class TeamOrderController extends Controller
      * Resolve the active team-order filters from the request, falling back to
      * the user's saved filters when the filter form was not just submitted.
      *
-     * @return array{applied:bool,from:?string,to:?string,product_type:array,service:array,stage:array,current_stage:array,client:mixed}
+     * @return array{applied:bool,from:?string,to:?string,product_type:array,service:array,stage:array,current_stage:array,client:mixed,sort:string}
      */
     private function resolveFilters(Request $request): array
     {
@@ -249,15 +260,21 @@ class TeamOrderController extends Controller
             return array_values(array_filter($value, fn ($v) => $v !== '' && $v !== null));
         };
 
+        // The From/To date range filter is hidden on the team orders page (its
+        // inputs are commented out in the blade). Forcing both to null here
+        // also keeps a previously saved from/to from filtering invisibly.
+        // To bring the filter back: uncomment the inputs in the blade and
+        // restore the two $pick() calls below.
         return [
             'applied' => $applied,
-            'from' => $pick('from', null),
-            'to' => $pick('to', null),
+            'from' => null, // $pick('from', null),
+            'to' => null, // $pick('to', null),
             'product_type' => $normalizeArray($pick('product_type', [])),
             'service' => $normalizeArray($pick('service', [])),
             'stage' => $normalizeArray($pick('stage', [])),
             'current_stage' => $normalizeArray($pick('current_stage', [])),
             'client' => $pick('client', 'all'),
+            'sort' => $this->normalizeSort($pick('sort', null)),
         ];
     }
 
@@ -282,6 +299,7 @@ class TeamOrderController extends Controller
             'stage' => $normalizeList($filters['stage'] ?? []),
             'current_stage' => $normalizeList($filters['current_stage'] ?? []),
             'client' => (string) (($filters['client'] ?? 'all') ?: 'all'),
+            'sort' => $this->normalizeSort($filters['sort'] ?? null),
         ];
     }
 
@@ -291,6 +309,43 @@ class TeamOrderController extends Controller
     private function isEmptyFilterState(array $filters): bool
     {
         return $this->normalizeFilterState($filters) == $this->normalizeFilterState([]);
+    }
+
+    /**
+     * Coerce a sort value coming from the request or from saved filters into a
+     * known mode, falling back to the default.
+     */
+    private function normalizeSort($sort): string
+    {
+        $sort = is_string($sort) ? $sort : '';
+
+        return in_array($sort, self::SORT_MODES, true) ? $sort : self::SORT_MODES[0];
+    }
+
+    /**
+     * Apply a sort mode to an order query.
+     *
+     * "due_soon"/"due_late" sort by days left, which is just the due date —
+     * orders without one always land at the end so they never push urgent
+     * cards down. created_at breaks ties so paging stays stable.
+     */
+    private function applyOrderSort($ordersQuery, $sort): void
+    {
+        switch ($this->normalizeSort($sort)) {
+            case 'due_soon':
+                $ordersQuery->orderByRaw('due_date is null, due_date asc')
+                    ->orderBy('created_at', 'desc');
+                break;
+
+            case 'due_late':
+                $ordersQuery->orderByRaw('due_date is null, due_date desc')
+                    ->orderBy('created_at', 'desc');
+                break;
+
+            default:
+                $ordersQuery->orderBy('created_at', 'desc');
+                break;
+        }
     }
 
     /**

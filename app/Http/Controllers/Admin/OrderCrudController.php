@@ -555,12 +555,11 @@ class OrderCrudController extends CrudController
         ]);
 
         // Hidden on create: new orders always start as draft. Made a visible select on edit
-        // (see setupUpdateOperation).
+        // (see setupUpdateOperation). Do not hardcode `value` — it would stick on edit.
         CRUD::addField([
             'name' => 'status',
             'type' => 'hidden',
             'default' => 'draft',
-            'value' => 'draft',
         ]);
 
         CRUD::addField([
@@ -662,12 +661,12 @@ class OrderCrudController extends CrudController
         ]);
 
         // Status is hidden on create (always draft); make it a visible, editable select on edit.
+        $this->crud->removeFieldAttribute('status', 'value');
         $this->crud->modifyField('status', [
             'label' => __('order.status'),
             'type' => 'select_from_array',
             'options' => Arr::only(__('status'), ['draft', 'new', 'working', 'ready', 'finished']),
             'allows_null' => false,
-            'default' => 'draft',
         ]);
 
         // Populate products data for editing

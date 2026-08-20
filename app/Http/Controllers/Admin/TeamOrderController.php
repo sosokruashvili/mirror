@@ -37,7 +37,43 @@ class TeamOrderController extends Controller
 
         Alert::error($message)->flash();
 
-        return redirect()->route('team.orders', ['view' => 'archived']);
+        return redirect()->route('team.orders', $this->returnQuery($request, true));
+    }
+
+    /**
+     * The page number the user was looking at when they fired an action.
+     *
+     * The POST forms on the team page send it along as a hidden `page` field;
+     * anything that predates that (or a plain link) is recovered from the
+     * referring URL instead.
+     */
+    private function currentPageFrom(Request $request): int
+    {
+        $page = (int) $request->input('page', 0);
+
+        if ($page < 1 && ($referer = $request->headers->get('referer'))) {
+            parse_str((string) parse_url($referer, PHP_URL_QUERY), $params);
+            $page = (int) ($params['page'] ?? 0);
+        }
+
+        return max(1, $page);
+    }
+
+    /**
+     * Query parameters that send the user back where they were: the same view
+     * and the same page. Without the page, handling a card on page 3 would
+     * bounce the whole team back to page 1 after every action.
+     */
+    private function returnQuery(Request $request, bool $archived = false): array
+    {
+        $query = $archived ? ['view' => 'archived'] : [];
+
+        $page = $this->currentPageFrom($request);
+        if ($page > 1) {
+            $query['page'] = $page;
+        }
+
+        return $query;
     }
 
     /**
@@ -189,6 +225,13 @@ class TeamOrderController extends Controller
         // filter query string on every pagination link so paging never drops
         // the applied filters.
         $orders = $ordersQuery->paginate(32)->withQueryString();
+
+        // Finishing or archiving cards can shrink the result set below the page
+        // the user is standing on. Land them on the last page that still has
+        // cards rather than on an empty grid.
+        if ($orders->total() > 0 && $orders->currentPage() > $orders->lastPage()) {
+            return redirect()->to($request->fullUrlWithQuery(['page' => $orders->lastPage()]));
+        }
 
         return view('admin.team-orders', compact('orders', 'showArchived', 'productTypes', 'productTypeFilter', 'services', 'serviceFilter', 'stages', 'stageFilter', 'clients', 'clientFilter', 'dateFrom', 'dateTo', 'canRestoreFilters', 'sort'));
     }
@@ -452,14 +495,14 @@ class TeamOrderController extends Controller
             }
 
             Alert::success('Order #' . $order->id . ' has been archived.')->flash();
-            return redirect()->route('team.orders');
+            return redirect()->route('team.orders', $this->returnQuery($request));
         } catch (\Exception $e) {
             if ($request->ajax() || $request->wantsJson()) {
                 return response()->json(['success' => false, 'message' => $e->getMessage()], 422);
             }
 
             Alert::error('Failed to archive order: ' . $e->getMessage())->flash();
-            return redirect()->route('team.orders');
+            return redirect()->route('team.orders', $this->returnQuery($request));
         }
     }
 
@@ -476,14 +519,14 @@ class TeamOrderController extends Controller
             }
 
             Alert::success('Order #' . $order->id . ' has been unarchived.')->flash();
-            return redirect()->route('team.orders', ['view' => 'archived']);
+            return redirect()->route('team.orders', $this->returnQuery($request, true));
         } catch (\Exception $e) {
             if ($request->ajax() || $request->wantsJson()) {
                 return response()->json(['success' => false, 'message' => $e->getMessage()], 422);
             }
 
             Alert::error('Failed to unarchive order: ' . $e->getMessage())->flash();
-            return redirect()->route('team.orders', ['view' => 'archived']);
+            return redirect()->route('team.orders', $this->returnQuery($request, true));
         }
     }
 
@@ -516,7 +559,7 @@ class TeamOrderController extends Controller
             if (!OrderPieceStatusSync::piecesReadyForFinish($order)) {
                 Alert::error('Order #' . $order->id . ' cannot be marked as finished: not every piece has reached the დასრულება stage.')->flash();
 
-                return redirect()->route('team.orders');
+                return redirect()->route('team.orders', $this->returnQuery($request));
             }
 
             $comment = trim((string) ($data['finish_comment'] ?? ''));
@@ -537,10 +580,10 @@ class TeamOrderController extends Controller
             // Flash success message using Backpack's Alert system
             Alert::success('Order #' . $order->id . ' has been marked as finished.')->flash();
             
-            return redirect()->route('team.orders');
+            return redirect()->route('team.orders', $this->returnQuery($request));
         } catch (\Exception $e) {
             Alert::error('Failed to finish order: ' . $e->getMessage())->flash();
-            return redirect()->route('team.orders');
+            return redirect()->route('team.orders', $this->returnQuery($request));
         }
     }
 

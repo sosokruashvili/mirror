@@ -1391,6 +1391,27 @@ jQuery(function($) {
 @endif
 
 <script>
+    // The page the server actually rendered. Every self-triggered reload goes
+    // through teamPageUrl() so an action taken on a card on page 3 comes back
+    // to page 3 instead of dumping the user on the first page.
+    var TEAM_CURRENT_PAGE = {{ (int) $orders->currentPage() }};
+
+    function teamPageUrl() {
+        var url = new URL(window.location.href);
+        if (TEAM_CURRENT_PAGE > 1) {
+            url.searchParams.set('page', TEAM_CURRENT_PAGE);
+        } else {
+            url.searchParams.delete('page');
+        }
+        return url.toString();
+    }
+
+    // replace() rather than assign(): a reload is not a navigation, so it should
+    // not add a history entry the back button has to walk through.
+    function reloadTeamPage() {
+        window.location.replace(teamPageUrl());
+    }
+
     function previewOrder(url, pieceCount) {
         var overlay = document.getElementById('orderPreviewOverlay');
         var dialog = document.getElementById('orderPreviewDialog');
@@ -1567,7 +1588,7 @@ jQuery(function($) {
 
     function reloadTeamPageIfStatusUpdated(success, errorMessage) {
         if (success) {
-            window.location.reload();
+            reloadTeamPage();
             return;
         }
         if (errorMessage) {
@@ -1827,6 +1848,8 @@ jQuery(function($) {
         commentInput.value = comment || '';
         form.appendChild(commentInput);
 
+        form.appendChild(teamPageInput());
+
         document.body.appendChild(form);
         form.submit();
     }
@@ -1853,8 +1876,20 @@ jQuery(function($) {
         csrfInput.value = token;
         form.appendChild(csrfInput);
 
+        form.appendChild(teamPageInput());
+
         document.body.appendChild(form);
         form.submit();
+    }
+
+    // The POSTs below redirect back to the list, so they tell the server which
+    // page to come back to.
+    function teamPageInput() {
+        const input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = 'page';
+        input.value = TEAM_CURRENT_PAGE;
+        return input;
     }
 
     function archiveOrderAjax(orderId, $card, callback) {
@@ -1902,7 +1937,9 @@ jQuery(function($) {
         var POLL_INTERVAL = 10000; // ms
 
         var checkUrl = '{{ route('team.orders.check') }}';
-        var search = window.location.search; // preserves applied filters (?applied=1&stage[]=...)
+        // Preserves applied filters (?applied=1&stage[]=...) and the current page,
+        // so the poll compares against the cards this page is showing.
+        var search = new URL(teamPageUrl()).search;
         var pollUrl = checkUrl + (search ? search : '');
 
         // --- Notification chime (Web Audio API; no external sound file) ------
@@ -2018,7 +2055,7 @@ jQuery(function($) {
                     // Chime first, then reload — the reload would otherwise cut
                     // the sound off before it is audible.
                     playNotification();
-                    setTimeout(function() { window.location.reload(); }, 1500);
+                    setTimeout(reloadTeamPage, 1500);
                 }
             })
             .catch(function() { /* transient network error — try again next tick */ });

@@ -78,6 +78,7 @@ class RoleSeeder extends Seeder
                 'piece'   => ['list', 'update'],
                 'product' => ['list', 'show'],
                 'service' => ['list', 'show'],
+                'cashier-expense' => ['list', 'create', 'update', 'show'],
             ],
             'viewer'    => $readOnly,
             'team'      => [

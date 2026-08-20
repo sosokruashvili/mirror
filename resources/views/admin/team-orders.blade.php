@@ -23,10 +23,6 @@
     if (!is_array($stageFilter)) {
         $stageFilter = $stageFilter === 'all' ? [] : [$stageFilter];
     }
-    $currentStageFilter = $currentStageFilter ?? [];
-    if (!is_array($currentStageFilter)) {
-        $currentStageFilter = $currentStageFilter === 'all' ? [] : [$currentStageFilter];
-    }
     $clientFilter = $clientFilter ?? 'all';
     $canRestoreFilters = $canRestoreFilters ?? false;
     $productTypes = $productTypes ?? collect();
@@ -55,9 +51,6 @@
     }
     if (!empty($stageFilter)) {
         $toggleQuery['stage'] = $stageFilter;
-    }
-    if (!empty($currentStageFilter)) {
-        $toggleQuery['current_stage'] = $currentStageFilter;
     }
 @endphp
 <style>
@@ -701,6 +694,18 @@
         flex-shrink: 0;
     }
 
+    .team-date-range {
+        width: 260px;
+        max-width: 100%;
+    }
+    .team-date-range .form-control {
+        min-width: 0;
+        cursor: pointer;
+    }
+    .daterangepicker.dropdown-menu {
+        z-index: 3001 !important;
+    }
+
     #clientFilterSelect + .select2-container {
         width: 240px !important;
     }
@@ -779,20 +784,65 @@
                 <input type="hidden" name="view" value="archived" />
             @endif
 
-            {{-- Date range filter hidden for now. To bring it back, uncomment
-                 this block and restore the 'from'/'to' picks in
-                 TeamOrderController::resolveFilters(). --}}
-            {{--
-            <div>
-                <label class="form-label mb-1 text-light">From</label>
-                <input type="date" class="form-control" name="from" value="{{ $dateFrom }}" />
-            </div>
+            @php
+                $dateRangeNow = \Illuminate\Support\Carbon::now();
+                $dateRangeOptions = [
+                    'timePicker' => false,
+                    'alwaysShowCalendars' => true,
+                    'autoUpdateInput' => false,
+                    'startDate' => $dateRangeNow->copy()->startOfDay()->toDateTimeString(),
+                    'endDate' => $dateRangeNow->copy()->endOfDay()->toDateTimeString(),
+                    'ranges' => [
+                        trans('backpack::crud.today') => [$dateRangeNow->copy()->startOfDay()->toDateTimeString(), $dateRangeNow->copy()->endOfDay()->toDateTimeString()],
+                        trans('backpack::crud.yesterday') => [$dateRangeNow->copy()->subDay()->startOfDay()->toDateTimeString(), $dateRangeNow->copy()->subDay()->endOfDay()->toDateTimeString()],
+                        trans('backpack::crud.last_7_days') => [$dateRangeNow->copy()->subDays(6)->startOfDay()->toDateTimeString(), $dateRangeNow->copy()->toDateTimeString()],
+                        trans('backpack::crud.last_30_days') => [$dateRangeNow->copy()->subDays(29)->startOfDay()->toDateTimeString(), $dateRangeNow->copy()->toDateTimeString()],
+                        trans('backpack::crud.this_month') => [$dateRangeNow->copy()->startOfMonth()->toDateTimeString(), $dateRangeNow->copy()->endOfMonth()->toDateTimeString()],
+                        trans('backpack::crud.last_month') => [$dateRangeNow->copy()->subMonthNoOverflow()->startOfMonth()->toDateTimeString(), $dateRangeNow->copy()->subMonthNoOverflow()->endOfMonth()->toDateTimeString()],
+                    ],
+                    'locale' => [
+                        'firstDay' => 0,
+                        'format' => config('backpack.ui.default_date_format'),
+                        'applyLabel' => trans('backpack::crud.apply'),
+                        'cancelLabel' => trans('backpack::crud.cancel'),
+                        'customRangeLabel' => trans('backpack::crud.custom_range'),
+                    ],
+                ];
 
+                foreach (['from' => $dateFrom, 'to' => $dateTo] as $bound => $rawDate) {
+                    if (!is_string($rawDate) || $rawDate === '') {
+                        continue;
+                    }
+                    try {
+                        $parsed = \Illuminate\Support\Carbon::parse($rawDate);
+                        $dateRangeOptions[$bound === 'from' ? 'startDate' : 'endDate'] = $bound === 'from'
+                            ? $parsed->startOfDay()->toDateTimeString()
+                            : $parsed->endOfDay()->toDateTimeString();
+                    } catch (\Throwable $e) {
+                        // Keep the picker usable if a saved date is invalid.
+                    }
+                }
+            @endphp
             <div>
-                <label class="form-label mb-1 text-light">To</label>
-                <input type="date" class="form-control" name="to" value="{{ $dateTo }}" />
+                <label class="form-label mb-1 text-light">პერიოდი</label>
+                <div class="input-group team-date-range">
+                    <span class="input-group-text"><i class="la la-calendar"></i></span>
+                    <input
+                        class="form-control"
+                        id="teamDateRange"
+                        type="text"
+                        readonly
+                        placeholder="ყველა"
+                        autocomplete="off"
+                        data-bs-daterangepicker="{{ json_encode($dateRangeOptions) }}"
+                    >
+                    <button type="button" class="input-group-text" id="teamDateRangeClear" title="გასუფთავება">
+                        <i class="la la-times"></i>
+                    </button>
+                </div>
+                <input type="hidden" name="from" id="teamDateFrom" value="{{ $dateFrom }}">
+                <input type="hidden" name="to" id="teamDateTo" value="{{ $dateTo }}">
             </div>
-            --}}
 
             <div>
                 <label class="form-label mb-1 text-light">პროდუქცია</label>
@@ -840,21 +890,6 @@
                             <input type="checkbox" name="stage[]" value="__none__" {{ in_array('__none__', $stageFilter) ? 'checked' : '' }}>
                             ეტაპის გარეშე
                         </label>
-                    </div>
-                </div>
-            </div>
-
-            <div>
-                <label class="form-label mb-1 text-light">მიმდინარე ეტაპი</label>
-                <div class="checkbox-dropdown" id="currentStageDropdown">
-                    <div class="checkbox-dropdown-toggle" id="currentStageDropdownToggle">ყველა</div>
-                    <div class="checkbox-dropdown-menu">
-                        @foreach($stages as $stage)
-                        <label>
-                            <input type="checkbox" name="current_stage[]" value="{{ $stage->name }}" {{ in_array($stage->name, $currentStageFilter) ? 'checked' : '' }}>
-                            {{ $stage->title }}
-                        </label>
-                        @endforeach
                     </div>
                 </div>
             </div>
@@ -1197,12 +1232,74 @@
 
 @push('after_styles')
     @basset('https://cdn.jsdelivr.net/npm/select2@4.0.13/dist/css/select2.min.css')
+    @basset('https://cdn.jsdelivr.net/npm/bootstrap-daterangepicker@3.1.0/daterangepicker.css')
     {{-- Shared due-date urgency styles (dot, days-left tag, urgent blink) --}}
     @include('vendor.backpack.crud.widgets.order_due_progress_styles')
 @endpush
 
 @push('after_scripts')
     @basset('https://cdn.jsdelivr.net/npm/select2@4.0.13/dist/js/select2.full.min.js')
+    @basset('https://cdn.jsdelivr.net/npm/moment@2.29.4/min/moment-with-locales.min.js')
+    @basset('https://cdn.jsdelivr.net/npm/bootstrap-daterangepicker@3.1.0/daterangepicker.js')
+<script>
+jQuery(function($) {
+    if (!$.fn.daterangepicker) return;
+
+    moment.locale(@json(app()->getLocale()));
+
+    var $input = $('#teamDateRange');
+    var $from = $('#teamDateFrom');
+    var $to = $('#teamDateTo');
+    if (!$input.length) return;
+
+    var format = @json(config('backpack.ui.default_date_format'));
+    var config = $input.data('bs-daterangepicker') || {};
+    var ranges = config.ranges || {};
+    config.ranges = {};
+    for (var key in ranges) {
+        if (Object.prototype.hasOwnProperty.call(ranges, key)) {
+            config.ranges[key] = $.map(ranges[key], function(val) {
+                return moment(val);
+            });
+        }
+    }
+
+    if (config.startDate) {
+        config.startDate = moment(config.startDate);
+    }
+    if (config.endDate) {
+        config.endDate = moment(config.endDate);
+    }
+
+    $input.daterangepicker(config);
+
+    function fillDisplay(fromVal, toVal) {
+        if (!fromVal && !toVal) {
+            $input.val('');
+            return;
+        }
+        var start = moment(fromVal || toVal);
+        var end = moment(toVal || fromVal);
+        $input.val(start.format(format) + ' - ' + end.format(format));
+    }
+
+    fillDisplay($from.val(), $to.val());
+
+    $input.on('apply.daterangepicker', function(ev, picker) {
+        $from.val(picker.startDate.format('YYYY-MM-DD'));
+        $to.val(picker.endDate.format('YYYY-MM-DD'));
+        $input.val(picker.startDate.format(format) + ' - ' + picker.endDate.format(format));
+    });
+
+    $('#teamDateRangeClear').on('click', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        $from.val('');
+        $to.val('');
+        $input.val('');
+    });
+});
+</script>
 <script>
 jQuery(function($) {
     var clientSelect = document.getElementById('clientFilterSelect');
@@ -1262,7 +1359,6 @@ jQuery(function($) {
     initCheckboxDropdown('productTypeDropdown', 'productTypeDropdownToggle');
     initCheckboxDropdown('serviceDropdown', 'serviceDropdownToggle');
     initCheckboxDropdown('stageDropdown', 'stageDropdownToggle');
-    initCheckboxDropdown('currentStageDropdown', 'currentStageDropdownToggle');
 
     document.addEventListener('click', function() {
         document.querySelectorAll('.checkbox-dropdown.open').forEach(function(dd) {

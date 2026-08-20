@@ -82,7 +82,6 @@ class TeamOrderController extends Controller
             'product_type' => $productTypeFilter,
             'service' => $serviceFilter,
             'stage' => $stageFilter,
-            'current_stage' => $currentStageFilter,
             'client' => $clientFilter,
             'sort' => $sort,
         ] = $this->resolveFilters($request);
@@ -93,7 +92,6 @@ class TeamOrderController extends Controller
             'product_type' => $productTypeFilter,
             'service' => $serviceFilter,
             'stage' => $stageFilter,
-            'current_stage' => $currentStageFilter,
             'client' => $clientFilter,
             'sort' => $sort,
         ];
@@ -180,7 +178,6 @@ class TeamOrderController extends Controller
             'product_type' => $productTypeFilter,
             'service' => $serviceFilter,
             'stage' => $stageFilter,
-            'current_stage' => $currentStageFilter,
             'client' => $clientFilter,
             'from' => $dateFrom,
             'to' => $dateTo,
@@ -193,7 +190,7 @@ class TeamOrderController extends Controller
         // the applied filters.
         $orders = $ordersQuery->paginate(32)->withQueryString();
 
-        return view('admin.team-orders', compact('orders', 'showArchived', 'productTypes', 'productTypeFilter', 'services', 'serviceFilter', 'stages', 'stageFilter', 'currentStageFilter', 'clients', 'clientFilter', 'dateFrom', 'dateTo', 'canRestoreFilters', 'sort'));
+        return view('admin.team-orders', compact('orders', 'showArchived', 'productTypes', 'productTypeFilter', 'services', 'serviceFilter', 'stages', 'stageFilter', 'clients', 'clientFilter', 'dateFrom', 'dateTo', 'canRestoreFilters', 'sort'));
     }
 
     /**
@@ -238,7 +235,7 @@ class TeamOrderController extends Controller
      * Resolve the active team-order filters from the request, falling back to
      * the user's saved filters when the filter form was not just submitted.
      *
-     * @return array{applied:bool,from:?string,to:?string,product_type:array,service:array,stage:array,current_stage:array,client:mixed,sort:string}
+     * @return array{applied:bool,from:?string,to:?string,product_type:array,service:array,stage:array,client:mixed,sort:string}
      */
     private function resolveFilters(Request $request): array
     {
@@ -260,19 +257,13 @@ class TeamOrderController extends Controller
             return array_values(array_filter($value, fn ($v) => $v !== '' && $v !== null));
         };
 
-        // The From/To date range filter is hidden on the team orders page (its
-        // inputs are commented out in the blade). Forcing both to null here
-        // also keeps a previously saved from/to from filtering invisibly.
-        // To bring the filter back: uncomment the inputs in the blade and
-        // restore the two $pick() calls below.
         return [
             'applied' => $applied,
-            'from' => null, // $pick('from', null),
-            'to' => null, // $pick('to', null),
+            'from' => $pick('from', null),
+            'to' => $pick('to', null),
             'product_type' => $normalizeArray($pick('product_type', [])),
             'service' => $normalizeArray($pick('service', [])),
             'stage' => $normalizeArray($pick('stage', [])),
-            'current_stage' => $normalizeArray($pick('current_stage', [])),
             'client' => $pick('client', 'all'),
             'sort' => $this->normalizeSort($pick('sort', null)),
         ];
@@ -297,7 +288,6 @@ class TeamOrderController extends Controller
             'product_type' => $normalizeList($filters['product_type'] ?? []),
             'service' => $normalizeList($filters['service'] ?? []),
             'stage' => $normalizeList($filters['stage'] ?? []),
-            'current_stage' => $normalizeList($filters['current_stage'] ?? []),
             'client' => (string) (($filters['client'] ?? 'all') ?: 'all'),
             'sort' => $this->normalizeSort($filters['sort'] ?? null),
         ];
@@ -358,7 +348,6 @@ class TeamOrderController extends Controller
         $productTypeFilter = $filters['product_type'] ?? [];
         $serviceFilter = $filters['service'] ?? [];
         $stageFilter = $filters['stage'] ?? [];
-        $currentStageFilter = $filters['current_stage'] ?? [];
         $clientFilter = $filters['client'] ?? 'all';
         $dateFrom = $filters['from'] ?? null;
         $dateTo = $filters['to'] ?? null;
@@ -416,34 +405,6 @@ class TeamOrderController extends Controller
 
                     if ($wantsNoStage) {
                         $pq->orWhereDoesntHave('services');
-                    }
-                });
-            });
-        }
-
-        if (!empty($currentStageFilter)) {
-            // Show orders containing a piece whose CURRENT stage (its highest
-            // completed stage) is one of the selected stages. A piece's current
-            // stage is $slug when it has completed $slug but has completed
-            // nothing beyond it (no completed stage of a higher position).
-            $stagePositions = \App\Models\Stage::pluck('position', 'name');
-
-            $ordersQuery->whereHas('pieces', function ($pieceQ) use ($currentStageFilter, $stagePositions) {
-                $pieceQ->where(function ($pq) use ($currentStageFilter, $stagePositions) {
-                    foreach ($currentStageFilter as $slug) {
-                        if (!isset($stagePositions[$slug])) {
-                            continue;
-                        }
-
-                        $position = $stagePositions[$slug];
-
-                        $pq->orWhere(function ($p) use ($slug, $position) {
-                            $p->whereHas('stages', function ($stageQ) use ($slug) {
-                                $stageQ->where('stages.name', $slug);
-                            })->whereDoesntHave('stages', function ($stageQ) use ($position) {
-                                $stageQ->where('stages.position', '>', $position);
-                            });
-                        });
                     }
                 });
             });

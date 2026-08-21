@@ -819,6 +819,26 @@ class OrderCrudController extends CrudController
             'limit' => 1000,
         ]);
 
+        // Uploaded file (stored on the public disk by Order::setAtachmentAttribute()).
+        // Names on disk are hashed, so the link is labelled by file type instead.
+        CRUD::addColumn([
+            'name' => 'atachment',
+            'label' => __('order.attachment'),
+            'type' => 'custom_html',
+            'value' => function ($entry) {
+                if (blank($entry->atachment)) {
+                    return '<span class="text-muted">&mdash;</span>';
+                }
+
+                $url = asset('storage/' . $entry->atachment);
+                $extension = strtoupper(pathinfo($entry->atachment, PATHINFO_EXTENSION));
+                $label = __('order.attachment') . ($extension ? ' (' . $extension . ')' : '');
+
+                return '<a href="' . e($url) . '" target="_blank" class="btn btn-sm btn-outline-secondary">'
+                    . '<i class="la la-file-download"></i> ' . e($label) . '</a>';
+            }
+        ]);
+
         CRUD::addColumn([
             'name' => 'order_type',
             'label' => __('order.order_type'),

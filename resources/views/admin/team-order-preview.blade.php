@@ -173,8 +173,30 @@
 			flex: 1 1 auto;
 		}
 
-		.btn-order-comment {
+		.order-info-actions {
 			margin-left: auto;
+			display: flex;
+			flex-wrap: wrap;
+			align-items: center;
+			gap: 8px;
+		}
+
+		.btn-order-attachment {
+			background-color: #e67e22;
+			border-color: #e67e22;
+			color: #fff;
+			font-size: 13px;
+			font-weight: 600;
+			padding: 6px 14px;
+		}
+
+		.btn-order-attachment:hover {
+			background-color: #d35400;
+			border-color: #d35400;
+			color: #fff;
+		}
+
+		.btn-order-comment {
 			background-color: #ffc107;
 			border-color: #ffc107;
 			color: #212529;
@@ -315,11 +337,18 @@
 				@endif
 			</span>
 		</div>
-		@if($order->comment)
-		<button type="button" class="btn btn-order-comment" data-comment="{{ e($order->comment) }}" onclick="showOrderComment(this)">
-			<i class="la la-sticky-note"></i> შენიშვნა
-		</button>
-		@endif
+		<div class="order-info-actions">
+			@if($order->atachment)
+			<a href="{{ asset('storage/' . $order->atachment) }}" target="_blank" class="btn btn-order-attachment">
+				<i class="la la-file-download"></i> {{ __('order.attachment') }}
+			</a>
+			@endif
+			@if($order->comment)
+			<button type="button" class="btn btn-order-comment" data-comment="{{ e($order->comment) }}" onclick="showOrderComment(this)">
+				<i class="la la-sticky-note"></i> შენიშვნა
+			</button>
+			@endif
+		</div>
 	</div>
 	
 	{{-- Pieces Grid --}}

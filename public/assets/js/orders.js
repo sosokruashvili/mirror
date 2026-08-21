@@ -226,6 +226,16 @@ function ensureProductOffcutAttr(rowNumber, productId, offcut) {
 }
 
 $(document).ready(function() {
+    // Don't let the mouse wheel change number inputs (quantity, price, dimensions...).
+    // Blurring the field instead of preventing the default keeps the page scrolling normally,
+    // and the capture listener also covers rows added later to the repeatable fields.
+    document.addEventListener('wheel', function(e) {
+        var active = document.activeElement;
+        if (active && active.type === 'number' && e.target === active) {
+            active.blur();
+        }
+    }, { capture: true, passive: true });
+
     // Store initial product type
     try {
         currentProductType = crud.field('product_type').$input.val();

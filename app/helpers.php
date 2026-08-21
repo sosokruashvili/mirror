@@ -17,13 +17,26 @@ if (!function_exists('setting')) {
     }
 }
 
+if (!function_exists('order_due_date_done_statuses')) {
+    /**
+     * Order statuses past the point where a due-date warning is useful.
+     *
+     * @return array<int, string>
+     */
+    function order_due_date_done_statuses(): array
+    {
+        return ['ready', 'finished'];
+    }
+}
+
 if (!function_exists('order_due_date_state')) {
     /**
      * Shared urgency reading for an order due date, so the list bar, the preview
      * dot and the team card tag never drift apart.
      *
      * Tone is green (≥5 days), yellow (3–4), red (≤2 or overdue); "urgent" (≤2)
-     * is what drives the blinking. Returns null when the order has no due date.
+     * is what drives the blinking. Returns null when there is nothing to warn
+     * about: no due date, or the order is already ready/finished.
      *
      * @param \App\Models\Order $order
      * @return array{days_left:int,tone:string,label:string,label_long:string,urgent:bool,percent:int,title:string}|null
@@ -31,6 +44,12 @@ if (!function_exists('order_due_date_state')) {
     function order_due_date_state($order): ?array
     {
         if (!$order->due_date) {
+            return null;
+        }
+
+        // Production is over for these, so a countdown would only nag about a
+        // deadline that no longer applies.
+        if (in_array($order->status, order_due_date_done_statuses(), true)) {
             return null;
         }
 
@@ -89,8 +108,14 @@ if (!function_exists('order_due_date_progress')) {
         $state = order_due_date_state($order);
 
         if ($state === null) {
+            // A ready/finished order still has a date worth showing on hover,
+            // just no urgency attached to it.
+            $title = $order->due_date
+                ? __('order.due_date') . ': ' . $order->due_date->format('Y-m-d')
+                : __('order.no_due_date');
+
             return '<div class="d-flex align-items-center" style="min-width: 110px;" title="'
-                . e(__('order.no_due_date')) . '">'
+                . e($title) . '">'
                 . '<div class="progress flex-grow-1 me-2" style="height: 6px; min-width: 60px;">'
                 . '<div class="progress-bar bg-secondary" role="progressbar" style="width: 100%; opacity: 0.4;"></div>'
                 . '</div>'

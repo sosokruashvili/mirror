@@ -1,4 +1,4 @@
-{{-- Compact days-left tags; urgent red bar + tag blink strongly in sync. --}}
+{{-- Compact days-left tags; the urgent red tag and dot blink in sync. --}}
 <style>
 .order-due-tag {
     display: inline-flex;
@@ -61,26 +61,9 @@
     text-align: center;
 }
 
-.progress .progress-bar.order-due-urgent-bar {
-    transition: none !important;
-    animation: order-due-urgent-bar-pulse 0.9s ease-in-out infinite;
-}
-
 .order-due-urgent-label {
     transition: none !important;
     animation: order-due-urgent-tag-pulse 0.9s ease-in-out infinite;
-}
-
-@keyframes order-due-urgent-bar-pulse {
-    0%,
-    100% {
-        opacity: 1;
-        box-shadow: 0 0 0 0 rgba(214, 57, 57, 0.8);
-    }
-    50% {
-        opacity: 0.15;
-        box-shadow: 0 0 8px 2px rgba(214, 57, 57, 0.55);
-    }
 }
 
 @keyframes order-due-urgent-tag-pulse {

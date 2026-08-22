@@ -17,29 +17,30 @@ if (!function_exists('setting')) {
     }
 }
 
-if (!function_exists('order_due_date_done_statuses')) {
+if (!function_exists('order_due_date_muted_statuses')) {
     /**
-     * Order statuses past the point where a due-date warning is useful.
+     * Order statuses that carry no due-date warning: a draft has not started
+     * production yet, and ready/finished orders are already past it.
      *
      * @return array<int, string>
      */
-    function order_due_date_done_statuses(): array
+    function order_due_date_muted_statuses(): array
     {
-        return ['ready', 'finished'];
+        return ['draft', 'ready', 'finished'];
     }
 }
 
 if (!function_exists('order_due_date_state')) {
     /**
-     * Shared urgency reading for an order due date, so the list bar, the preview
+     * Shared urgency reading for an order due date, so the list tag, the preview
      * dot and the team card tag never drift apart.
      *
      * Tone is green (≥5 days), yellow (3–4), red (≤2 or overdue); "urgent" (≤2)
      * is what drives the blinking. Returns null when there is nothing to warn
-     * about: no due date, or the order is already ready/finished.
+     * about: no due date, or the order is a draft / already ready / finished.
      *
      * @param \App\Models\Order $order
-     * @return array{days_left:int,tone:string,label:string,label_long:string,urgent:bool,percent:int,title:string}|null
+     * @return array{days_left:int,tone:string,label:string,label_long:string,urgent:bool,title:string}|null
      */
     function order_due_date_state($order): ?array
     {
@@ -47,9 +48,9 @@ if (!function_exists('order_due_date_state')) {
             return null;
         }
 
-        // Production is over for these, so a countdown would only nag about a
-        // deadline that no longer applies.
-        if (in_array($order->status, order_due_date_done_statuses(), true)) {
+        // Outside active production a countdown would only nag about a deadline
+        // that does not apply (yet, or any more).
+        if (in_array($order->status, order_due_date_muted_statuses(), true)) {
             return null;
         }
 
@@ -65,8 +66,8 @@ if (!function_exists('order_due_date_state')) {
             $tone = 'danger';
         }
 
-        // $label is the compact form for the list column, next to the progress
-        // bar; $labelLong is the roomier wording the team cards use.
+        // $label is the compact form the list column uses; $labelLong is the
+        // roomier wording the team cards have room for.
         if ($daysLeft < 0) {
             $label = __('order.overdue_days', ['days' => abs($daysLeft)]);
             $labelLong = __('order.overdue_days_long', ['days' => abs($daysLeft)]);
@@ -78,16 +79,12 @@ if (!function_exists('order_due_date_state')) {
             $labelLong = __('order.days_left_long', ['days' => $daysLeft]);
         }
 
-        // Fixed 10-day scale so fill length matches days left consistently.
-        $fullBarDays = 10;
-
         return [
             'days_left' => $daysLeft,
             'tone' => $tone,
             'label' => $label,
             'label_long' => $labelLong,
             'urgent' => $daysLeft <= 2,
-            'percent' => $daysLeft <= 0 ? 0 : (int) min(100, round(($daysLeft / $fullBarDays) * 100)),
             'title' => __('order.due_date') . ': ' . $due->format('Y-m-d') . ' — ' . $label,
         ];
     }
@@ -95,10 +92,10 @@ if (!function_exists('order_due_date_state')) {
 
 if (!function_exists('order_due_date_progress')) {
     /**
-     * Render a compact due-date progress bar for an order list column.
+     * Render the days-left tag for an order list column.
      *
-     * Bar width is days-left on a fixed 10-day scale (10+ days = full, 0 = empty),
-     * so proportions are comparable across rows. Grey when no due date is set.
+     * Kept to the compact label so the column stays narrow. Shows a muted dash
+     * when there is nothing to warn about (see order_due_date_muted_statuses).
      *
      * @param \App\Models\Order $order
      * @return string HTML
@@ -108,38 +105,23 @@ if (!function_exists('order_due_date_progress')) {
         $state = order_due_date_state($order);
 
         if ($state === null) {
-            // A ready/finished order still has a date worth showing on hover,
-            // just no urgency attached to it.
+            // Such an order may still have a date worth showing on hover, just
+            // no urgency attached to it.
             $title = $order->due_date
                 ? __('order.due_date') . ': ' . $order->due_date->format('Y-m-d')
                 : __('order.no_due_date');
 
-            return '<div class="d-flex align-items-center" style="min-width: 110px;" title="'
-                . e($title) . '">'
-                . '<div class="progress flex-grow-1 me-2" style="height: 6px; min-width: 60px;">'
-                . '<div class="progress-bar bg-secondary" role="progressbar" style="width: 100%; opacity: 0.4;"></div>'
-                . '</div>'
-                . '<small class="text-muted">—</small>'
-                . '</div>';
+            return '<span class="text-muted" title="' . e($title) . '">—</span>';
         }
 
-        // Same bg-* utility on bar and tag so colors stay matched.
-        $barClass = 'bg-' . $state['tone'] . ($state['urgent'] ? ' order-due-urgent-bar' : '');
         $labelClass = 'badge bg-' . $state['tone'] . ' order-due-days-tag'
             . ($state['tone'] === 'warning' ? ' text-dark' : '')
             . ($state['urgent'] ? ' order-due-urgent-label' : '');
 
         return sprintf(
-            '<div class="d-flex align-items-center" style="min-width: 140px;" title="%s">'
-                . '<div class="progress flex-grow-1 me-2" style="height: 6px; min-width: 60px;">'
-                    . '<div class="progress-bar %s" role="progressbar" style="width: %d%%;"></div>'
-                . '</div>'
-                . '<span class="%s">%s</span>'
-            . '</div>',
-            e($state['title']),
-            e($barClass),
-            $state['percent'],
+            '<span class="%s" title="%s">%s</span>',
             e($labelClass),
+            e($state['title']),
             e($state['label'])
         );
     }
@@ -173,8 +155,8 @@ if (!function_exists('order_due_date_tag')) {
     /**
      * Days-left label for an order card action row.
      *
-     * Carries the same tones and blinking as the list progress bar, but without
-     * the bar itself — cards are too narrow for it. Empty when no due date.
+     * Same tones and blinking as the list column, but with the roomier wording.
+     * Empty when there is nothing to warn about.
      *
      * @param \App\Models\Order $order
      * @return string HTML

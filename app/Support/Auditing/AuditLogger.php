@@ -3,6 +3,7 @@
 namespace App\Support\Auditing;
 
 use App\Models\AuditLog;
+use App\Models\ClientBalance;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
@@ -29,6 +30,9 @@ class AuditLogger
      */
     protected array $ignoredModels = [
         AuditLog::class,
+        // Derived rows: one per client per day, rewritten on every order or
+        // payment change. Auditing them buries real edits under recomputations.
+        ClientBalance::class,
     ];
 
     /**

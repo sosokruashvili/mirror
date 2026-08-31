@@ -379,6 +379,10 @@ class ClientBalanceCrudController extends CrudController
      * back to a live calculation when the client has no snapshot yet (e.g. before
      * the first scheduled run). Memoized per client for the duration of the request.
      *
+     * The snapshot is kept current by App\Providers\ClientBalanceServiceProvider,
+     * which re-derives today's row whenever an order, piece, payment or client
+     * changes - so these columns match the live order list in the expanded row.
+     *
      * @return array{starting_balance: float, payments_total: float, orders_total: float, balance: float}
      */
     protected function resolveRowComponents($client): array

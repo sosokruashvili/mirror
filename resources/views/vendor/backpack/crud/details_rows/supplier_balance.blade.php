@@ -33,8 +33,8 @@
             <div class="card card-sm">
                 <div class="card-body py-2">
                     <div class="text-secondary small">{{ __('supplier_balance.details.credit_total') }}</div>
-                    <div class="h3 mb-0 {{ $creditTotal > 0 ? 'text-danger' : 'text-success' }}">
-                        {{ number_format($creditTotal, 2) }} ₾
+                    <div class="h3 mb-0 {{ $balance < 0 ? 'text-danger' : 'text-success' }}">
+                        {{ number_format($balance, 2) }} ₾
                     </div>
                 </div>
             </div>

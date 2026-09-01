@@ -13,12 +13,12 @@ use Backpack\CRUD\app\Library\CrudPanel\CrudPanelFacade as CRUD;
  * Read-only list of suppliers with balances computed live from their
  * confirmed Expenses-Purchases (cashier_expenses) rows - drafts are still
  * being entered and count nowhere:
- *   - Total Amount = SUM(amount_gel)      — everything purchased from them
- *   - Total Paid   = SUM(amount - credit) — what has actually been paid
- *   - Balance      = SUM(credit)          — the outstanding debt we owe them
+ *   - Total Amount = SUM(amount_gel)            — everything purchased from them
+ *   - Total Paid   = SUM(amount_gel - credit)   — what has actually been paid
+ *   - Balance      = Total Paid - SUM(credit)   — paid sum minus remaining credit
  *
- * Repayments are recorded by editing the original expense's credit field down,
- * so summing the current credit values is always accurate — no snapshots needed.
+ * Per expense, paid is amount_gel - credit. Repayments are recorded by editing
+ * the original expense's credit field down, so these sums stay accurate live.
  *
  * @package App\Http\Controllers\Admin
  * @property-read \Backpack\CRUD\app\Library\CrudPanel\CrudPanel $crud
@@ -106,15 +106,16 @@ class SupplierBalanceCrudController extends CrudController
             // Postgres does not allow select aliases inside ORDER BY expressions,
             // so the paid amount is recomputed as a subquery for sorting.
             'orderLogic' => function ($query, $column, $columnDirection) {
+                // Status is inlined (not bound): Backpack's count query drops
+                // ORDER BY but can leave its bindings, which breaks pagination.
                 return $query->orderByRaw(
                     '(SELECT COALESCE(SUM(amount_gel - credit), 0) FROM cashier_expenses'
                     . ' WHERE cashier_expenses.supplier_id = suppliers.id'
-                    . ' AND cashier_expenses.status = ?) '
-                    . $this->sqlDirection($columnDirection),
-                    [CashierExpense::STATUS_CONFIRMED]
+                    . ' AND cashier_expenses.status = ' . $this->confirmedStatusSql() . ') '
+                    . $this->sqlDirection($columnDirection)
                 );
             },
-            'value' => fn ($entry) => (float) $entry->expenses_total - (float) $entry->credit_total,
+            'value' => fn ($entry) => $this->paidTotalFor($entry),
         ]);
 
         CRUD::addColumn([
@@ -124,14 +125,18 @@ class SupplierBalanceCrudController extends CrudController
             'decimals' => 2,
             'searchLogic' => false,
             'orderable' => true,
+            // Postgres does not allow select aliases inside ORDER BY expressions,
+            // so the signed balance is recomputed as a subquery for sorting.
             'orderLogic' => function ($query, $column, $columnDirection) {
-                return $query->orderByRaw('credit_total ' . $this->sqlDirection($columnDirection) . ' NULLS LAST');
+                return $query->orderByRaw(
+                    $this->balanceSubquerySql() . ' ' . $this->sqlDirection($columnDirection)
+                );
             },
-            'value' => fn ($entry) => (float) $entry->credit_total,
+            'value' => fn ($entry) => $this->balanceFor($entry),
             'wrapper' => [
                 'element' => 'span',
                 'class' => function ($crud, $column, $entry, $related_key) {
-                    return ((float) $entry->credit_total) > 0 ? 'text-danger fw-bold' : 'text-success';
+                    return $this->balanceFor($entry) < 0 ? 'text-danger fw-bold' : 'text-success';
                 },
             ],
         ]);
@@ -154,9 +159,10 @@ class SupplierBalanceCrudController extends CrudController
             });
         });
 
-        // Suppliers we owe the most, first. NULLS LAST keeps suppliers without
-        // any expenses at the bottom (Postgres puts NULLs first on DESC).
-        $this->crud->addClause('orderByRaw', 'credit_total DESC NULLS LAST');
+        // Most negative balances first (outstanding credit exceeds what we paid).
+        // No bindings here: Backpack counts with a subquery that strips ORDER BY
+        // and would otherwise leave a dangling ? parameter.
+        $this->crud->addClause('orderByRaw', $this->balanceSubquerySql() . ' ASC');
     }
 
     /**
@@ -189,14 +195,52 @@ class SupplierBalanceCrudController extends CrudController
 
         $expensesTotal = (float) $supplier->confirmedCashierExpenses->sum('amount_gel');
         $creditTotal = (float) $supplier->confirmedCashierExpenses->sum('credit');
+        $paidTotal = $expensesTotal - $creditTotal;
 
         return view('vendor.backpack.crud.details_rows.supplier_balance', [
             'crud' => $this->crud,
             'entry' => $supplier,
             'expenses' => $supplier->confirmedCashierExpenses,
             'expensesTotal' => $expensesTotal,
-            'paidTotal' => $expensesTotal - $creditTotal,
+            'paidTotal' => $paidTotal,
             'creditTotal' => $creditTotal,
+            'balance' => $paidTotal - $creditTotal,
         ]);
+    }
+
+    /**
+     * Amount actually paid to this supplier: SUM(amount_gel) - SUM(credit).
+     */
+    protected function paidTotalFor(Supplier $entry): float
+    {
+        return (float) $entry->expenses_total - (float) $entry->credit_total;
+    }
+
+    /**
+     * Real balance: paid sum minus remaining credit sum.
+     */
+    protected function balanceFor(Supplier $entry): float
+    {
+        return $this->paidTotalFor($entry) - (float) $entry->credit_total;
+    }
+
+    /**
+     * SQL expression for the signed balance, used in ORDER BY (paid - credit).
+     */
+    protected function balanceSubquerySql(): string
+    {
+        return '(SELECT COALESCE(SUM((amount_gel - credit) - credit), 0) FROM cashier_expenses'
+            . ' WHERE cashier_expenses.supplier_id = suppliers.id'
+            . ' AND cashier_expenses.status = ' . $this->confirmedStatusSql() . ')';
+    }
+
+    /**
+     * Quoted confirmed-status literal for raw SQL. STATUS_CONFIRMED is a
+     * code constant, not user input; quoting avoids PDO bindings that
+     * Backpack's pagination count query cannot keep in sync with ORDER BY.
+     */
+    protected function confirmedStatusSql(): string
+    {
+        return "'" . str_replace("'", "''", CashierExpense::STATUS_CONFIRMED) . "'";
     }
 }

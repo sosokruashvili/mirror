@@ -24,7 +24,7 @@ return [
     'details' => [
         'expenses_total' => 'ჯამური თანხა',
         'paid_total' => 'გადახდილი სულ',
-        'credit_total' => 'ბალანსი (ჩვენი ვალი)',
+        'credit_total' => 'ბალანსი',
 
         'expenses' => 'ხარჯები და შესყიდვები',
         'view_all' => 'ყველას ნახვა',

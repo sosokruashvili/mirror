@@ -32,7 +32,7 @@ return [
     'details' => [
         'expenses_total' => 'Total Amount',
         'paid_total' => 'Total Paid',
-        'credit_total' => 'Balance (we owe)',
+        'credit_total' => 'Balance',
 
         'expenses' => 'Expenses-Purchases',
         'view_all' => 'View all',

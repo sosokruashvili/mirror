@@ -13,7 +13,7 @@
 
     {{-- Balance recap for this supplier, mirroring the columns of the row above --}}
     <div class="row g-2 mb-3">
-        <div class="col-6 col-md-4">
+        <div class="col-6 col-md-3">
             <div class="card card-sm">
                 <div class="card-body py-2">
                     <div class="text-secondary small">{{ __('supplier_balance.details.expenses_total') }}</div>
@@ -21,7 +21,7 @@
                 </div>
             </div>
         </div>
-        <div class="col-6 col-md-4">
+        <div class="col-6 col-md-3">
             <div class="card card-sm">
                 <div class="card-body py-2">
                     <div class="text-secondary small">{{ __('supplier_balance.details.paid_total') }}</div>
@@ -29,10 +29,20 @@
                 </div>
             </div>
         </div>
-        <div class="col-6 col-md-4">
+        <div class="col-6 col-md-3">
             <div class="card card-sm">
                 <div class="card-body py-2">
                     <div class="text-secondary small">{{ __('supplier_balance.details.credit_total') }}</div>
+                    <div class="h3 mb-0 {{ $creditTotal > 0 ? 'text-danger' : 'text-secondary' }}">
+                        {{ number_format($creditTotal, 2) }} ₾
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="card card-sm">
+                <div class="card-body py-2">
+                    <div class="text-secondary small">{{ __('supplier_balance.details.balance') }}</div>
                     <div class="h3 mb-0 {{ $balance < 0 ? 'text-danger' : 'text-success' }}">
                         {{ number_format($balance, 2) }} ₾
                     </div>

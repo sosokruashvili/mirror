@@ -15,7 +15,8 @@ use Backpack\CRUD\app\Library\CrudPanel\CrudPanelFacade as CRUD;
  * being entered and count nowhere:
  *   - Total Amount = SUM(amount_gel)            — everything purchased from them
  *   - Total Paid   = SUM(amount_gel - credit)   — what has actually been paid
- *   - Balance      = Total Paid - SUM(credit)   — paid sum minus remaining credit
+ *   - Total Credit = SUM(credit)                — remaining unpaid amount
+ *   - Balance      = Total Paid - Total Credit  — paid sum minus remaining credit
  *
  * Per expense, paid is amount_gel - credit. Repayments are recorded by editing
  * the original expense's credit field down, so these sums stay accurate live.
@@ -121,6 +122,25 @@ class SupplierBalanceCrudController extends CrudController
         CRUD::addColumn([
             'name' => 'credit_total',
             'label' => __('supplier_balance.credit_total'),
+            'type' => 'number',
+            'decimals' => 2,
+            'searchLogic' => false,
+            'orderable' => true,
+            'orderLogic' => function ($query, $column, $columnDirection) {
+                return $query->orderByRaw('credit_total ' . $this->sqlDirection($columnDirection) . ' NULLS LAST');
+            },
+            'value' => fn ($entry) => (float) $entry->credit_total,
+            'wrapper' => [
+                'element' => 'span',
+                'class' => function ($crud, $column, $entry, $related_key) {
+                    return ((float) $entry->credit_total) > 0 ? 'text-danger fw-bold' : 'text-secondary';
+                },
+            ],
+        ]);
+
+        CRUD::addColumn([
+            'name' => 'balance',
+            'label' => __('supplier_balance.balance'),
             'type' => 'number',
             'decimals' => 2,
             'searchLogic' => false,

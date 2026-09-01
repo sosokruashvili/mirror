@@ -20,7 +20,8 @@ return [
     'email' => 'Email',
     'expenses_total' => 'Total Amount (₾)',
     'paid_total' => 'Total Paid (₾)',
-    'credit_total' => 'Balance (₾)',
+    'credit_total' => 'Total Credit (₾)',
+    'balance' => 'Balance (₾)',
 
     // Filters
     'filters' => [
@@ -32,7 +33,8 @@ return [
     'details' => [
         'expenses_total' => 'Total Amount',
         'paid_total' => 'Total Paid',
-        'credit_total' => 'Balance',
+        'credit_total' => 'Total Credit',
+        'balance' => 'Balance',
 
         'expenses' => 'Expenses-Purchases',
         'view_all' => 'View all',

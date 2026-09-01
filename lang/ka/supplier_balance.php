@@ -12,7 +12,8 @@ return [
     'email' => 'ელ. ფოსტა',
     'expenses_total' => 'ჯამური თანხა (₾)',
     'paid_total' => 'გადახდილი სულ (₾)',
-    'credit_total' => 'ბალანსი (₾)',
+    'credit_total' => 'დავალიანება სულ (₾)',
+    'balance' => 'ბალანსი (₾)',
 
     // Filters
     'filters' => [
@@ -24,7 +25,8 @@ return [
     'details' => [
         'expenses_total' => 'ჯამური თანხა',
         'paid_total' => 'გადახდილი სულ',
-        'credit_total' => 'ბალანსი',
+        'credit_total' => 'დავალიანება სულ',
+        'balance' => 'ბალანსი',
 
         'expenses' => 'ხარჯები და შესყიდვები',
         'view_all' => 'ყველას ნახვა',

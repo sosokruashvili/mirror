@@ -6,6 +6,7 @@ use Backpack\CRUD\app\Http\Controllers\CrudController;
 use Backpack\CRUD\app\Library\CrudPanel\CrudPanelFacade as CRUD;
 use Backpack\CRUD\app\Library\Widget;
 use App\Models\Client;
+use App\Models\ClientBalance;
 use App\Services\ClientBalanceService;
 
 /**
@@ -157,6 +158,10 @@ class ClientBalanceCrudController extends CrudController
             'type' => 'number',
             'decimals' => 0,
             'searchLogic' => false,
+            'orderable' => true,
+            'orderLogic' => function ($query, $column, $columnDirection) {
+                return $this->orderBySnapshotAmount($query, 'balance', $columnDirection);
+            },
             'value' => function ($entry) {
                 return $this->resolveRowComponents($entry)['balance'];
             },
@@ -308,6 +313,41 @@ class ClientBalanceCrudController extends CrudController
             'countedPaymentsCount' => $countedPayments->count(),
             'countedOrderIds' => $countedOrders->pluck('id')->all(),
         ]);
+    }
+
+    /**
+     * Sort by a column on the snapshot currently shown (as-of-date, or latest).
+     * Clients with no matching snapshot sort last (Postgres puts NULLs first on DESC).
+     *
+     * @param  \Illuminate\Database\Eloquent\Builder  $query
+     * @return \Illuminate\Database\Eloquent\Builder
+     */
+    protected function orderBySnapshotAmount($query, string $column, string $direction)
+    {
+        $allowed = ['starting_balance', 'payments_total', 'orders_total', 'balance'];
+        if (! in_array($column, $allowed, true)) {
+            return $query;
+        }
+
+        $direction = $this->sqlDirection($direction);
+        $date = $this->selectedBalanceDate();
+
+        $sub = ClientBalance::query()
+            ->select($column)
+            ->whereColumn('client_balances.client_id', 'clients.id')
+            ->when($date, fn ($q) => $q->where('balance_date', '<=', $date))
+            ->orderByDesc('balance_date')
+            ->limit(1);
+
+        return $query->orderByRaw('('.$sub->toSql().') '.$direction.' NULLS LAST', $sub->getBindings());
+    }
+
+    /**
+     * Whitelist the DataTables sort direction for use in raw ORDER BY SQL.
+     */
+    protected function sqlDirection(string $direction): string
+    {
+        return strtolower($direction) === 'desc' ? 'DESC' : 'ASC';
     }
 
     /**

@@ -34,7 +34,6 @@ return [
     'amount_gel_field' => 'Amount (GEL)',
     'credit' => 'Credit (₾)',
     'credit_field' => 'Credit (GEL)',
-    'payment_progress' => 'Paid (%)',
     'description' => 'Description',
     'file' => 'File',
     'expense_date' => 'Date',
@@ -42,9 +41,6 @@ return [
     'filters' => [
         'date_range' => 'Date Range',
     ],
-
-    // Tooltip on the paid/credit progress bar
-    'progress_title' => 'Paid :paid ₾ · Credit :credit ₾ · Total :total ₾',
 
     'placeholders' => [
         'product' => 'Search and select a product',

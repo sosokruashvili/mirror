@@ -120,59 +120,6 @@ class CashierExpenseCrudController extends CrudController
         ]);
 
         CRUD::addColumn([
-            'name' => 'payment_progress',
-            'label' => __('cashier_expense.payment_progress'),
-            'type' => 'custom_html',
-            'value' => function ($entry) {
-                $paid = max(0, (float) $entry->amount_gel);
-                $credit = max(0, (float) $entry->credit);
-                $total = $paid + $credit;
-
-                if ($total <= 0) {
-                    return '<span class="text-muted">-</span>';
-                }
-
-                // amount_gel is the paid portion, credit the unpaid portion.
-                $paidPercent = $paid / $total * 100;
-
-                $title = __('cashier_expense.progress_title', [
-                    'paid' => number_format($paid, 2),
-                    'credit' => number_format($credit, 2),
-                    'total' => number_format($total, 2),
-                ]);
-
-                return sprintf(
-                    '<div class="d-flex align-items-center" style="min-width: 110px;" title="%s">'
-                        . '<div class="progress flex-grow-1 me-2" style="height: 6px; min-width: 60px;">'
-                            . '<div class="progress-bar bg-success" role="progressbar" style="width: %s%%;"></div>'
-                            . '<div class="progress-bar bg-danger" role="progressbar" style="width: %s%%;"></div>'
-                        . '</div>'
-                        . '<small class="text-muted">%s%%</small>'
-                    . '</div>',
-                    htmlspecialchars($title, ENT_QUOTES, 'UTF-8'),
-                    round($paidPercent, 2),
-                    round(100 - $paidPercent, 2),
-                    round($paidPercent)
-                );
-            },
-            'orderable' => true,
-            'orderLogic' => function ($query, $column, $columnDirection) {
-                $direction = strtoupper($columnDirection) === 'ASC' ? 'ASC' : 'DESC';
-
-                // Sort by paid share of the full purchase: amount / (amount + credit).
-                return $query->orderByRaw(
-                    'CASE WHEN (COALESCE(cashier_expenses.amount_gel, 0) + COALESCE(cashier_expenses.credit, 0)) <= 0 THEN 0'
-                    . ' ELSE GREATEST(0, LEAST(1, COALESCE(cashier_expenses.amount_gel, 0)'
-                    . ' / (COALESCE(cashier_expenses.amount_gel, 0) + COALESCE(cashier_expenses.credit, 0))))'
-                    . ' END ' . $direction
-                );
-            },
-            'searchLogic' => false,
-            // The bar is markup; the CSV/Excel export already has amount + credit.
-            'visibleInExport' => false,
-        ]);
-
-        CRUD::addColumn([
             'name' => 'description',
             'label' => __('cashier_expense.description'),
             'type' => 'text',
@@ -537,7 +484,7 @@ class CashierExpenseCrudController extends CrudController
         $query = $this->applyExpenseFilters(CashierExpense::query()->confirmed());
 
         return [
-            'totalAmount' => (float) (clone $query)->sum(\DB::raw('amount_gel + credit')),
+            'totalAmount' => (float) (clone $query)->sum('amount_gel'),
             'totalCredit' => (float) (clone $query)->sum('credit'),
             'totalCash' => (float) (clone $query)->where('type', CashierExpense::TYPE_CASH)->sum('amount_gel'),
             'totalTransfer' => (float) (clone $query)->where('type', CashierExpense::TYPE_TRANSFER)->sum('amount_gel'),

@@ -18,7 +18,6 @@ return [
     'amount_gel_field' => 'თანხა (₾)',
     'credit' => 'დავალიანება (₾)',
     'credit_field' => 'დავალიანება (₾)',
-    'payment_progress' => 'გადახდილი (%)',
     'description' => 'აღწერა',
     'file' => 'ფაილი',
     'expense_date' => 'თარიღი',
@@ -26,9 +25,6 @@ return [
     'filters' => [
         'date_range' => 'პერიოდი',
     ],
-
-    // Tooltip on the paid/credit progress bar
-    'progress_title' => 'გადახდილი :paid ₾ · დავალიანება :credit ₾ · ჯამი :total ₾',
 
     'placeholders' => [
         'product' => 'მოძებნეთ და აირჩიეთ პროდუქტი',

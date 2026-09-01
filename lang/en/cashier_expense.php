@@ -56,8 +56,8 @@ return [
         'supplier' => 'Only suppliers linked to the selected category.',
         'product' => 'Only for საწარმოო purchases.',
         'price_usd' => 'Auto-filled from Supplier Prices when the supplier and product match.',
-        'amount_gel' => 'Full price of the expense.',
-        'credit' => 'Amount of credit from the full price (unpaid portion).',
+        'amount_gel' => 'Amount paid now. Enter 0 if the whole purchase is on credit.',
+        'credit' => 'Unpaid portion. For a 1000 ₾ purchase paid nothing, enter amount 0 and credit 1000.',
         'file' => 'Allowed types: PDF, PNG, JPEG, JPG',
     ],
 
@@ -93,7 +93,7 @@ return [
     'messages' => [
         'category_not_leaf' => 'Please select a leaf category (one without child categories).',
         'supplier_not_linked' => 'The selected supplier is not linked to this category.',
-        'credit_exceeds_amount' => 'Credit cannot exceed the full amount.',
+        'amount_or_credit_required' => 'Enter a paid amount, a credit amount, or both.',
     ],
 
 ];

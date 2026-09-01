@@ -98,7 +98,7 @@
                                 <td>{{ $expense->product->title ?? '—' }}</td>
                                 <td class="text-secondary">{{ \Illuminate\Support\Str::limit($expense->description, 60) ?: '—' }}</td>
                                 <td class="text-end text-nowrap">
-                                    {{ number_format((float) $expense->amount_gel, 2) }} ₾
+                                    {{ number_format((float) $expense->purchase_amount, 2) }} ₾
                                 </td>
                                 <td class="text-end text-nowrap text-success">
                                     {{ number_format($expense->paid_amount, 2) }} ₾

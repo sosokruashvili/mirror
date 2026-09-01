@@ -13,13 +13,13 @@ use Backpack\CRUD\app\Library\CrudPanel\CrudPanelFacade as CRUD;
  * Read-only list of suppliers with balances computed live from their
  * confirmed Expenses-Purchases (cashier_expenses) rows - drafts are still
  * being entered and count nowhere:
- *   - Total Amount = SUM(amount_gel)            — everything purchased from them
- *   - Total Paid   = SUM(amount_gel - credit)   — what has actually been paid
- *   - Total Credit = SUM(credit)                — remaining unpaid amount
- *   - Balance      = Total Paid - Total Credit  — paid sum minus remaining credit
+ *   - Total Amount = SUM(amount_gel + credit) — everything purchased from them
+ *   - Total Paid   = SUM(amount_gel)          — what has actually been paid
+ *   - Total Credit = SUM(credit)              — remaining unpaid amount
+ *   - Balance      = Total Paid - Total Credit
  *
- * Per expense, paid is amount_gel - credit. Repayments are recorded by editing
- * the original expense's credit field down, so these sums stay accurate live.
+ * amount_gel is the paid portion; credit is independent (a fully-on-credit
+ * purchase is amount 0, credit 1000). Repayments lower the credit field.
  *
  * @package App\Http\Controllers\Admin
  * @property-read \Backpack\CRUD\app\Library\CrudPanel\CrudPanel $crud
@@ -43,7 +43,7 @@ class SupplierBalanceCrudController extends CrudController
     {
         // Aggregate the expense sums in the main query so the list stays a
         // single query (no N+1) and the columns can be sorted server-side.
-        $this->crud->addClause('withSum', 'confirmedCashierExpenses as expenses_total', 'amount_gel');
+        $this->crud->addClause('withSum', 'confirmedCashierExpenses as paid_sum', 'amount_gel');
         $this->crud->addClause('withSum', 'confirmedCashierExpenses as credit_total', 'credit');
 
         // Expandable rows: clicking a supplier row loads their expenses inline.
@@ -92,9 +92,12 @@ class SupplierBalanceCrudController extends CrudController
             'searchLogic' => false,
             'orderable' => true,
             'orderLogic' => function ($query, $column, $columnDirection) {
-                return $query->orderByRaw('expenses_total ' . $this->sqlDirection($columnDirection) . ' NULLS LAST');
+                return $query->orderByRaw(
+                    $this->confirmedExpensesSumSql('amount_gel + credit')
+                    . ' ' . $this->sqlDirection($columnDirection)
+                );
             },
-            'value' => fn ($entry) => (float) $entry->expenses_total,
+            'value' => fn ($entry) => $this->expensesTotalFor($entry),
         ]);
 
         CRUD::addColumn([
@@ -107,13 +110,9 @@ class SupplierBalanceCrudController extends CrudController
             // Postgres does not allow select aliases inside ORDER BY expressions,
             // so the paid amount is recomputed as a subquery for sorting.
             'orderLogic' => function ($query, $column, $columnDirection) {
-                // Status is inlined (not bound): Backpack's count query drops
-                // ORDER BY but can leave its bindings, which breaks pagination.
                 return $query->orderByRaw(
-                    '(SELECT COALESCE(SUM(amount_gel - credit), 0) FROM cashier_expenses'
-                    . ' WHERE cashier_expenses.supplier_id = suppliers.id'
-                    . ' AND cashier_expenses.status = ' . $this->confirmedStatusSql() . ') '
-                    . $this->sqlDirection($columnDirection)
+                    $this->confirmedExpensesSumSql('amount_gel')
+                    . ' ' . $this->sqlDirection($columnDirection)
                 );
             },
             'value' => fn ($entry) => $this->paidTotalFor($entry),
@@ -213,15 +212,14 @@ class SupplierBalanceCrudController extends CrudController
             ])
             ->findOrFail($id);
 
-        $expensesTotal = (float) $supplier->confirmedCashierExpenses->sum('amount_gel');
+        $paidTotal = (float) $supplier->confirmedCashierExpenses->sum('amount_gel');
         $creditTotal = (float) $supplier->confirmedCashierExpenses->sum('credit');
-        $paidTotal = $expensesTotal - $creditTotal;
 
         return view('vendor.backpack.crud.details_rows.supplier_balance', [
             'crud' => $this->crud,
             'entry' => $supplier,
             'expenses' => $supplier->confirmedCashierExpenses,
-            'expensesTotal' => $expensesTotal,
+            'expensesTotal' => $paidTotal + $creditTotal,
             'paidTotal' => $paidTotal,
             'creditTotal' => $creditTotal,
             'balance' => $paidTotal - $creditTotal,
@@ -229,11 +227,19 @@ class SupplierBalanceCrudController extends CrudController
     }
 
     /**
-     * Amount actually paid to this supplier: SUM(amount_gel) - SUM(credit).
+     * Full purchase total: paid + remaining credit.
+     */
+    protected function expensesTotalFor(Supplier $entry): float
+    {
+        return $this->paidTotalFor($entry) + (float) $entry->credit_total;
+    }
+
+    /**
+     * Amount actually paid to this supplier: SUM(amount_gel).
      */
     protected function paidTotalFor(Supplier $entry): float
     {
-        return (float) $entry->expenses_total - (float) $entry->credit_total;
+        return (float) $entry->paid_sum;
     }
 
     /**
@@ -249,7 +255,17 @@ class SupplierBalanceCrudController extends CrudController
      */
     protected function balanceSubquerySql(): string
     {
-        return '(SELECT COALESCE(SUM((amount_gel - credit) - credit), 0) FROM cashier_expenses'
+        return $this->confirmedExpensesSumSql('amount_gel - credit');
+    }
+
+    /**
+     * Confirmed-expense SUM() subquery, used in ORDER BY. Status is inlined
+     * (not bound): Backpack's count query drops ORDER BY but can leave its
+     * bindings, which breaks pagination.
+     */
+    protected function confirmedExpensesSumSql(string $expression): string
+    {
+        return '(SELECT COALESCE(SUM(' . $expression . '), 0) FROM cashier_expenses'
             . ' WHERE cashier_expenses.supplier_id = suppliers.id'
             . ' AND cashier_expenses.status = ' . $this->confirmedStatusSql() . ')';
     }

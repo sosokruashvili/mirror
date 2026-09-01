@@ -106,11 +106,20 @@ class CashierExpense extends Model
     }
 
     /**
-     * Amount actually paid now (full price minus credit).
+     * Amount actually paid now. amount_gel stores the paid portion; credit is
+     * the unpaid portion. A fully-on-credit purchase is amount 0, credit 1000.
      */
     public function getPaidAmountAttribute(): float
     {
-        return round((float) $this->amount_gel - (float) $this->credit, 2);
+        return round((float) $this->amount_gel, 2);
+    }
+
+    /**
+     * Full purchase price: paid now plus remaining credit.
+     */
+    public function getPurchaseAmountAttribute(): float
+    {
+        return round((float) $this->amount_gel + (float) $this->credit, 2);
     }
 
     public function category(): BelongsTo

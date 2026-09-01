@@ -124,22 +124,21 @@ class CashierExpenseCrudController extends CrudController
             'label' => __('cashier_expense.payment_progress'),
             'type' => 'custom_html',
             'value' => function ($entry) {
-                $amount = (float) $entry->amount_gel;
-                $credit = max(0, min((float) $entry->credit, $amount));
+                $paid = max(0, (float) $entry->amount_gel);
+                $credit = max(0, (float) $entry->credit);
+                $total = $paid + $credit;
 
-                if ($amount <= 0) {
+                if ($total <= 0) {
                     return '<span class="text-muted">-</span>';
                 }
 
-                // Credit is the unpaid portion, so the rest is already paid:
-                // green = paid share, red = outstanding credit share.
-                $paid = $amount - $credit;
-                $paidPercent = $paid / $amount * 100;
+                // amount_gel is the paid portion, credit the unpaid portion.
+                $paidPercent = $paid / $total * 100;
 
                 $title = __('cashier_expense.progress_title', [
                     'paid' => number_format($paid, 2),
                     'credit' => number_format($credit, 2),
-                    'total' => number_format($amount, 2),
+                    'total' => number_format($total, 2),
                 ]);
 
                 return sprintf(
@@ -160,13 +159,11 @@ class CashierExpenseCrudController extends CrudController
             'orderLogic' => function ($query, $column, $columnDirection) {
                 $direction = strtoupper($columnDirection) === 'ASC' ? 'ASC' : 'DESC';
 
-                // Sort by the same paid share the bar draws: (amount - credit) / amount,
-                // clamped to 0..1. Rows without an amount have no percentage, so they
-                // sort as 0% (and the CASE keeps Postgres from dividing by zero).
+                // Sort by paid share of the full purchase: amount / (amount + credit).
                 return $query->orderByRaw(
-                    'CASE WHEN COALESCE(cashier_expenses.amount_gel, 0) <= 0 THEN 0'
-                    . ' ELSE GREATEST(0, LEAST(1, (COALESCE(cashier_expenses.amount_gel, 0) - COALESCE(cashier_expenses.credit, 0))'
-                    . ' / COALESCE(cashier_expenses.amount_gel, 0)))'
+                    'CASE WHEN (COALESCE(cashier_expenses.amount_gel, 0) + COALESCE(cashier_expenses.credit, 0)) <= 0 THEN 0'
+                    . ' ELSE GREATEST(0, LEAST(1, COALESCE(cashier_expenses.amount_gel, 0)'
+                    . ' / (COALESCE(cashier_expenses.amount_gel, 0) + COALESCE(cashier_expenses.credit, 0))))'
                     . ' END ' . $direction
                 );
             },
@@ -366,9 +363,10 @@ class CashierExpenseCrudController extends CrudController
             'type' => 'number',
             'attributes' => [
                 'step' => '0.01',
-                'min' => '0.01',
+                'min' => '0',
                 'required' => true,
             ],
+            'default' => 0,
             'suffix' => '₾',
             'hint' => __('cashier_expense.hints.amount_gel'),
             'wrapper' => [
@@ -539,11 +537,11 @@ class CashierExpenseCrudController extends CrudController
         $query = $this->applyExpenseFilters(CashierExpense::query()->confirmed());
 
         return [
-            'totalAmount' => (float) (clone $query)->sum('amount_gel'),
+            'totalAmount' => (float) (clone $query)->sum(\DB::raw('amount_gel + credit')),
             'totalCredit' => (float) (clone $query)->sum('credit'),
-            'totalCash' => (float) (clone $query)->where('type', CashierExpense::TYPE_CASH)->sum(\DB::raw('amount_gel - credit')),
-            'totalTransfer' => (float) (clone $query)->where('type', CashierExpense::TYPE_TRANSFER)->sum(\DB::raw('amount_gel - credit')),
-            'totalPmTransfer' => (float) (clone $query)->where('type', CashierExpense::TYPE_PM_TRANSFER)->sum(\DB::raw('amount_gel - credit')),
+            'totalCash' => (float) (clone $query)->where('type', CashierExpense::TYPE_CASH)->sum('amount_gel'),
+            'totalTransfer' => (float) (clone $query)->where('type', CashierExpense::TYPE_TRANSFER)->sum('amount_gel'),
+            'totalPmTransfer' => (float) (clone $query)->where('type', CashierExpense::TYPE_PM_TRANSFER)->sum('amount_gel'),
         ];
     }
 

@@ -177,7 +177,7 @@
                                         </td>
                                         <td>{{ $expense->description ?: '—' }}</td>
                                         <td class="text-end text-nowrap">
-                                            {{ number_format((float) $expense->amount_gel, 2) }} ₾
+                                            {{ number_format((float) $expense->purchase_amount, 2) }} ₾
                                         </td>
                                         <td class="text-end text-nowrap">
                                             {{ number_format((float) $expense->credit, 2) }} ₾

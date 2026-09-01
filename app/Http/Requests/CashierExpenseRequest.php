@@ -28,7 +28,7 @@ class CashierExpenseRequest extends FormRequest
             'supplier_id' => 'nullable|exists:suppliers,id',
             'product_id' => 'nullable|exists:products,id',
             'price_usd' => 'nullable|numeric|min:0|max:99999999.99',
-            'amount_gel' => 'required|numeric|min:0.01|max:999999999.99',
+            'amount_gel' => 'required|numeric|min:0|max:999999999.99',
             'credit' => 'nullable|numeric|min:0|max:999999999.99',
             'description' => 'nullable|string|max:5000',
             'file' => 'nullable|file|mimes:pdf,png,jpeg,jpg|max:10240',
@@ -54,9 +54,9 @@ class CashierExpenseRequest extends FormRequest
 
             $amount = $this->input('amount_gel');
             $credit = $this->input('credit');
-            if ($amount !== null && $credit !== null && is_numeric($amount) && is_numeric($credit)
-                && (float) $credit > (float) $amount) {
-                $validator->errors()->add('credit', __('cashier_expense.messages.credit_exceeds_amount'));
+            if (is_numeric($amount) && is_numeric($credit)
+                && (float) $amount + (float) $credit <= 0) {
+                $validator->errors()->add('amount_gel', __('cashier_expense.messages.amount_or_credit_required'));
             }
         });
     }
@@ -65,6 +65,10 @@ class CashierExpenseRequest extends FormRequest
     {
         if ($this->input('credit') === null || $this->input('credit') === '') {
             $this->merge(['credit' => 0]);
+        }
+
+        if ($this->input('amount_gel') === null || $this->input('amount_gel') === '') {
+            $this->merge(['amount_gel' => 0]);
         }
 
         // The supplier field is hidden for categories with no suppliers, so drop

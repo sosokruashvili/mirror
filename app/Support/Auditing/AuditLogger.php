@@ -4,6 +4,7 @@ namespace App\Support\Auditing;
 
 use App\Models\AuditLog;
 use App\Models\ClientBalance;
+use App\Models\PieceStageLog;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
@@ -33,6 +34,9 @@ class AuditLogger
         // Derived rows: one per client per day, rewritten on every order or
         // payment change. Auditing them buries real edits under recomputations.
         ClientBalance::class,
+        // Piece stage history has its own table and list page; logging each
+        // insert here would duplicate every workshop stage click.
+        PieceStageLog::class,
     ];
 
     /**

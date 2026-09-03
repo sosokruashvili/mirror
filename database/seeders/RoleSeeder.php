@@ -56,7 +56,7 @@ class RoleSeeder extends Seeder
         }
 
         // Operational (non-admin, non-settings, non-team) pages, read-only.
-        $operational = array_diff(array_keys($pages), ['user', 'role', 'permission', 'settings', 'team-order']);
+        $operational = array_diff(array_keys($pages), ['user', 'role', 'permission', 'settings', 'team-order', 'piece-stage-log']);
         $readOnly = [];
         foreach ($operational as $page) {
             $readOnly[$page] = ['list', 'show', 'view'];
@@ -83,6 +83,11 @@ class RoleSeeder extends Seeder
             'viewer'    => $readOnly,
             'team'      => [
                 'team-order' => ['view', 'operate'],
+                'piece-stage-log' => ['list'],
+                // Lets Piece/Order ID links on Stage Changes open the existing
+                // team order preview. The orders list stays hidden (no order.list,
+                // and RedirectTeamUsers still blocks /admin/order).
+                'order' => ['show'],
             ],
         ];
 

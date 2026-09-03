@@ -2,7 +2,9 @@
 
 return [
     'user_stats' => 'მომხმარებელთა სტატისტიკა',
+    'team_pages' => 'გუნდის გვერდები',
     'team_orders' => 'შეკვეთების გუნდი',
+    'stage_changes' => 'ეტაპის ცვლილებები',
     'clients' => 'კლიენტები',
     'client_balances' => 'კლიენტების ბალანსი',
     'products' => 'პროდუქტები',

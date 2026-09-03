@@ -717,7 +717,7 @@ class TeamOrderController extends Controller
             // The break sends the whole card back through the flow: clear every
             // completed stage on every piece in the group.
             foreach ($pieces as $piece) {
-                $piece->stages()->detach();
+                $piece->setCompletedThroughStage(null);
             }
 
             // A broken sheet consumes an extra piece worth of material, and the

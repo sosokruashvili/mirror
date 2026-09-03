@@ -18,6 +18,10 @@ class RedirectTeamUsers
         'team.pieces.broken',
         'team.pieces.broken-group',
         'team.pieces.stage',
+        'piece-stage-log.index',
+        'piece-stage-log.search',
+        'piece-stage-log.showDetailsRow',
+        'order.show',
         'backpack.auth.logout',
         'backpack.auth.login',
     ];
@@ -29,6 +33,7 @@ class RedirectTeamUsers
      */
     protected $allowedPaths = [
         'team/orders',
+        'piece-stage-log',
         'logout',
         'login',
     ];
@@ -65,6 +70,7 @@ class RedirectTeamUsers
                 
                 // Check if path is the team orders page or logout/login
                 $isTeamOrdersPage = str_contains($path, 'team/orders');
+                $isStageLogPage = str_contains($path, 'piece-stage-log');
                 $isLogout = str_contains($path, 'logout') || $request->isMethod('post') && str_contains($path, 'logout');
                 $isLogin = str_contains($path, 'login');
                 
@@ -86,7 +92,7 @@ class RedirectTeamUsers
                 }
                 
                 // Allow only: team orders page, logout, login, and paths matching allowed patterns
-                if (!$isAllowedRoute && !$isTeamOrdersPage && !$isLogout && !$isLogin && !$matchesAllowedPattern) {
+                if (!$isAllowedRoute && !$isTeamOrdersPage && !$isStageLogPage && !$isLogout && !$isLogin && !$matchesAllowedPattern) {
                     // For AJAX/JSON requests, return 403
                     if ($request->ajax() || $request->wantsJson()) {
                         return response()->json(['error' => 'Access denied'], 403);

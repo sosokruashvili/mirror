@@ -7,7 +7,9 @@
 
 return [
     'user_stats' => 'User Stats',
+    'team_pages' => 'Team Pages',
     'team_orders' => 'Team Orders',
+    'stage_changes' => 'Stage Changes',
     'clients' => 'Clients',
     'client_balances' => 'Client Balances',
     'products' => 'Products',

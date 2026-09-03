@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Support\Auditing\PieceStageLogger;
 use Backpack\CRUD\app\Models\Traits\CrudTrait;
 use Illuminate\Database\Eloquent\Model;
 
@@ -133,6 +134,7 @@ class Piece extends Model
         }
 
         $this->stages()->attach($completion->id, static::completionPivot());
+        $this->logStageChange($completion, PieceStageLog::ACTION_COMPLETED);
         $this->load('stages');
 
         return true;
@@ -223,8 +225,10 @@ class Piece extends Model
 
         if ($completed && !$has) {
             $this->stages()->attach($stage->id, static::completionPivot());
+            $this->logStageChange($stage, PieceStageLog::ACTION_COMPLETED);
         } elseif (!$completed && $has) {
             $this->stages()->detach($stage->id);
+            $this->logStageChange($stage, PieceStageLog::ACTION_CLEARED);
         }
 
         $this->load('stages');
@@ -248,7 +252,9 @@ class Piece extends Model
     public function setCompletedThroughStage(?Stage $stage): void
     {
         if ($stage === null) {
+            $cleared = $this->completedStages();
             $this->stages()->detach();
+            $this->logStageChanges($cleared, PieceStageLog::ACTION_CLEARED);
         } else {
             $completedIds = $this->stages()->pluck('stages.id')->all();
             $throughPos = $stage->position;
@@ -268,9 +274,17 @@ class Piece extends Model
 
             if (!empty($detach)) {
                 $this->stages()->detach($detach);
+                $this->logStageChanges(
+                    Stage::ordered()->whereIn('id', $detach),
+                    PieceStageLog::ACTION_CLEARED
+                );
             }
             if (!empty($attach)) {
                 $this->stages()->attach($attach);
+                $this->logStageChanges(
+                    Stage::ordered()->whereIn('id', array_keys($attach)),
+                    PieceStageLog::ACTION_COMPLETED
+                );
             }
         }
 
@@ -291,6 +305,22 @@ class Piece extends Model
     public function brokenGlasses()
     {
         return $this->hasMany(BrokenGlass::class);
+    }
+
+    /**
+     * Record one production-stage change. Failures are swallowed inside the logger.
+     */
+    protected function logStageChange(Stage $stage, string $action): void
+    {
+        app(PieceStageLogger::class)->record($this, $stage, $action);
+    }
+
+    /**
+     * @param  iterable<int, mixed>  $stages
+     */
+    protected function logStageChanges(iterable $stages, string $action): void
+    {
+        app(PieceStageLogger::class)->recordMany($this, $stages, $action);
     }
 
     /**

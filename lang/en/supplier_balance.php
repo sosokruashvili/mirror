@@ -23,6 +23,13 @@ return [
     'credit_total' => 'Total Credit (₾)',
     'balance' => 'Balance (₾)',
 
+    // Summary widgets above the list
+    'stats' => [
+        'confirmed_only' => 'Totals cover every supplier matching the current filters, confirmed expenses only.',
+        'paid_total' => 'Total Paid (₾)',
+        'balance_total' => 'Total Balance (₾)',
+    ],
+
     // Filters
     'filters' => [
         'name' => 'Name',

@@ -62,6 +62,7 @@ Route::group([
     Route::crud('warehouse-correction', 'WarehouseCorrectionCrudController');
     Route::crud('supplier', 'SupplierCrudController');
     Route::crud('supplier-price', 'SupplierPriceCrudController');
+    Route::get('supplier-balance/get-balance-stats', 'SupplierBalanceCrudController@getBalanceStats')->name('supplier-balance.getBalanceStats');
     Route::crud('supplier-balance', 'SupplierBalanceCrudController');
 
     Route::crud('client-balance', 'ClientBalanceCrudController');

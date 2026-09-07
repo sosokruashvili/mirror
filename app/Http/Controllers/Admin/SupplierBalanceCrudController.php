@@ -6,6 +6,7 @@ use App\Models\CashierExpense;
 use App\Models\Supplier;
 use Backpack\CRUD\app\Http\Controllers\CrudController;
 use Backpack\CRUD\app\Library\CrudPanel\CrudPanelFacade as CRUD;
+use Backpack\CRUD\app\Library\Widget;
 
 /**
  * Class SupplierBalanceCrudController
@@ -41,6 +42,10 @@ class SupplierBalanceCrudController extends CrudController
 
     protected function setupListOperation(): void
     {
+        // Totals across every supplier the current filters match (not just the
+        // page being shown).
+        $this->addBalanceStatsWidget();
+
         // Aggregate the expense sums in the main query so the list stays a
         // single query (no N+1) and the columns can be sorted server-side.
         $this->crud->addClause('withSum', 'confirmedCashierExpenses as paid_sum', 'amount_gel');
@@ -182,6 +187,87 @@ class SupplierBalanceCrudController extends CrudController
         // No bindings here: Backpack counts with a subquery that strips ORDER BY
         // and would otherwise leave a dangling ? parameter.
         $this->crud->addClause('orderByRaw', $this->balanceSubquerySql() . ' ASC');
+    }
+
+    /**
+     * Suppliers matching the current list filters. Kept in sync with the filters
+     * registered in setupListOperation (plus the search box, which searches the
+     * name column) so the widget totals describe exactly the rows being listed.
+     */
+    protected function filteredSuppliersQuery()
+    {
+        $query = Supplier::query();
+
+        if (request()->filled('name')) {
+            $query->where('name', 'LIKE', '%' . request()->get('name') . '%');
+        }
+
+        if (request()->filled('search')) {
+            $query->where('name', 'LIKE', '%' . request()->get('search') . '%');
+        }
+
+        if (request()->filled('only_debt')) {
+            $query->whereHas('confirmedCashierExpenses', function ($subQuery) {
+                $subQuery->where('credit', '>', 0);
+            });
+        }
+
+        return $query;
+    }
+
+    /**
+     * Widget totals over the filtered suppliers: what has actually been paid to
+     * them, and the summed balance (paid - remaining credit). Aggregated in SQL
+     * so this stays one query however many suppliers match.
+     *
+     * @return array{paidTotal:float, balanceTotal:float}
+     */
+    protected function calculateBalanceStats(): array
+    {
+        $totals = $this->filteredSuppliersQuery()
+            ->selectRaw(
+                'COALESCE(SUM(' . $this->confirmedExpensesSumSql('amount_gel') . '), 0) AS paid_total,'
+                . ' COALESCE(SUM(' . $this->confirmedExpensesSumSql('credit') . '), 0) AS credit_total'
+            )
+            ->first();
+
+        $paidTotal = (float) ($totals->paid_total ?? 0);
+        $creditTotal = (float) ($totals->credit_total ?? 0);
+
+        return [
+            'paidTotal' => $paidTotal,
+            'balanceTotal' => $paidTotal - $creditTotal,
+        ];
+    }
+
+    /**
+     * Add the summary widget above the list.
+     */
+    protected function addBalanceStatsWidget(): void
+    {
+        // The DataTables /search endpoint and the details-row route run
+        // setupListOperation() too, but render no widgets — skip the totals
+        // query there. The widget follows the list via getBalanceStats instead.
+        if (request()->ajax()) {
+            return;
+        }
+
+        Widget::add(array_merge([
+            'type' => 'view',
+            'view' => 'vendor.backpack.crud.widgets.supplier_balance_stats',
+            'wrapper' => ['class' => 'col-12'],
+        ], $this->calculateBalanceStats()))->to('before_content');
+    }
+
+    /**
+     * Return the filter-aware totals as JSON, so the widget can follow the list
+     * without a page reload.
+     */
+    public function getBalanceStats(): \Illuminate\Http\JsonResponse
+    {
+        $this->crud->hasAccessOrFail('list');
+
+        return response()->json($this->calculateBalanceStats());
     }
 
     /**

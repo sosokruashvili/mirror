@@ -15,6 +15,13 @@ return [
     'credit_total' => 'დავალიანება სულ (₾)',
     'balance' => 'ბალანსი (₾)',
 
+    // Summary widgets above the list
+    'stats' => [
+        'confirmed_only' => 'ჯამები მოიცავს ფილტრის შესაბამის ყველა მომწოდებელს, მხოლოდ დადასტურებული ხარჯებით.',
+        'paid_total' => 'გადახდილი სულ (₾)',
+        'balance_total' => 'ბალანსი სულ (₾)',
+    ],
+
     // Filters
     'filters' => [
         'name' => 'დასახელება',

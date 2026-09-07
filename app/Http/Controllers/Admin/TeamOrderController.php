@@ -537,11 +537,16 @@ class TeamOrderController extends Controller
      * stored in `finish_comment`, separate from `comment` (the manager's note
      * FOR the team), so neither overwrites the other.
      *
+     * AJAX callers (the team board) get JSON and keep their scroll; a plain
+     * POST still redirects back to the list.
+     *
      * @param  int  $id
-     * @return \Illuminate\Http\RedirectResponse
+     * @return \Illuminate\Http\JsonResponse|\Illuminate\Http\RedirectResponse
      */
     public function finish(Request $request, $id)
     {
+        $wantsJson = $request->ajax() || $request->wantsJson();
+
         try {
             $data = $request->validate([
                 'finish_comment' => 'nullable|string|max:5000',
@@ -557,6 +562,12 @@ class TeamOrderController extends Controller
             // have reached the დასრულება stage. Admins can still force-finish
             // an order through the order edit form.
             if (!OrderPieceStatusSync::piecesReadyForFinish($order)) {
+                $message = 'შეკვეთის გატანა შეუძლებელია — ყველა დეტალი ჯერ არ არის დასრულების ეტაპზე.';
+
+                if ($wantsJson) {
+                    return response()->json(['success' => false, 'message' => $message], 422);
+                }
+
                 Alert::error('Order #' . $order->id . ' cannot be marked as finished: not every piece has reached the დასრულება stage.')->flash();
 
                 return redirect()->route('team.orders', $this->returnQuery($request));
@@ -577,11 +588,22 @@ class TeamOrderController extends Controller
                 OrderPieceStatusSync::markPiecesFinished($order);
             });
 
+            if ($wantsJson) {
+                return response()->json([
+                    'success' => true,
+                    'order_id' => $order->id,
+                ]);
+            }
+
             // Flash success message using Backpack's Alert system
             Alert::success('Order #' . $order->id . ' has been marked as finished.')->flash();
-            
+
             return redirect()->route('team.orders', $this->returnQuery($request));
         } catch (\Exception $e) {
+            if ($wantsJson) {
+                return response()->json(['success' => false, 'message' => $e->getMessage()], 422);
+            }
+
             Alert::error('Failed to finish order: ' . $e->getMessage())->flash();
             return redirect()->route('team.orders', $this->returnQuery($request));
         }

@@ -7,6 +7,7 @@ use Backpack\CRUD\app\Http\Controllers\CrudController;
 use Backpack\CRUD\app\Library\CrudPanel\CrudPanelFacade as CRUD;
 use Illuminate\Support\Arr;
 use Backpack\CRUD\app\Library\Widget;
+use Illuminate\Support\Facades\DB;
 
 /**
  * Class WarehouseExpenseCrudController
@@ -87,6 +88,18 @@ class WarehouseExpenseCrudController extends CrudController
                 }
                 return htmlspecialchars($titles->implode(', '), ENT_QUOTES, 'UTF-8');
             }
+        ]);
+
+        CRUD::addColumn([
+            'name' => 'product_price',
+            'label' => __('warehouse.expense.product_price'),
+            'type' => 'number',
+            'decimals' => 2,
+            'orderable' => false,
+            'searchLogic' => false,
+            'value' => function ($entry) {
+                return $entry->calculateProductPriceGel();
+            },
         ]);
 
         CRUD::addColumn([
@@ -258,7 +271,34 @@ class WarehouseExpenseCrudController extends CrudController
         return [
             'ordersCount' => (clone $query)->count(),
             'totalExpenses' => (float) (clone $query)->sum('expenses'),
+            'totalProductPrice' => $this->sumProductPriceGel($query),
         ];
+    }
+
+    /**
+     * Product-only GEL total for the filtered orders, excluding services and
+     * drafts. Mirrors Order::calculateProductPriceGel() in SQL so the widget
+     * does not hydrate every order.
+     *
+     * @param  \Illuminate\Database\Eloquent\Builder  $query
+     */
+    protected function sumProductPriceGel($query): float
+    {
+        $lineSql = '((pieces.width / 100.0) * (pieces.height / 100.0) * pieces.quantity)
+            * COALESCE(order_product.price, products.price)
+            * orders.currency_rate';
+
+        return (float) DB::query()
+            ->fromSub(
+                (clone $query)->select('orders.id', 'orders.status', 'orders.currency_rate')->toBase(),
+                'orders'
+            )
+            ->where('orders.status', '!=', 'draft')
+            ->join('pieces', 'pieces.order_id', '=', 'orders.id')
+            ->join('order_product', 'order_product.order_id', '=', 'orders.id')
+            ->join('products', 'products.id', '=', 'order_product.product_id')
+            ->selectRaw("COALESCE(SUM(ROUND(({$lineSql})::numeric, 2)), 0) as total")
+            ->value('total');
     }
 
     /**

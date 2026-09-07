@@ -290,13 +290,14 @@ class Order extends Model
     }
 
     /**
-     * Total order price (GEL), excluding draft pieces.
+     * Glass/product portion of the order price (GEL), excluding services.
+     *
+     * Same formula as calculateTotalPrice()'s product loop (area × per-order
+     * unit price × currency rate), without persisting piece prices. Draft
+     * orders contribute nothing — they are not yet consuming warehouse stock.
      */
-    public function calculateTotalPriceExcludingDraftPieces(): float
+    public function calculateProductPriceGel(): float
     {
-        if (!$this->relationLoaded('services')) {
-            $this->load('services');
-        }
         if (!$this->relationLoaded('products')) {
             $this->load('products');
         }
@@ -304,21 +305,34 @@ class Order extends Model
             $this->load('pieces');
         }
 
-        $totalPriceGel = $this->services->sum('pivot.price_gel');
+        if ($this->status === 'draft') {
+            return 0.0;
+        }
 
-        // Draft orders exclude their (draft) pieces from the price; only services count.
-        if ($this->status !== 'draft') {
-            foreach ($this->products as $product) {
-                // Use the per-order price stored on the pivot (personal/manually entered
-                // price); fall back to the catalog price only when no pivot price is set.
-                $unitPrice = $product->pivot->price ?? $product->price;
-                foreach ($this->pieces as $piece) {
-                    $totalPriceGel += $piece->getArea() * $unitPrice * $this->currency_rate;
-                }
+        $total = 0.0;
+        $rate = (float) $this->currency_rate;
+
+        foreach ($this->products as $product) {
+            // Per-order pivot price (personal/manual); catalog price as fallback.
+            $unitPrice = $product->pivot->price ?? $product->price;
+            foreach ($this->pieces as $piece) {
+                $total += round($piece->getArea() * $unitPrice * $rate, 2);
             }
         }
 
-        return $totalPriceGel;
+        return $total;
+    }
+
+    /**
+     * Total order price (GEL), excluding draft pieces.
+     */
+    public function calculateTotalPriceExcludingDraftPieces(): float
+    {
+        if (!$this->relationLoaded('services')) {
+            $this->load('services');
+        }
+
+        return (float) $this->services->sum('pivot.price_gel') + $this->calculateProductPriceGel();
     }
 
     public function calculateOrderPrice() {

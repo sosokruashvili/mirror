@@ -102,6 +102,10 @@
     .order-card.dragging .order-tile {
         box-shadow: 0 10px 24px rgba(0,0,0,0.25);
     }
+    .order-card.is-finishing {
+        pointer-events: none;
+        opacity: 0.65;
+    }
     .order-card-placeholder {
         border: 3px dashed rgba(96, 129, 179, 0.9);
         border-radius: 8px;
@@ -747,6 +751,24 @@
         white-space: nowrap;
     }
 
+    .team-portal-bar {
+        position: fixed;
+        top: 16px;
+        left: 16px;
+        z-index: 1001;
+    }
+
+    .team-portal-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        white-space: nowrap;
+    }
+
+    .container-fluid.has-portal-back {
+        padding-top: 56px;
+    }
+
     .team-user-name {
         color: var(--tblr-body-color, #dadcde);
         font-weight: 600;
@@ -776,6 +798,15 @@
     }
 </style>
 
+@if(!$isTeamUser)
+<div class="team-portal-bar">
+    <a href="{{ backpack_url('dashboard') }}" class="btn btn-outline-light team-portal-btn" title="{{ __('menu.back_to_portal') }}">
+        <i class="la la-arrow-left"></i>
+        <span>{{ __('menu.back_to_portal') }}</span>
+    </a>
+</div>
+@endif
+
 <div class="team-user-bar">
     <span class="team-user-name">{{ backpack_user()->name }}</span>
     <a href="{{ route('backpack.auth.logout') }}" class="btn btn-outline-light team-logout-btn" title="გასვლა">
@@ -784,7 +815,7 @@
     </a>
 </div>
 
-<div class="container-fluid">
+<div class="container-fluid{{ $isTeamUser ? '' : ' has-portal-back' }}">
     <div class="d-flex flex-wrap align-items-end pt-3 gap-2">
         @if($showArchived)
         <a href="{{ route('team.orders') }}" class="btn btn-outline-light" title="მთავარი">
@@ -1883,38 +1914,73 @@ jQuery(function($) {
     }
 
 @endif
+    // Hand the order out over AJAX. On success the card leaves the board
+    // (finished orders are not listed) without a full-page reload.
     // `comment` is the team's optional "handed out" note; it is stored on the
     // order as finish_comment and left untouched when blank.
     function finishOrder(orderId, triggerEl, comment) {
-        var button = triggerEl || (typeof event !== 'undefined' ? event.target : null);
-        if (button && button.tagName === 'BUTTON') {
-            button.disabled = true;
-            button.textContent = 'Processing...';
-        }
+        var card = document.querySelector('.order-card[data-order-id="' + orderId + '"]');
+        if (card && card.classList.contains('is-finishing')) return;
+        if (card) card.classList.add('is-finishing');
 
-        const token = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') ||
-                     document.querySelector('input[name="_token"]')?.value;
+        var token = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') ||
+                    document.querySelector('input[name="_token"]')?.value;
 
-        const form = document.createElement('form');
-        form.method = 'POST';
-        form.action = '{{ route("team.orders.finish", ":id") }}'.replace(':id', orderId);
+        var formData = new FormData();
+        formData.append('_token', token);
+        formData.append('finish_comment', comment || '');
 
-        const csrfInput = document.createElement('input');
-        csrfInput.type = 'hidden';
-        csrfInput.name = '_token';
-        csrfInput.value = token;
-        form.appendChild(csrfInput);
+        fetch('{{ route("team.orders.finish", ":id") }}'.replace(':id', orderId), {
+            method: 'POST',
+            headers: {
+                'Accept': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-CSRF-TOKEN': token
+            },
+            body: formData
+        })
+        .then(function(res) {
+            return res.json().catch(function() { return {}; }).then(function(data) {
+                return { ok: res.ok, data: data };
+            });
+        })
+        .then(function(result) {
+            if (!result.ok || !result.data || !result.data.success) {
+                if (card) card.classList.remove('is-finishing');
+                alert((result.data && result.data.message) || 'გატანილია – მოთხოვნა ვერ შესრულდა.');
+                return;
+            }
+            removeOrderCard(card);
+        })
+        .catch(function() {
+            if (card) card.classList.remove('is-finishing');
+            alert('გატანილია – მოთხოვნა ვერ შესრულდა.');
+        });
+    }
 
-        const commentInput = document.createElement('input');
-        commentInput.type = 'hidden';
-        commentInput.name = 'finish_comment';
-        commentInput.value = comment || '';
-        form.appendChild(commentInput);
+    function persistTeamGridOrder() {
+        var row = document.getElementById('ordersGridRow');
+        if (!row) return;
+        var key = row.getAttribute('data-dnd-storage-key');
+        if (!key) return;
+        try {
+            var ids = Array.prototype.map.call(
+                row.querySelectorAll('.order-card[data-order-id]'),
+                function(el) { return String(el.getAttribute('data-order-id')); }
+            );
+            localStorage.setItem(key, JSON.stringify(ids));
+        } catch (e) { /* private mode / quota */ }
+    }
 
-        form.appendChild(teamPageInput());
-
-        document.body.appendChild(form);
-        form.submit();
+    function removeOrderCard(card) {
+        if (!card) return;
+        card.style.transition = 'opacity 0.3s, transform 0.3s';
+        card.style.opacity = '0';
+        card.style.transform = 'scale(0.8)';
+        setTimeout(function() {
+            if (card.parentNode) card.parentNode.removeChild(card);
+            persistTeamGridOrder();
+        }, 300);
     }
 
     function unarchiveOrder(orderId) {

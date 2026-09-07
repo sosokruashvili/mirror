@@ -4,6 +4,7 @@ return [
     'user_stats' => 'მომხმარებელთა სტატისტიკა',
     'team_pages' => 'გუნდის გვერდები',
     'team_orders' => 'შეკვეთების გუნდი',
+    'back_to_portal' => 'პორტალზე დაბრუნება',
     'stage_changes' => 'ეტაპის ცვლილებები',
     'clients' => 'კლიენტები',
     'client_balances' => 'კლიენტების ბალანსი',

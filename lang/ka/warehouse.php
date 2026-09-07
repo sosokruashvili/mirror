@@ -36,6 +36,7 @@ return [
         'client' => 'კლიენტი',
         'product_type' => 'პროდუქტის ტიპი',
         'products' => 'პროდუქტები',
+        'product_price' => 'პროდუქტის ფასი (₾)',
         'base_expense' => 'საბაზისო დანახარჯი (მ²)',
         'offcut_pct' => 'ნარჩენი (%)',
         'offcut_area' => 'ნარჩენი (მ²)',
@@ -45,6 +46,7 @@ return [
         'order_date_range' => 'შეკვეთის პერიოდი',
         'stats_orders_count' => 'შეკვეთების რაოდენობა',
         'stats_total_expenses' => 'ჯამური დანახარჯი (მ²)',
+        'stats_total_product_price' => 'ჯამური პროდუქტის ფასი (₾)',
     ],
 
     // Stock corrections

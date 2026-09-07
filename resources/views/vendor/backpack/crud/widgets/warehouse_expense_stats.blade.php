@@ -9,13 +9,23 @@
             </div>
         </div>
     </div>
-    <div class="col-md-3">
+    <div class="col-md-3 mb-3 mb-md-0">
         <div class="card bg-warning text-white mb-0">
             <div class="card-header">
                 <h4 class="mb-0">{{ __('warehouse.expense.stats_total_expenses') }}</h4>
             </div>
             <div class="card-body">
                 <h2 class="mb-0" id="stats-total-expenses">{{ number_format($widget['totalExpenses'], 2) }}</h2>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-success text-white mb-0">
+            <div class="card-header">
+                <h4 class="mb-0">{{ __('warehouse.expense.stats_total_product_price') }}</h4>
+            </div>
+            <div class="card-body">
+                <h2 class="mb-0" id="stats-total-product-price">{{ number_format($widget['totalProductPrice'], 2) }} ₾</h2>
             </div>
         </div>
     </div>
@@ -50,6 +60,10 @@
                     minimumFractionDigits: 2,
                     maximumFractionDigits: 2
                 }));
+                $('#stats-total-product-price').text(parseFloat(response.totalProductPrice).toLocaleString(undefined, {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2
+                }) + ' ₾');
             },
             error: function() {
                 console.error('Failed to update warehouse expense stats');

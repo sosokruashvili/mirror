@@ -43,6 +43,7 @@ return [
         'client' => 'Client',
         'product_type' => 'Product Type',
         'products' => 'Products',
+        'product_price' => 'Product Price (₾)',
         'base_expense' => 'Base Expense (m²)',
         'offcut_pct' => 'Offcut (%)',
         'offcut_area' => 'Offcut (m²)',
@@ -52,6 +53,7 @@ return [
         'order_date_range' => 'Order Date Range',
         'stats_orders_count' => 'Orders Count',
         'stats_total_expenses' => 'Total Expenses (m²)',
+        'stats_total_product_price' => 'Total Product Price (₾)',
     ],
 
     // Stock corrections

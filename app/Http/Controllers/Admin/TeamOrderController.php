@@ -622,18 +622,57 @@ class TeamOrderController extends Controller
                 $piece->setStageCompleted($stage, $request->boolean('completed'));
             }
 
-            $currentStage = $piece->currentStageName();
-
-            return response()->json([
-                'success' => true,
-                'piece_id' => $piece->id,
-                'stage' => $currentStage,
-                'stage_label' => piece_stage_ge($currentStage),
-                'completed_stages' => $piece->completedStageNames(),
-            ]);
+            return response()->json($this->pieceStageUpdatePayload($piece));
         } catch (\Exception $e) {
             return response()->json(['success' => false, 'message' => $e->getMessage()], 422);
         }
+    }
+
+    /**
+     * JSON the team board uses to retint a size tag and refresh the parent
+     * card (status badge / hand-out lock) without reloading the page.
+     *
+     * @return array<string, mixed>
+     */
+    private function pieceStageUpdatePayload(Piece $piece): array
+    {
+        $piece->load('stages');
+
+        $currentStage = $piece->currentStageName();
+        $stageColor = $currentStage ? piece_stage_color($currentStage) : '';
+        if ($stageColor === '') {
+            $stageColor = piece_draft_color();
+        }
+        $stageTextColor = $currentStage ? piece_stage_text_color($currentStage) : '';
+        if ($stageTextColor === '') {
+            $stageTextColor = '#ffffff';
+        }
+
+        $order = $piece->order;
+        if ($order) {
+            $order->refresh();
+            $order->load('pieces.stages');
+        }
+
+        $completed = $piece->stages
+            ->sortBy('position')
+            ->pluck('name')
+            ->values()
+            ->all();
+
+        return [
+            'success' => true,
+            'piece_id' => $piece->id,
+            'stage' => $currentStage,
+            'stage_label' => piece_stage_ge($currentStage),
+            'completed_stages' => $completed,
+            'stage_color' => $stageColor,
+            'stage_text_color' => $stageTextColor,
+            'order_id' => $order?->id,
+            'order_status' => $order?->status,
+            'order_status_html' => $order ? status_badge($order->status) : null,
+            'can_finish' => $order ? OrderPieceStatusSync::piecesReadyForFinish($order) : false,
+        ];
     }
 
     /**

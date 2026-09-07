@@ -349,9 +349,22 @@
         cursor: pointer;
         touch-action: manipulation;
         -webkit-tap-highlight-color: transparent;
+        transition: background-color 0.2s ease, color 0.2s ease, opacity 0.15s ease;
     }
     .size-tag.size-tag-readonly {
         cursor: default;
+    }
+    .size-tag.is-updating {
+        opacity: 0.55;
+        pointer-events: none;
+    }
+    .size-tag.stage-just-updated {
+        animation: size-tag-stage-flash 0.55s ease;
+    }
+    @keyframes size-tag-stage-flash {
+        0% { transform: scale(1); }
+        40% { transform: scale(1.05); }
+        100% { transform: scale(1); }
     }
 
     .size-tag.broken {
@@ -1520,7 +1533,7 @@ jQuery(function($) {
     function togglePieceMenu(e, el) {
         e.stopPropagation();
         var tag = el.classList.contains('size-tag') ? el : el.closest('.size-tag');
-        if (!tag) return;
+        if (!tag || tag.classList.contains('is-updating')) return;
 
         var wasOpen = _pieceCtxMenu.classList.contains('open') && _pieceCtxTag === tag;
 
@@ -1668,18 +1681,57 @@ jQuery(function($) {
         });
     }
 
+    // Apply the stage-update JSON to the size tag that was clicked, and to
+    // its parent order card (status badge + whether გატანილია is allowed).
+    function applyPieceStageResult(tag, data) {
+        var stage = data.stage || '';
+        var completed = Array.isArray(data.completed_stages) ? data.completed_stages : [];
+
+        tag.setAttribute('data-piece-stage', stage);
+        tag.setAttribute('data-piece-completed', completed.join(','));
+        tag.classList.toggle('has-stage', stage !== '');
+        tag.style.backgroundColor = data.stage_color || '';
+        tag.style.color = data.stage_text_color || '';
+
+        var card = tag.closest('.order-card');
+        if (card) {
+            if (typeof data.can_finish !== 'undefined') {
+                card.setAttribute('data-can-finish', data.can_finish ? '1' : '0');
+            }
+            if (data.order_status_html) {
+                var statusEl = card.querySelector('.order-status');
+                if (statusEl) {
+                    statusEl.innerHTML = data.order_status_html;
+                }
+            }
+        }
+
+        tag.classList.remove('stage-just-updated');
+        void tag.offsetWidth;
+        tag.classList.add('stage-just-updated');
+        tag.addEventListener('animationend', function() {
+            tag.classList.remove('stage-just-updated');
+        }, { once: true });
+    }
+
     // Toggle a single stage's completion for every piece in the size group.
     // `stage` empty + completed omitted clears all stages. Otherwise `completed`
-    // (true/false) records or removes that stage's dated completion.
+    // (true/false) records or removes that stage's dated completion. The page
+    // stays put: the tag colour and the card's status come from the JSON.
     function applyStageToPieces(tag, stage, completed) {
-        var pieceIds = tag.getAttribute('data-piece-ids').split(',');
+        var pieceIds = (tag.getAttribute('data-piece-ids') || '')
+            .split(',').filter(function(s) { return s !== ''; });
+        if (pieceIds.length === 0) return;
+
         var token = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') ||
                     document.querySelector('input[name="_token"]')?.value;
 
         closeCtxMenus();
+        tag.classList.add('is-updating');
 
         var done = 0;
         var failed = false;
+        var lastData = null;
         pieceIds.forEach(function(id) {
             var formData = new FormData();
             formData.append('_token', token);
@@ -1696,16 +1748,27 @@ jQuery(function($) {
                 },
                 body: formData
             })
-            .then(function(res) { return res.json(); })
-            .then(function(data) {
-                if (!data.success) failed = true;
+            .then(function(res) { return res.json().catch(function() { return {}; }).then(function(data) {
+                return { ok: res.ok, data: data };
+            }); })
+            .then(function(result) {
+                if (!result.ok || !result.data || !result.data.success) {
+                    failed = true;
+                    return;
+                }
+                lastData = result.data;
             })
             .catch(function() { failed = true; })
             .finally(function() {
                 done++;
-                if (done === pieceIds.length) {
-                    reloadTeamPageIfStatusUpdated(!failed, 'ეტაპი – მოთხოვნა ვერ შესრულდა.');
+                if (done !== pieceIds.length) return;
+
+                tag.classList.remove('is-updating');
+                if (failed || !lastData) {
+                    alert('ეტაპი – მოთხოვნა ვერ შესრულდა.');
+                    return;
                 }
+                applyPieceStageResult(tag, lastData);
             });
         });
     }

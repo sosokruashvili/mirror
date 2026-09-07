@@ -206,9 +206,18 @@ class AuditLogCrudController extends CrudController
             'type' => 'date_range',
             'label' => 'Date range',
         ], false, function ($value) {
-            $dates = json_decode($value);
-            $this->crud->addClause('where', 'created_at', '>=', $dates->from . ' 00:00:00');
-            $this->crud->addClause('where', 'created_at', '<=', $dates->to . ' 23:59:59');
+            $dates = json_decode($value, true);
+
+            if (! is_array($dates)) {
+                return;
+            }
+
+            if (! empty($dates['from'])) {
+                $this->crud->addClause('where', 'created_at', '>=', \Carbon\Carbon::parse($dates['from'])->startOfDay()->toDateTimeString());
+            }
+            if (! empty($dates['to'])) {
+                $this->crud->addClause('where', 'created_at', '<=', \Carbon\Carbon::parse($dates['to'])->endOfDay()->toDateTimeString());
+            }
         });
 
         CRUD::addFilter([

@@ -150,12 +150,17 @@ class PieceStageLogCrudController extends CrudController
             'type' => 'date_range',
             'label' => __('piece_stage_log.date'),
         ], false, function ($value) {
-            $dates = json_decode($value);
-            if (! empty($dates->from)) {
-                $this->crud->addClause('where', 'created_at', '>=', $dates->from . ' 00:00:00');
+            $dates = json_decode($value, true);
+
+            if (! is_array($dates)) {
+                return;
             }
-            if (! empty($dates->to)) {
-                $this->crud->addClause('where', 'created_at', '<=', $dates->to . ' 23:59:59');
+
+            if (! empty($dates['from'])) {
+                $this->crud->addClause('where', 'created_at', '>=', \Carbon\Carbon::parse($dates['from'])->startOfDay()->toDateTimeString());
+            }
+            if (! empty($dates['to'])) {
+                $this->crud->addClause('where', 'created_at', '<=', \Carbon\Carbon::parse($dates['to'])->endOfDay()->toDateTimeString());
             }
         });
 

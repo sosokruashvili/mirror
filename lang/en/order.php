@@ -54,6 +54,19 @@ return [
     'select_product' => 'Select a product',
     'comment_placeholder' => 'Optional notes for the production team...',
 
+    // Live warehouse remaining check on the create/edit form
+    'stock_warning' => [
+        'title' => 'Not enough warehouse stock',
+        'ok_title' => 'Remaining in warehouse',
+        'row_ok' => ':product — remaining in warehouse: :remaining m²',
+        'row_ok_need' => ':product — remaining :remaining m², this order :needed m²',
+        'row_over' => ':product — this order needs :needed m², remaining :remaining m² (exceeds by :over m²)',
+        'confirm_title' => 'Warehouse stock exceeded',
+        'confirm_intro' => 'The total piece area exceeds remaining warehouse stock:',
+        'confirm_question' => 'Save the order anyway?',
+        'save_anyway' => 'Save anyway',
+    ],
+
     // Field hints
     'hints' => [
         'usd_rate' => 'Actual current USD rate: :rate',

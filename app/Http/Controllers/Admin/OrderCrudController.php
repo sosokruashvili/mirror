@@ -17,6 +17,7 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Carbon;
 use App\Models\CustomPrice;
 use App\Models\Payment;
+use App\Services\WarehouseSnapshotService;
 /**
  * Class OrderCrudController
  * @package App\Http\Controllers\Admin
@@ -1525,6 +1526,35 @@ class OrderCrudController extends CrudController
 
         return response()->json([
             'price_gel' => $price_gel
+        ]);
+    }
+
+    /**
+     * Live remaining warehouse stock (m²) for products selected on the order form.
+     *
+     * Used by order-warehouse-stock.js to warn when piece area would exceed stock.
+     * exclude_order_id credits the current order back on edit so it is not counted twice.
+     */
+    public function warehouseRemaining(WarehouseSnapshotService $service)
+    {
+        $ids = request()->input('product_ids', []);
+        if (is_string($ids)) {
+            $ids = preg_split('/[,\s]+/', $ids, -1, PREG_SPLIT_NO_EMPTY) ?: [];
+        }
+
+        $exclude = request()->filled('exclude_order_id')
+            ? (int) request()->input('exclude_order_id')
+            : null;
+
+        $rows = $service->remainingForProducts((array) $ids, $exclude ?: null);
+
+        return response()->json([
+            'products' => $rows->map(fn ($row) => [
+                'id' => (int) $row->id,
+                'title' => $row->title,
+                'remaining' => round((float) $row->remaining, 3),
+                'offcut' => (float) $row->offcut,
+            ])->values(),
         ]);
     }
 

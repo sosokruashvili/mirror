@@ -245,6 +245,7 @@
         }
 
         $('input[name="expenses"]').val(total > 0 ? total.toFixed(2) : '');
+        $(document).trigger('order-expenses-updated');
     }
 
     /* ------------------------------------------------------- section visibility */

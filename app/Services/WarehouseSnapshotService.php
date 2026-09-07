@@ -173,6 +173,56 @@ class WarehouseSnapshotService
     }
 
     /**
+     * Live remaining stock (m²) for the given products, same formula as calculateAsOf(now()).
+     *
+     * When $excludeOrderId is a non-draft order, its stored expenses are added back
+     * so the caller can compare a *new* proposed expense against stock as if that
+     * order were not already consuming it (order edit).
+     *
+     * @param  array<int, int|string>  $productIds
+     * @return \Illuminate\Support\Collection<int, \stdClass>
+     */
+    public function remainingForProducts(array $productIds, ?int $excludeOrderId = null): Collection
+    {
+        $productIds = array_values(array_unique(array_filter(
+            array_map('intval', $productIds),
+            fn (int $id) => $id > 0
+        )));
+
+        if ($productIds === []) {
+            return collect();
+        }
+
+        $rows = $this->calculateAsOf(now())
+            ->filter(fn ($row) => in_array((int) $row->id, $productIds, true))
+            ->values();
+
+        if (! $excludeOrderId) {
+            return $rows;
+        }
+
+        $order = Order::query()->with('products:id')->find($excludeOrderId);
+        if (! $order || $order->status === 'draft') {
+            return $rows;
+        }
+
+        $expense = (float) $order->expenses;
+        $orderProductIds = $order->products->pluck('id')->map(fn ($id) => (int) $id)->all();
+
+        return $rows->map(function ($row) use ($expense, $orderProductIds) {
+            if (! in_array((int) $row->id, $orderProductIds, true)) {
+                return $row;
+            }
+
+            $copy = clone $row;
+            $copy->expenses = round((float) $copy->expenses - $expense, 3);
+            $copy->remaining = round((float) $copy->remaining + $expense, 3);
+
+            return $copy;
+        });
+    }
+
+    /**
      * Recompute every snapshot date already stored, plus today.
      *
      * Warehouse rows and orders are edited in place — a correction keeps the row's

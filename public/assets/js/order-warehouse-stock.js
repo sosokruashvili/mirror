@@ -153,20 +153,24 @@
         closeStockNoty();
         lastNotyKey = key;
         var gen = notyGeneration;
-        stockNoty = new Noty({
-            type: type,
-            text: html,
-            timeout: sticky ? false : 7000,
-            layout: 'topRight',
-            closeWith: ['click', 'button'],
-            callbacks: {
-                afterClose: function () {
-                    if (gen !== notyGeneration) { return; }
-                    notyDismissedKey = lastNotyKey;
-                    stockNoty = null;
+        try {
+            stockNoty = new Noty({
+                type: type,
+                text: html,
+                timeout: sticky ? false : 7000,
+                layout: 'topRight',
+                closeWith: ['click', 'button'],
+                callbacks: {
+                    afterClose: function () {
+                        if (gen !== notyGeneration) { return; }
+                        notyDismissedKey = lastNotyKey;
+                        stockNoty = null;
+                    }
                 }
-            }
-        }).show();
+            }).show();
+        } catch (err) {
+            stockNoty = null;
+        }
     }
 
     function okNotyKey() {
@@ -240,12 +244,9 @@
 
         var bodyHtml = lines.join('');
         fillBanner($el, anyOver, bodyHtml);
-        fillBanner($saveEl, anyOver, bodyHtml);
         if (anyOver) {
+            fillBanner($saveEl, anyOver, bodyHtml);
             $expenses.addClass('is-invalid border-danger');
-        }
-
-        if (anyOver) {
             showStockNoty(
                 'error',
                 exceedKey(needed),
@@ -257,7 +258,7 @@
                 'info',
                 okNotyKey(),
                 '<strong>' + escapeHtml(CFG.i18n.okTitle) + '</strong><br>' + notyLines.join('<br>'),
-                false
+                true
             );
         }
     }

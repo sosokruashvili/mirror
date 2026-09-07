@@ -49,7 +49,7 @@ return [
         'title' => 'საწყობის ნაშთი არ არის საკმარისი',
         'ok_title' => 'ნაშთი საწყობში',
         'row_ok' => ':product — ნაშთი საწყობში: :remaining მ²',
-        'row_ok_need' => ':product — ნაშთი :remaining მ², ამ შეკვეთა :needed მ²',
+        'row_ok_need' => ':product — ნაშთი :remaining მ², ამ შეკვეთას :needed მ²',
         'row_over' => ':product — ამ შეკვეთას სჭირდება :needed მ², ნაშთი :remaining მ² (აჭარბებს :over მ²-ით)',
         'confirm_title' => 'საწყობის ნაშთი არ არის საკმარისი',
         'confirm_intro' => 'ნაჭრების ჯამური ფართობი აჭარბებს საწყობის ნაშთს:',

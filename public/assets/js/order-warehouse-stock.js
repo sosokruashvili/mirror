@@ -24,7 +24,7 @@
     var stockNoty = null;
     var lastNotyKey = '';
     var notyDismissedKey = '';
-    var replacingNoty = false;
+    var notyGeneration = 0;
 
     function i18nReplace(template, vars) {
         return String(template || '').replace(/:([a-z_]+)/g, function (_, key) {
@@ -132,11 +132,11 @@
     }
 
     function closeStockNoty() {
+        notyGeneration += 1;
         if (!stockNoty) { return; }
-        replacingNoty = true;
-        stockNoty.close();
+        var pending = stockNoty;
         stockNoty = null;
-        replacingNoty = false;
+        pending.close();
     }
 
     function showStockNoty(type, key, html, sticky) {
@@ -152,15 +152,16 @@
 
         closeStockNoty();
         lastNotyKey = key;
+        var gen = notyGeneration;
         stockNoty = new Noty({
             type: type,
             text: html,
-            timeout: sticky ? false : 8000,
+            timeout: sticky ? false : 7000,
             layout: 'topRight',
             closeWith: ['click', 'button'],
             callbacks: {
                 afterClose: function () {
-                    if (replacingNoty) { return; }
+                    if (gen !== notyGeneration) { return; }
                     notyDismissedKey = lastNotyKey;
                     stockNoty = null;
                 }
@@ -234,7 +235,6 @@
         });
 
         if (!anyKnown) {
-            showStockNoty('info', '', '', false);
             return;
         }
 

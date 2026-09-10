@@ -20,6 +20,7 @@ Route::group([
     Route::get('dashboard/daily-stats-chart', 'DashboardController@getDailyStatsChart')->name('dashboard.dailyStatsChart');
     Route::get('dashboard/daily-payments-by-method', 'DashboardController@getDailyPaymentsByMethodChart')->name('dashboard.dailyPaymentsByMethod');
     Route::get('dashboard/product-type-stats-chart', 'DashboardController@getProductTypeStatsChart')->name('dashboard.productTypeStatsChart');
+    Route::get('dashboard/product-type-area-chart', 'DashboardController@getProductTypeAreaChart')->name('dashboard.productTypeAreaChart');
 
     // User Stats dashboard (access-controlled: user-stats.view)
     Route::get('user-stats', 'UserStatsController@index')->name('user-stats.index')->middleware('backpack.can:user-stats.view');

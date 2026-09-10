@@ -285,6 +285,51 @@ class DashboardController
     }
 
     /**
+     * Sold piece area grouped by order product type for the horizontal bar chart.
+     *
+     * Returns, for Mirror / Glass / Lamix / Glass Package, the total piece area
+     * (m²) of confirmed (non-draft) orders in the selected range. Service
+     * orders have no sellable area and are excluded.
+     *
+     * The date range defaults to the last 30 days and can be overridden with
+     * `from` / `to` query params (YYYY-MM-DD), matching the other product-type
+     * dashboard charts.
+     */
+    public function getProductTypeAreaChart(Request $request): JsonResponse
+    {
+        [$from, $to] = $this->resolveDailyStatsRange($request);
+
+        // Fixed set/order so every type always appears, even with zero area.
+        $types = ['mirror', 'glass', 'lamix', 'glass_pkg'];
+        $areaExpression = '(pieces.width / 100.0) * (pieces.height / 100.0) * pieces.quantity';
+
+        $rows = DB::table('orders')
+            ->join('pieces', 'pieces.order_id', '=', 'orders.id')
+            ->where('orders.status', '!=', 'draft')
+            ->whereIn('orders.product_type', $types)
+            ->whereBetween('orders.created_at', [$from, $to->copy()->endOfDay()])
+            ->selectRaw("LOWER(orders.product_type) as product_type, SUM({$areaExpression}) as total_area")
+            ->groupByRaw('LOWER(orders.product_type)')
+            ->get()
+            ->keyBy('product_type');
+
+        $labels = [];
+        $areas = [];
+        foreach ($types as $type) {
+            $labels[] = product_type_ge($type);
+            $areas[] = round((float) ($rows[$type]->total_area ?? 0), 2);
+        }
+
+        return response()->json([
+            'from' => $from->toDateString(),
+            'to' => $to->toDateString(),
+            'labels' => $labels,
+            'areas' => $areas,
+            'totalArea' => round(array_sum($areas), 2),
+        ]);
+    }
+
+    /**
      * Resolve the [from, to] range for the stats charts from the request.
      *
      * When `from`/`to` query params are absent the range defaults to a sensible

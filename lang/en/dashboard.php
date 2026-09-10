@@ -78,6 +78,14 @@ return [
         'orders_count' => 'Orders count',
     ],
 
+    'product_type_area' => [
+        'title' => 'Sold Area by Product Type',
+        'subtitle' => 'Total piece area (m²) per product type, excluding draft orders',
+        'total' => 'Total area',
+        'unit' => 'm²',
+        'label' => 'Area (m²)',
+    ],
+
     'area' => [
         'title' => 'Orders Area Summary',
         'subtitle' => 'Total piece area (m²), excluding draft orders and draft pieces',

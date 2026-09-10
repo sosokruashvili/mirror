@@ -151,6 +151,48 @@ class Piece extends Model
     }
 
     /**
+     * Whether this piece still belongs on the team board under the "ჩემი ეტაპი"
+     * filter: it HAS one of the selected stages (a service stage or a universal
+     * stage) and has NOT completed it yet. The `__none__` sentinel matches
+     * pieces with no services. An empty filter matches every piece.
+     *
+     * Mirrors TeamOrderController::applyOrderFilters() piece conditions so the
+     * AJAX stage toggle can drop tags the next reload would hide.
+     */
+    public function matchesTeamStageFilter(array $stageFilter): bool
+    {
+        $stageFilter = array_values(array_filter($stageFilter, fn ($v) => $v !== '' && $v !== null));
+
+        if ($stageFilter === []) {
+            return true;
+        }
+
+        $wantsNoStage = in_array('__none__', $stageFilter, true);
+        $realStages = array_values(array_filter($stageFilter, fn ($s) => $s !== '__none__'));
+
+        $services = $this->relationLoaded('services') ? $this->services : $this->services()->get();
+
+        if ($wantsNoStage && $services->isEmpty()) {
+            return true;
+        }
+
+        if ($realStages === []) {
+            return false;
+        }
+
+        $completed = $this->completedStageNames();
+        $relevantNames = $this->relevantStages()->pluck('name')->all();
+
+        foreach ($realStages as $slug) {
+            if (in_array($slug, $relevantNames, true) && !in_array($slug, $completed, true)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
      * The completed stage with the highest position (the piece's furthest point
      * of progress), or null when nothing is completed yet.
      */

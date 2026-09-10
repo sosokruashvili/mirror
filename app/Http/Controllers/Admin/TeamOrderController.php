@@ -200,7 +200,7 @@ class TeamOrderController extends Controller
             'client',
             'products',
             'services',
-            'pieces' => fn ($q) => $q->withCount('brokenGlasses')->with('stages')->orderBy('id'),
+            'pieces' => fn ($q) => $q->withCount('brokenGlasses')->with(['stages', 'services'])->orderBy('id'),
         ])
             ->whereNotIn('status', ['draft', 'finished']);
 
@@ -644,7 +644,7 @@ class TeamOrderController extends Controller
                 $piece->setStageCompleted($stage, $request->boolean('completed'));
             }
 
-            return response()->json($this->pieceStageUpdatePayload($piece));
+            return response()->json($this->pieceStageUpdatePayload($piece, $request));
         } catch (\Exception $e) {
             return response()->json(['success' => false, 'message' => $e->getMessage()], 422);
         }
@@ -654,11 +654,16 @@ class TeamOrderController extends Controller
      * JSON the team board uses to retint a size tag and refresh the parent
      * card (status badge / hand-out lock) without reloading the page.
      *
+     * Also tells the board whether the piece / order still match the filters
+     * the page was rendered with, so a just-completed stage can leave the
+     * list instead of staying visible until the next reload.
+     *
      * @return array<string, mixed>
      */
-    private function pieceStageUpdatePayload(Piece $piece): array
+    private function pieceStageUpdatePayload(Piece $piece, ?Request $request = null): array
     {
-        $piece->load('stages');
+        $request = $request ?? request();
+        $piece->load(['stages', 'services']);
 
         $currentStage = $piece->currentStageName();
         $stageColor = $currentStage ? piece_stage_color($currentStage) : '';
@@ -682,6 +687,8 @@ class TeamOrderController extends Controller
             ->values()
             ->all();
 
+        $filters = $this->boardFiltersFromRequest($request);
+
         return [
             'success' => true,
             'piece_id' => $piece->id,
@@ -694,7 +701,53 @@ class TeamOrderController extends Controller
             'order_status' => $order?->status,
             'order_status_html' => $order ? status_badge($order->status) : null,
             'can_finish' => $order ? OrderPieceStatusSync::piecesReadyForFinish($order) : false,
+            'piece_matches_filter' => $piece->matchesTeamStageFilter($filters['stage']),
+            'order_matches_filter' => $order ? $this->teamBoardOrderMatchesFilters($order, $filters) : false,
         ];
+    }
+
+    /**
+     * Filters the team board is currently showing. Prefer the snapshot the
+     * page sends with the stage POST (`filter_stage`) so the AJAX reply uses
+     * the same "ჩემი ეტაპი" selection the cards were rendered with; fall
+     * back to the user's saved filters otherwise.
+     *
+     * @return array{applied:bool,from:?string,to:?string,product_type:array,service:array,stage:array,client:mixed,sort:string}
+     */
+    private function boardFiltersFromRequest(Request $request): array
+    {
+        $filters = $this->resolveFilters($request);
+
+        if ($request->exists('filter_stage')) {
+            $raw = $request->input('filter_stage', []);
+            if (!is_array($raw)) {
+                $raw = ($raw === '' || $raw === null || $raw === 'all') ? [] : [$raw];
+            }
+
+            $filters['stage'] = array_values(array_filter($raw, fn ($v) => $v !== '' && $v !== null));
+        }
+
+        return $filters;
+    }
+
+    /**
+     * True when the order would still appear on the (non-archived) team board
+     * under the given filters — same status / archive / filter rules as index().
+     */
+    private function teamBoardOrderMatchesFilters(Order $order, array $filters): bool
+    {
+        if (in_array($order->status, ['draft', 'finished'], true) || $order->archived_at !== null) {
+            return false;
+        }
+
+        $query = Order::query()
+            ->whereKey($order->id)
+            ->whereNotIn('status', ['draft', 'finished'])
+            ->whereNull('archived_at');
+
+        $this->applyOrderFilters($query, $filters);
+
+        return $query->exists();
     }
 
     /**

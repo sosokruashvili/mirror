@@ -133,10 +133,18 @@
 
     function closeStockNoty() {
         notyGeneration += 1;
-        if (!stockNoty) { return; }
-        var pending = stockNoty;
-        stockNoty = null;
-        pending.close();
+        if (stockNoty) {
+            try { stockNoty.close(); } catch (err) { /* ignore */ }
+            stockNoty = null;
+        }
+        if (typeof Noty === 'function' && typeof Noty.closeAll === 'function') {
+            Noty.closeAll('order-stock');
+        }
+        document.querySelectorAll('.noty_bar.order-stock-noty').forEach(function (bar) {
+            var btn = bar.querySelector('.noty_close_button');
+            if (btn) { btn.click(); }
+            else { bar.remove(); }
+        });
     }
 
     function showStockNoty(type, key, html, sticky) {
@@ -158,9 +166,17 @@
                 type: type,
                 text: html,
                 timeout: sticky ? false : 7000,
+                progressBar: !sticky,
                 layout: 'topRight',
+                queue: 'order-stock',
+                killer: 'order-stock',
                 closeWith: ['click', 'button'],
                 callbacks: {
+                    onShow: function () {
+                        if (this.barDom) {
+                            this.barDom.classList.add('order-stock-noty');
+                        }
+                    },
                     afterClose: function () {
                         if (gen !== notyGeneration) { return; }
                         notyDismissedKey = lastNotyKey;

@@ -3,6 +3,7 @@
  *
  * Compares the form's expenses (piece area + product offcut %, already computed
  * by order-pieces-services.js) with live remaining stock per selected product.
+ * A product listed twice (glass package / two identical panes) needs 2× that area.
  * Shows an inline banner while editing; on submit, asks for confirmation if
  * any product would go over remaining stock. Does not block saving.
  *
@@ -46,20 +47,33 @@
         return $('[bp-section="crud-operation-create"] form, [bp-section="crud-operation-update"] form').first();
     }
 
-    function selectedProductIds() {
-        var ids = [];
+    function selectedProductLineCounts() {
+        var counts = {};
         $('[data-repeatable-identifier="products"][data-row-number]').each(function () {
             if ($(this).find('input, select').first().prop('disabled')) { return; }
             var val = $(this).find('select[name*="[product_id]"]').val();
-            if (val) { ids.push(String(val)); }
+            if (!val) { return; }
+            var id = String(val);
+            counts[id] = (counts[id] || 0) + 1;
         });
-        return ids.filter(function (id, i, arr) { return arr.indexOf(id) === i; });
+        return counts;
+    }
+
+    function selectedProductIds() {
+        return Object.keys(selectedProductLineCounts());
     }
 
     function currentNeeded() {
         var raw = $('input[name="expenses"]').val();
         var n = parseFloat(raw);
         return (!raw || isNaN(n) || n < 0) ? 0 : n;
+    }
+
+    // Glass packages list two panes of the same area; a product selected twice
+    // needs the sheet area twice.
+    function neededForProduct(id, baseNeeded) {
+        var counts = selectedProductLineCounts();
+        return baseNeeded * (counts[String(id)] || 0);
     }
 
     function exceeds(needed, remaining) {
@@ -74,13 +88,14 @@
             if (!info) { return; }
             var remaining = parseFloat(info.remaining);
             if (isNaN(remaining)) { remaining = 0; }
-            if (needed > 0 && exceeds(needed, remaining)) {
+            var productNeeded = neededForProduct(id, needed);
+            if (productNeeded > 0 && exceeds(productNeeded, remaining)) {
                 rows.push({
                     id: id,
                     title: info.title || ('#' + id),
-                    needed: needed,
+                    needed: productNeeded,
                     remaining: remaining,
-                    over: needed - remaining
+                    over: productNeeded - remaining
                 });
             }
         });
@@ -199,7 +214,11 @@
     }
 
     function exceedKey(needed) {
-        return 'err|' + selectedProductIds().join(',') + '|' + formatM2(needed, 2);
+        var counts = selectedProductLineCounts();
+        var parts = selectedProductIds().map(function (id) {
+            return id + 'x' + (counts[id] || 0);
+        });
+        return 'err|' + parts.join(',') + '|' + formatM2(needed, 2);
     }
 
     function renderBanner() {
@@ -234,13 +253,14 @@
             anyKnown = true;
             var remaining = parseFloat(info.remaining);
             if (isNaN(remaining)) { remaining = 0; }
-            var over = needed > 0 && exceeds(needed, remaining);
+            var productNeeded = neededForProduct(id, needed);
+            var over = productNeeded > 0 && exceeds(productNeeded, remaining);
             if (over) { anyOver = true; }
             var vars = {
                 product: info.title || ('#' + id),
-                needed: formatM2(needed, 2),
+                needed: formatM2(productNeeded, 2),
                 remaining: formatM2(remaining, 3),
-                over: formatM2(Math.max(0, needed - remaining), 2)
+                over: formatM2(Math.max(0, productNeeded - remaining), 2)
             };
             var line;
             if (over) {

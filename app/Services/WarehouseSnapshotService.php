@@ -56,8 +56,9 @@ class WarehouseSnapshotService
             ->filter(fn (array $row) => $row['at'] <= $end)
             ->pluck('expenses', 'id');
 
-        // Total expenses per product, counting each order once even if a product
-        // appears multiple times on the same order.
+        // Each order_product line consumes the order's sheet area. Glass packages
+        // (and lamix with two identical glasses) list two panes — often the same
+        // product twice — so a product that appears twice is charged twice.
         $expensesByProduct = [];
         foreach ($orderExpenses as $orderId => $expense) {
             foreach ($source['products_by_order'][$orderId] ?? [] as $productId) {
@@ -135,9 +136,9 @@ class WarehouseSnapshotService
             ->filter(fn (array $row) => $row['at'] !== null)
             ->values();
 
+        // Keep duplicate product_id rows (two 4მმ panes on one glass_pkg order).
         $productsByOrder = DB::table('order_product')
             ->select('order_id', 'product_id')
-            ->distinct()
             ->get()
             ->groupBy('order_id')
             ->map(fn (Collection $rows) => $rows->pluck('product_id')->map(fn ($id) => (int) $id)->all());
@@ -175,9 +176,10 @@ class WarehouseSnapshotService
     /**
      * Live remaining stock (m²) for the given products, same formula as calculateAsOf(now()).
      *
-     * When $excludeOrderId is a non-draft order, its stored expenses are added back
-     * so the caller can compare a *new* proposed expense against stock as if that
-     * order were not already consuming it (order edit).
+     * When $excludeOrderId is a non-draft order, its stored expenses are added
+     * back once per product line so the caller can compare a *new* proposed
+     * expense against stock as if that order were not already consuming it
+     * (order edit). Two panes of the same glass credit that product twice.
      *
      * @param  array<int, int|string>  $productIds
      * @return \Illuminate\Support\Collection<int, \stdClass>
@@ -201,22 +203,29 @@ class WarehouseSnapshotService
             return $rows;
         }
 
-        $order = Order::query()->with('products:id')->find($excludeOrderId);
+        $order = Order::query()->find($excludeOrderId);
         if (! $order || $order->status === 'draft') {
             return $rows;
         }
 
         $expense = (float) $order->expenses;
-        $orderProductIds = $order->products->pluck('id')->map(fn ($id) => (int) $id)->all();
+        $lineCounts = DB::table('order_product')
+            ->where('order_id', $excludeOrderId)
+            ->select('product_id', DB::raw('count(*) as n'))
+            ->groupBy('product_id')
+            ->pluck('n', 'product_id')
+            ->mapWithKeys(fn ($n, $id) => [(int) $id => (int) $n]);
 
-        return $rows->map(function ($row) use ($expense, $orderProductIds) {
-            if (! in_array((int) $row->id, $orderProductIds, true)) {
+        return $rows->map(function ($row) use ($expense, $lineCounts) {
+            $times = (int) $lineCounts->get((int) $row->id, 0);
+            if ($times < 1) {
                 return $row;
             }
 
+            $credited = $expense * $times;
             $copy = clone $row;
-            $copy->expenses = round((float) $copy->expenses - $expense, 3);
-            $copy->remaining = round((float) $copy->remaining + $expense, 3);
+            $copy->expenses = round((float) $copy->expenses - $credited, 3);
+            $copy->remaining = round((float) $copy->remaining + $credited, 3);
 
             return $copy;
         });

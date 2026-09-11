@@ -18,13 +18,13 @@ return [
 
     // Filters
     'date' => 'გატეხვის თარიღი',
-    'user' => 'გატეხა',
+    'author' => 'ავტორი',
     'repeat_only' => 'ერთზე მეტჯერ გატეხილი',
 
     // Expandable details row
     'details' => [
         'date' => 'თარიღი',
-        'user' => 'გატეხა',
+        'author' => 'ავტორი',
         'quantity' => 'ნაჭრები',
         'description' => 'მიზეზი',
         'empty' => 'გატეხვის ჩანაწერი არ არის.',

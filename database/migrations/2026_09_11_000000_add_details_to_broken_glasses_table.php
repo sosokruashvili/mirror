@@ -7,8 +7,8 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 /**
- * Enriches broken_glasses so the Broken Glasses page can answer "who broke it,
- * on which order, and how many pieces went back through production".
+ * Enriches broken_glasses so the Broken Glasses page can answer "who recorded
+ * it, on which order, and how many pieces went back through production".
  *
  * Until now a break row carried only piece_id + description. The operator was
  * recoverable only from audit_logs, and a group break (TeamOrderController@markGroupBroken)
@@ -41,8 +41,8 @@ return new class extends Migration
             $table->index('created_at');
         });
 
-        // Existing rows predate the operator column; the only record of who broke
-        // each glass is the audit trail written by App\Support\Auditing\AuditLogger.
+        // Existing rows predate the author column; the only record of who entered
+        // each break is the audit trail written by App\Support\Auditing\AuditLogger.
         // subject_type is bound rather than inlined so the class name's backslashes
         // are not mangled by PHP/Postgres string escaping.
         DB::update("

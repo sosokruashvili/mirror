@@ -8,6 +8,9 @@
 | (= extra sheets charged to the order); "Pieces affected" sums broken_glasses.quantity
 | (= pieces sent back through production). The two differ only for size-group breaks.
 |
+| "Author" is whoever recorded the break in the app, NOT necessarily the person
+| who physically broke the glass — do not translate it as "broke it".
+|
 | The "no description" fallback inside the details row reuses piece.broken_modal.
 */
 
@@ -29,13 +32,13 @@ return [
 
     // Filters
     'date' => 'Break Date',
-    'user' => 'Broken By',
+    'author' => 'Author',
     'repeat_only' => 'Broken more than once',
 
     // Expandable details row
     'details' => [
         'date' => 'Date',
-        'user' => 'Broken By',
+        'author' => 'Author',
         'quantity' => 'Pieces',
         'description' => 'Reason',
         'empty' => 'No break records.',

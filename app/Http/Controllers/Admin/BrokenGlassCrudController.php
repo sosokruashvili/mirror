@@ -18,7 +18,7 @@ use Backpack\CRUD\app\Library\CrudPanel\CrudPanelFacade as CRUD;
  * the last route segment), the same model-vs-page split WarehouseExpenseCrudController uses.
  *
  * Two different numbers are shown and must not be conflated:
- *  - Breaks          = broken_glasses rows       = sheets charged to the order
+ *  - Breaks          = broken_glasses rows          = sheets charged to the order
  *  - Pieces affected = SUM(broken_glasses.quantity) = pieces sent back through production
  * They differ only for size-group breaks. See App\Models\BrokenGlass.
  *
@@ -201,7 +201,7 @@ class BrokenGlassCrudController extends CrudController
         CRUD::addFilter([
             'name' => 'user_id',
             'type' => 'select2',
-            'label' => __('broken_glass.user'),
+            'label' => __('broken_glass.author'),
         ], function () {
             return User::query()->orderBy('name')->pluck('name', 'id')->toArray();
         }, function ($value) {

@@ -12,7 +12,7 @@
             <thead>
                 <tr>
                     <th>{{ __('broken_glass.details.date') }}</th>
-                    <th>{{ __('broken_glass.details.user') }}</th>
+                    <th>{{ __('broken_glass.details.author') }}</th>
                     @if($showQuantity)
                         <th class="text-end">{{ __('broken_glass.details.quantity') }}</th>
                     @endif

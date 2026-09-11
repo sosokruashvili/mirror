@@ -49,8 +49,9 @@ class BrokenGlass extends Model
     }
 
     /**
-     * The user who recorded the break. Null for rows whose causer could not be
-     * recovered from the audit trail.
+     * The author of this record — whoever clicked "gatqda", which is not
+     * necessarily the person who physically broke the glass. Null for rows whose
+     * causer could not be recovered from the audit trail.
      */
     public function user(): BelongsTo
     {

@@ -6,6 +6,7 @@ return [
     'team_orders' => 'შეკვეთების გუნდი',
     'back_to_portal' => 'პორტალზე დაბრუნება',
     'stage_changes' => 'ეტაპის ცვლილებები',
+    'broken_glasses' => 'გატეხილი მინები',
     'clients' => 'კლიენტები',
     'client_balances' => 'კლიენტების ბალანსი',
     'products' => 'პროდუქტები',

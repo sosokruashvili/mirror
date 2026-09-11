@@ -44,6 +44,7 @@ return [
         'product'          => ['label' => 'Products',         'actions' => ['list', 'create', 'update', 'delete', 'show']],
         'service'          => ['label' => 'Services',         'actions' => ['list', 'create', 'update', 'delete', 'show']],
         'piece'            => ['label' => 'Pieces',           'actions' => ['list', 'update', 'delete', 'show']],
+        'broken-glass'     => ['label' => 'Broken Glasses',   'actions' => ['list']],
         'stage'            => ['label' => 'Stages',           'actions' => ['list', 'create', 'update', 'delete', 'show']],
         'warehouse'        => ['label' => 'Warehouse Stock',  'actions' => ['list', 'create', 'update', 'delete', 'show']],
         'warehouse-expense' => ['label' => 'Warehouse Expenses', 'actions' => ['list']],

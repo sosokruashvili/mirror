@@ -17,13 +17,16 @@
     <li class="nav-item"><a class="nav-link" href="{{ backpack_url('dashboard') }}"><i class="la la-home nav-icon"></i> {{ trans('backpack::base.dashboard') }}</a></li>
 @endif
 
-@if($u && ($u->can('team-order.view') || $u->can('piece-stage-log.list')))
+@if($u && ($u->can('team-order.view') || $u->can('piece-stage-log.list') || $u->can('broken-glass.list')))
     <x-backpack::menu-dropdown title="{{ __('menu.team_pages') }}" icon="la la-hammer">
         @if($u->can('team-order.view'))
             <x-backpack::menu-dropdown-item title="{{ __('menu.team_orders') }}" icon="la la-hammer" :link="backpack_url('team/orders')" />
         @endif
         @if($u->can('piece-stage-log.list'))
             <x-backpack::menu-dropdown-item title="{{ __('menu.stage_changes') }}" icon="la la-history" :link="backpack_url('piece-stage-log')" />
+        @endif
+        @if($u->can('broken-glass.list'))
+            <x-backpack::menu-dropdown-item title="{{ __('menu.broken_glasses') }}" icon="la la-times-circle" :link="backpack_url('broken-glass')" />
         @endif
     </x-backpack::menu-dropdown>
 @endif

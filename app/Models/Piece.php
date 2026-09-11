@@ -398,6 +398,28 @@ class Piece extends Model
     }
 
     /**
+     * How many physical pieces have been sent back through production by breaks.
+     *
+     * Differs from getBrokenCount() whenever a size group was broken in one click:
+     * that is ONE break event (one sheet of material, see getExpenseArea) covering
+     * several pieces. Reporting only — never use this for expense math.
+     */
+    public function getBrokenPieceCount(): int
+    {
+        // withSum('brokenGlasses as broken_quantity_sum', 'quantity') sets this
+        // attribute while leaving the relation unloaded, so check it first.
+        if (array_key_exists('broken_quantity_sum', $this->attributes)) {
+            $quantitySum = (int) $this->attributes['broken_quantity_sum'];
+        } elseif ($this->relationLoaded('brokenGlasses')) {
+            $quantitySum = (int) $this->brokenGlasses->sum('quantity');
+        } else {
+            $quantitySum = (int) $this->brokenGlasses()->sum('quantity');
+        }
+
+        return max($quantitySum, $this->getBrokenCount());
+    }
+
+    /**
      * Total area (m²) consumed from the warehouse for this piece, including
      * an extra sheet for every broken record.
      */

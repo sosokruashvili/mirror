@@ -11,6 +11,7 @@ return [
     'team_orders' => 'Team Orders',
     'back_to_portal' => 'Back to portal',
     'stage_changes' => 'Stage Changes',
+    'broken_glasses' => 'Broken Glasses',
     'clients' => 'Clients',
     'client_balances' => 'Client Balances',
     'products' => 'Products',

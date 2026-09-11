@@ -78,6 +78,7 @@ Route::group([
     Route::crud('expense-category', 'ExpenseCategoryCrudController');
     Route::crud('audit-log', 'AuditLogCrudController');
     Route::crud('piece-stage-log', 'PieceStageLogCrudController');
+    Route::crud('broken-glass', 'BrokenGlassCrudController');
     
     // Global settings page (access-controlled: settings.view / settings.update)
     Route::get('settings', 'SettingController@edit')->name('settings.edit')->middleware('backpack.can:settings.view');

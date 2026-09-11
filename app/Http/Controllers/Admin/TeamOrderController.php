@@ -3,10 +3,10 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use App\Models\BrokenGlass;
 use App\Models\Order;
 use App\Models\Piece;
 use App\Services\OrderPieceStatusSync;
+use App\Support\Auditing\BrokenGlassLogger;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Http\Request;
@@ -767,10 +767,7 @@ class TeamOrderController extends Controller
                 }
             }
 
-            BrokenGlass::create([
-                'piece_id' => $piece->id,
-                'description' => $request->input('description'),
-            ]);
+            app(BrokenGlassLogger::class)->record($piece, $request->input('description'));
 
             $count = $piece->brokenGlasses()->count();
 
@@ -822,11 +819,14 @@ class TeamOrderController extends Controller
                 return $response;
             }
 
-            // One click = one broken sheet for the whole group.
-            BrokenGlass::create([
-                'piece_id' => $pieces->first()->id,
-                'description' => $request->input('description'),
-            ]);
+            // One click = one broken sheet for the whole group, recorded against the
+            // group's first piece. `quantity` carries the group size for reporting;
+            // the expense math below still charges exactly one sheet (see BrokenGlass).
+            app(BrokenGlassLogger::class)->record(
+                $pieces->first(),
+                $request->input('description'),
+                $pieces->count()
+            );
 
             // The break sends the whole card back through the flow: clear every
             // completed stage on every piece in the group.

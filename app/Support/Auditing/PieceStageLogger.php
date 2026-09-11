@@ -5,7 +5,6 @@ namespace App\Support\Auditing;
 use App\Models\Piece;
 use App\Models\PieceStageLog;
 use App\Models\Stage;
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Log;
 
 /**
@@ -16,6 +15,8 @@ use Illuminate\Support\Facades\Log;
  */
 class PieceStageLogger
 {
+    use ResolvesCauser;
+
     public function record(Piece $piece, Stage $stage, string $action): void
     {
         try {
@@ -52,25 +53,5 @@ class PieceStageLogger
                 $this->record($piece, $stage, $action);
             }
         }
-    }
-
-    protected function resolveCauser(): ?Model
-    {
-        if (function_exists('backpack_user') && ($user = backpack_user())) {
-            return $user;
-        }
-
-        return auth()->user();
-    }
-
-    protected function causerName(?Model $causer): ?string
-    {
-        if (! $causer) {
-            return null;
-        }
-
-        return $causer->name
-            ?? $causer->email
-            ?? (class_basename($causer) . ' #' . $causer->getKey());
     }
 }

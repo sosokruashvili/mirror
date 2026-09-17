@@ -3,6 +3,11 @@
     // and flush them from session, so we will get them later from localStorage.
     $backpack_alerts = \Alert::getMessages();
     \Alert::flush();
+
+    $columnVisibilityUser = backpack_user();
+    $savedColumnVisibility = $columnVisibilityUser
+        ? $columnVisibilityUser->columnVisibilityFor($crud->getRoute())
+        : [];
  @endphp
 
   {{-- DATA TABLES SCRIPT --}}
@@ -16,6 +21,15 @@
   @basset(base_path('vendor/backpack/crud/src/resources/assets/img/spinner.svg'), false)
 
   <script>
+    window.crudColumnVisibility = {
+        table: @json($crud->getRoute()),
+        saved: @json($savedColumnVisibility),
+        saveUrl: @json(backpack_auth()->check() ? route('column-visibility.update') : null),
+        userId: @json(optional($columnVisibilityUser)->id),
+        resolved: {},
+        dtCachedColumns: null
+    };
+
     // here we will check if the cached dataTables paginator length is conformable with current paginator settings.
     // datatables caches the ajax responses with pageLength in LocalStorage so when changing this
     // settings in controller users get unexpected results. To avoid that we will reset
@@ -27,12 +41,192 @@
     
     let $dtStoredPageLength = parseInt(localStorage.getItem('DataTables_crudTable_/{{$crud->getRoute()}}_pageLength'));
 
+    // Keep a copy of column visibility before any cache wipe so we can restore it
+    // even if DataTables later discards the rest of the saved state.
+    window.crudColumnVisibility.dtCachedColumns = ($dtCachedInfo && Array.isArray($dtCachedInfo.columns))
+        ? $dtCachedInfo.columns
+        : null;
+
     if(!$dtStoredPageLength && $dtCachedInfo.length !== 0 && $dtCachedInfo.length !== $dtDefaultPageLength) {
         localStorage.removeItem('DataTables_crudTable_/{{$crud->getRoute()}}');
     }
 
     if($dtCachedInfo.length !== 0 && $pageLength[0].indexOf($dtCachedInfo.length) === -1) {
         localStorage.removeItem('DataTables_crudTable_/{{$crud->getRoute()}}');
+    }
+
+    function crudColumnVisibilityStorageKey() {
+        var cfg = window.crudColumnVisibility || {};
+        return 'crudColumnVisibility:' + (cfg.userId || 'guest') + ':' + (cfg.table || '');
+    }
+
+    function readLocalColumnVisibility() {
+        try {
+            var raw = localStorage.getItem(crudColumnVisibilityStorageKey());
+            var parsed = raw ? JSON.parse(raw) : null;
+            return (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) ? parsed : {};
+        } catch (e) {
+            return {};
+        }
+    }
+
+    function recoverColumnVisibilityFromDtCache(dtColumns) {
+        var map = {};
+        if (!dtColumns) {
+            return map;
+        }
+        $('#crudTable thead th').each(function(index) {
+            var name = $(this).attr('data-column-name');
+            if (!name || !dtColumns[index] || typeof dtColumns[index].visible !== 'boolean') {
+                return;
+            }
+            map[name] = dtColumns[index].visible;
+        });
+        return map;
+    }
+
+    function resolveColumnVisibilityMap(dtColumns) {
+        var cfg = window.crudColumnVisibility || {};
+        var server = cfg.saved || {};
+        if (server && Object.keys(server).length) {
+            return server;
+        }
+        var local = readLocalColumnVisibility();
+        if (local && Object.keys(local).length) {
+            return local;
+        }
+        return recoverColumnVisibilityFromDtCache(dtColumns);
+    }
+
+    function applyColumnVisibilityToHeadings(map) {
+        if (!map) {
+            return;
+        }
+        $('#crudTable thead th').each(function() {
+            var $th = $(this);
+            var name = $th.attr('data-column-name');
+            if (!name || !Object.prototype.hasOwnProperty.call(map, name)) {
+                return;
+            }
+            if ($th.attr('data-visible-in-table') == 'true') {
+                return;
+            }
+            if ($th.attr('data-can-be-visible-in-table') == 'false') {
+                return;
+            }
+            $th.attr('data-visible', map[name] ? 'true' : 'false');
+        });
+    }
+
+    function applyResolvedColumnVisibilityToDtState(data) {
+        var map = (window.crudColumnVisibility && window.crudColumnVisibility.resolved) || {};
+        if (!data || !Array.isArray(data.columns)) {
+            return;
+        }
+        $('#crudTable thead th').each(function(index) {
+            if (!data.columns[index]) {
+                return;
+            }
+            var $th = $(this);
+            var name = $th.attr('data-column-name');
+            if ($th.attr('data-visible-in-table') == 'true') {
+                data.columns[index].visible = true;
+                return;
+            }
+            if (!name || $th.attr('data-can-be-visible-in-table') == 'false') {
+                return;
+            }
+            if (Object.prototype.hasOwnProperty.call(map, name)) {
+                data.columns[index].visible = !!map[name];
+            }
+        });
+    }
+
+    function collectCurrentColumnVisibility() {
+        var columns = {};
+        if (!window.crud || !window.crud.table) {
+            return columns;
+        }
+        // Iterate DataTables columns, not the live thead — ColVis removes hidden
+        // <th> nodes from the document, so a DOM walk would drop them and the
+        // next save would treat those columns as visible again.
+        window.crud.table.columns().every(function () {
+            var header = this.header();
+            if (!header) {
+                return;
+            }
+            var name = header.getAttribute('data-column-name');
+            if (!name) {
+                return;
+            }
+            if (header.getAttribute('data-can-be-visible-in-table') == 'false') {
+                return;
+            }
+            columns[name] = !!this.visible();
+        });
+        return columns;
+    }
+
+    function applyResolvedColumnVisibilityToTable() {
+        var map = (window.crudColumnVisibility && window.crudColumnVisibility.resolved) || {};
+        if (!window.crud || !window.crud.table || !Object.keys(map).length) {
+            return;
+        }
+        window.crud.table.columns().every(function () {
+            var header = this.header();
+            if (!header) {
+                return;
+            }
+            var name = header.getAttribute('data-column-name');
+            if (!name) {
+                return;
+            }
+            if (header.getAttribute('data-visible-in-table') == 'true') {
+                return;
+            }
+            if (header.getAttribute('data-can-be-visible-in-table') == 'false') {
+                return;
+            }
+            if (!Object.prototype.hasOwnProperty.call(map, name)) {
+                return;
+            }
+            var shouldShow = !!map[name];
+            if (this.visible() !== shouldShow) {
+                this.visible(shouldShow, false);
+            }
+        });
+        window.crud.table.columns.adjust();
+        if (window.crud.table.responsive && typeof window.crud.table.responsive.rebuild === 'function') {
+            window.crud.table.responsive.rebuild();
+        }
+    }
+
+    var crudColumnVisibilitySaveTimer = null;
+    function persistColumnVisibility(columns) {
+        window.crudColumnVisibility.saved = columns;
+        window.crudColumnVisibility.resolved = columns;
+        try {
+            localStorage.setItem(crudColumnVisibilityStorageKey(), JSON.stringify(columns));
+        } catch (e) {}
+        if (!window.crudColumnVisibility.saveUrl) {
+            return;
+        }
+        clearTimeout(crudColumnVisibilitySaveTimer);
+        crudColumnVisibilitySaveTimer = setTimeout(function() {
+            $.ajax({
+                url: window.crudColumnVisibility.saveUrl,
+                method: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify({
+                    table: window.crudColumnVisibility.table,
+                    columns: columns
+                }),
+                headers: {
+                    'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content') || $('input[name="_token"]').val(),
+                    'Accept': 'application/json'
+                }
+            });
+        }, 400);
     }
 
 
@@ -212,6 +406,8 @@
 
         @if ($crud->getPersistentTable())
         stateSave: true,
+        // 0 = localStorage that never expires (DataTables default is 2 hours)
+        stateDuration: 0,
         /*
             if developer forced field into table 'visibleInTable => true' we make sure when saving datatables state
             that it reflects the developer decision.
@@ -228,8 +424,8 @@
                 }
             });
         },
-        @if($crud->getPersistentTableDuration())
         stateLoadParams: function(settings, data) {
+            @if($crud->getPersistentTableDuration())
             var $saved_time = new Date(data.time);
             var $current_date = new Date();
 
@@ -245,8 +441,9 @@
                 }
                return false;
             }
+            @endif
+            applyResolvedColumnVisibilityToDtState(data);
         },
-        @endif
         @endif
         autoWidth: false,
         pageLength: $dtDefaultPageLength,
@@ -311,7 +508,18 @@
   <script type="text/javascript">
     jQuery(document).ready(function($) {
 
+      window.crudColumnVisibility.resolved = resolveColumnVisibilityMap(window.crudColumnVisibility.dtCachedColumns);
+      applyColumnVisibilityToHeadings(window.crudColumnVisibility.resolved);
+
       window.crud.table = $("#crudTable").DataTable(window.crud.dataTableConfiguration);
+      applyResolvedColumnVisibilityToTable();
+
+      if ((!window.crudColumnVisibility.saved || !Object.keys(window.crudColumnVisibility.saved).length)
+          && window.crudColumnVisibility.resolved
+          && Object.keys(window.crudColumnVisibility.resolved).length
+          && Object.values(window.crudColumnVisibility.resolved).some(function(visible) { return !visible; })) {
+          persistColumnVisibility(window.crudColumnVisibility.resolved);
+      }
 
       window.crud.updateUrl(location.href);
 
@@ -420,6 +628,7 @@
       $('#crudTable').on( 'column-visibility.dt',   function (event) {
         console.log('column-visibility.dt');
          crud.table.responsive.rebuild();
+         persistColumnVisibility(collectCurrentColumnVisibility());
       } ).dataTable();
 
       @if ($crud->getResponsiveTable())

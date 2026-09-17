@@ -47,6 +47,7 @@
         var params = {};
         if (urlParams.get('client_id')) params.client_id = urlParams.get('client_id');
         if (urlParams.get('product_type')) params.product_type = urlParams.get('product_type');
+        if (urlParams.get('products')) params.products = urlParams.get('products');
         if (urlParams.get('status')) params.status = urlParams.get('status');
         if (urlParams.get('created_at')) params.created_at = urlParams.get('created_at');
 

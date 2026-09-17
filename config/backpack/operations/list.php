@@ -15,8 +15,8 @@ return [
     // if not, a horizontal scrollbar will be shown instead
     'responsiveTable' => true,
 
-    // stores pagination and filters in localStorage for two hours
-    // whenever the user tries to see that page, backpack loads the previous pagination and filtration
+    // stores pagination and filters in localStorage; column visibility is also
+    // saved per-user in the database so it survives logout and later days
     'persistentTable' => true,
 
     // show search bar in the top-right corner?

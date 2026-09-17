@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Models\Order;
+use App\Models\Product;
 use Backpack\CRUD\app\Http\Controllers\CrudController;
 use Backpack\CRUD\app\Library\CrudPanel\CrudPanelFacade as CRUD;
 use Illuminate\Support\Arr;
@@ -189,6 +190,26 @@ class WarehouseExpenseCrudController extends CrudController
             CRUD::addClause('where', 'product_type', $value);
         });
 
+        // Products filter (multiselect) — show only orders containing any of the
+        // selected products.
+        CRUD::addFilter([
+            'type' => 'select2_multiple',
+            'name' => 'products',
+            'label' => __('warehouse.expense.products'),
+        ],
+        function () {
+            return Product::orderBy('title')->pluck('title', 'id')->toArray();
+        },
+        function ($value) {
+            $productIds = $this->parseProductFilterIds($value);
+
+            if (!empty($productIds)) {
+                CRUD::addClause('whereHas', 'products', function ($query) use ($productIds) {
+                    $query->whereIn('products.id', $productIds);
+                });
+            }
+        });
+
         // Status filter
         CRUD::addFilter([
             'type' => 'select2',
@@ -222,9 +243,22 @@ class WarehouseExpenseCrudController extends CrudController
     }
 
     /**
-     * Apply the list filters (client, product type, status, date range) to a
-     * query so the summary widget totals match exactly what the filtered table
-     * shows.
+     * Decode a select2_multiple products filter value into integer IDs.
+     *
+     * @param  mixed  $value
+     * @return array<int, int>
+     */
+    protected function parseProductFilterIds($value): array
+    {
+        $productIds = array_filter((array) json_decode($value, true));
+
+        return array_values(array_map('intval', $productIds));
+    }
+
+    /**
+     * Apply the list filters (client, product type, products, status, date
+     * range) to a query so the summary widget totals match exactly what the
+     * filtered table shows.
      *
      * @param  \Illuminate\Database\Eloquent\Builder  $query
      * @return \Illuminate\Database\Eloquent\Builder
@@ -237,6 +271,15 @@ class WarehouseExpenseCrudController extends CrudController
 
         if (request()->filled('product_type')) {
             $query->where('product_type', request()->get('product_type'));
+        }
+
+        if (request()->filled('products')) {
+            $productIds = $this->parseProductFilterIds(request()->get('products'));
+            if (!empty($productIds)) {
+                $query->whereHas('products', function ($q) use ($productIds) {
+                    $q->whereIn('products.id', $productIds);
+                });
+            }
         }
 
         if (request()->filled('status')) {

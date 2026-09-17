@@ -29,6 +29,7 @@ Route::group([
 
     // Service Stats page (admin-only via service-stats.view — granted to no role)
     Route::get('service-stats', 'ServiceStatsController@index')->name('service-stats.index')->middleware('backpack.can:service-stats.view');
+    Route::post('column-visibility', 'ColumnVisibilityController@update')->name('column-visibility.update');
     Route::crud('order', 'OrderCrudController');
     Route::post('order/bulk-delete', 'OrderCrudController@bulkDelete')->name('order.bulkDelete');
     Route::get('order/stats', 'OrderCrudController@stats')->name('order.stats');

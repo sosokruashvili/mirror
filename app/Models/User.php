@@ -37,6 +37,7 @@ class User extends Authenticatable
         'password',
         'team_order_filters',
         'team_order_saved_filters',
+        'crud_column_visibility',
     ];
 
     /**
@@ -61,7 +62,47 @@ class User extends Authenticatable
             'password' => 'hashed',
             'team_order_filters' => 'array',
             'team_order_saved_filters' => 'array',
+            'crud_column_visibility' => 'array',
         ];
+    }
+
+    /**
+     * Column-visibility map for a CRUD list, keyed by column name.
+     *
+     * @return array<string, bool>
+     */
+    public function columnVisibilityFor(string $table): array
+    {
+        $all = $this->crud_column_visibility ?? [];
+
+        if (! is_array($all) || ! isset($all[$table]) || ! is_array($all[$table])) {
+            return [];
+        }
+
+        $map = [];
+        foreach ($all[$table] as $name => $visible) {
+            if (is_string($name) && $name !== '') {
+                $map[$name] = (bool) $visible;
+            }
+        }
+
+        return $map;
+    }
+
+    /**
+     * Replace the column-visibility map for a CRUD list.
+     *
+     * @param  array<string, bool>  $columns
+     */
+    public function setColumnVisibilityFor(string $table, array $columns): void
+    {
+        $all = $this->crud_column_visibility ?? [];
+        if (! is_array($all)) {
+            $all = [];
+        }
+
+        $all[$table] = $columns;
+        $this->crud_column_visibility = $all;
     }
 
     /**

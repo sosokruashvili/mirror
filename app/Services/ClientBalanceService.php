@@ -177,4 +177,51 @@ class ClientBalanceService
 
         return (float) $client->calculateBalance();
     }
+
+    /**
+     * Live balance recap plus the client's payments and orders, for the
+     * expandable details row and the order-form balance modal.
+     *
+     * @return array{
+     *     entry: Client,
+     *     components: array{starting_balance: float, payments_total: float, orders_total: float, balance: float},
+     *     payments: \Illuminate\Support\Collection,
+     *     orders: \Illuminate\Support\Collection,
+     *     orderTotals: \Illuminate\Support\Collection,
+     *     countedPaymentsTotal: float,
+     *     countedPaymentsCount: int,
+     *     countedOrderIds: list<int>
+     * }
+     */
+    public function detailsViewData(Client $client): array
+    {
+        $client->load([
+            'payments' => function ($query) {
+                $query->orderByDesc('payment_date')->orderByDesc('id');
+            },
+            'payments.order',
+            'orders' => function ($query) {
+                $query->orderByDesc('id');
+            },
+            'orders.services',
+            'orders.products',
+            'orders.pieces',
+        ]);
+
+        $countedPayments = $client->payments->where('status', 'Paid');
+        $countedOrders = $client->orders->where('status', '!=', 'draft');
+
+        return [
+            'entry' => $client,
+            'components' => $this->calculateComponentsForClient($client),
+            'payments' => $client->payments,
+            'orders' => $client->orders,
+            'orderTotals' => $client->orders->mapWithKeys(function ($order) {
+                return [$order->id => (float) $order->calculateTotalPrice(false)];
+            }),
+            'countedPaymentsTotal' => (float) $countedPayments->sum('amount_gel'),
+            'countedPaymentsCount' => $countedPayments->count(),
+            'countedOrderIds' => $countedOrders->pluck('id')->all(),
+        ];
+    }
 }

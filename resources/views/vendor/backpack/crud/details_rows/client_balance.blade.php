@@ -1,5 +1,6 @@
 @php
     $countedOrdersTotal = collect($countedOrderIds)->sum(fn ($id) => $orderTotals[$id] ?? 0);
+    $linkTarget = $linkTarget ?? '_self';
 
     $paymentStatusClass = function ($status) {
         return match ($status) {
@@ -72,7 +73,8 @@
                         <span class="badge bg-secondary-lt ms-1">{{ $payments->count() }}</span>
                     </h4>
                     <a href="{{ url(config('backpack.base.route_prefix') . '/payment') }}?client_id={{ $entry->id }}"
-                       class="btn btn-sm btn-outline-secondary">
+                       class="btn btn-sm btn-outline-secondary"
+                       @if ($linkTarget === '_blank') target="_blank" rel="noopener noreferrer" @endif>
                         {{ __('client_balance.details.view_all') }}
                     </a>
                 </div>
@@ -105,7 +107,8 @@
                                         <td>{{ \App\Models\Payment::types()[$payment->type] ?? ($payment->type ?? '—') }}</td>
                                         <td>
                                             @if ($payment->order_id)
-                                                <a href="{{ route('order.edit', $payment->order_id) }}">#{{ $payment->order_id }}</a>
+                                                <a href="{{ route('order.edit', $payment->order_id) }}"
+                                                   @if ($linkTarget === '_blank') target="_blank" rel="noopener noreferrer" @endif>#{{ $payment->order_id }}</a>
                                             @else
                                                 <span class="text-secondary">—</span>
                                             @endif
@@ -147,7 +150,8 @@
                         <span class="badge bg-secondary-lt ms-1">{{ $orders->count() }}</span>
                     </h4>
                     <a href="{{ url(config('backpack.base.route_prefix') . '/order') }}?client_id={{ $entry->id }}"
-                       class="btn btn-sm btn-outline-secondary">
+                       class="btn btn-sm btn-outline-secondary"
+                       @if ($linkTarget === '_blank') target="_blank" rel="noopener noreferrer" @endif>
                         {{ __('client_balance.details.view_all') }}
                     </a>
                 </div>
@@ -174,7 +178,8 @@
                                     @php $counted = in_array($order->id, $countedOrderIds, true); @endphp
                                     <tr @class(['text-secondary' => !$counted])>
                                         <td class="text-nowrap">
-                                            <a href="{{ route('order.edit', $order->id) }}">#{{ $order->id }}</a>
+                                            <a href="{{ route('order.edit', $order->id) }}"
+                                               @if ($linkTarget === '_blank') target="_blank" rel="noopener noreferrer" @endif>#{{ $order->id }}</a>
                                         </td>
                                         <td class="text-nowrap">
                                             {{ optional($order->created_at)->format('d M Y') ?? '—' }}

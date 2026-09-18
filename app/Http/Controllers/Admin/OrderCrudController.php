@@ -15,8 +15,10 @@ use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Carbon;
+use App\Models\Client;
 use App\Models\CustomPrice;
 use App\Models\Payment;
+use App\Services\ClientBalanceService;
 use App\Services\WarehouseSnapshotService;
 /**
  * Class OrderCrudController
@@ -448,6 +450,9 @@ class OrderCrudController extends CrudController
             'attributes' => [
                 'required' => true,
                 'data-placeholder' => __('order.select_client'),
+            ],
+            'wrapper' => [
+                'class' => 'form-group col-sm-12 mb-3 order-client-field',
             ],
         ]);
 
@@ -1872,6 +1877,59 @@ class OrderCrudController extends CrudController
             });
 
         return response()->json($orders);
+    }
+
+    /**
+     * Live client balance for the order create/edit form (shown next to the
+     * client field when a client is selected).
+     *
+     * @param int $clientId
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function getClientBalance($clientId)
+    {
+        $client = Client::find($clientId);
+
+        if (!$client) {
+            return response()->json(['error' => __('order.messages.client_not_found')], 404);
+        }
+
+        $balance = round($client->calculateBalance(), 2);
+
+        return response()->json([
+            'client_id' => $client->id,
+            'client_name' => $client->name_with_id,
+            'balance' => $balance,
+            'formatted' => number_format($balance, 2) . ' ₾',
+        ]);
+    }
+
+    /**
+     * Full client balance recap plus order/payment history, for the
+     * "Show Balance" modal on the order form.
+     *
+     * @param int $clientId
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function getClientBalanceDetails($clientId)
+    {
+        $client = Client::find($clientId);
+
+        if (!$client) {
+            return response()->json(['error' => __('order.messages.client_not_found')], 404);
+        }
+
+        $data = app(ClientBalanceService::class)->detailsViewData($client);
+        $data['linkTarget'] = '_blank';
+        $balance = round($data['components']['balance'], 2);
+
+        return response()->json([
+            'client_id' => $client->id,
+            'client_name' => $client->name_with_id,
+            'balance' => $balance,
+            'formatted' => number_format($balance, 2) . ' ₾',
+            'html' => view('vendor.backpack.crud.details_rows.client_balance', $data)->render(),
+        ]);
     }
 
     /**

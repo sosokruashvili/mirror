@@ -43,6 +43,12 @@ return [
     'select_client' => 'აირჩიეთ კლიენტი',
     'select_product' => 'აირჩიეთ პროდუქტი',
     'comment_placeholder' => 'შენიშვნები საწარმოო გუნდისთვის (არასავალდებულო)...',
+    'show_balance' => 'ბალანსის ნახვა',
+    'client_balance' => 'კლიენტის ბალანსი',
+    'loading_balance' => 'იტვირთება...',
+    'balance_load_error' => 'კლიენტის ბალანსის ჩატვირთვა ვერ მოხერხდა.',
+    'select_client_to_see_balance' => 'აირჩიეთ კლიენტი ბალანსის სანახავად',
+    'close' => 'დახურვა',
 
     // Live warehouse remaining check on the create/edit form
     'stock_warning' => [
@@ -90,6 +96,7 @@ return [
         'bulk_deleted' => ':count ჩანაწერი წარმატებით წაიშალა.',
         'bulk_skipped' => ':count ჩანაწერი გამოტოვებულია (წაშლა შესაძლებელია მხოლოდ დრაფტი შეკვეთების; ახალი შეკვეთებისთვის საჭიროა ადმინისტრატორი).',
         'not_found' => 'შეკვეთა ვერ მოიძებნა',
+        'client_not_found' => 'კლიენტი ვერ მოიძებნა',
         'only_draft_confirm' => 'დადასტურება შესაძლებელია მხოლოდ დრაფტი შეკვეთების',
         'confirmed' => 'შეკვეთა წარმატებით დადასტურდა',
         'only_ready_finish' => 'დასრულება შესაძლებელია მხოლოდ მზა შეკვეთების',

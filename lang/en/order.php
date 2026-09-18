@@ -53,6 +53,12 @@ return [
     'select_client' => 'Select a client',
     'select_product' => 'Select a product',
     'comment_placeholder' => 'Optional notes for the production team...',
+    'show_balance' => 'Show Balance',
+    'client_balance' => 'Client Balance',
+    'loading_balance' => 'Loading...',
+    'balance_load_error' => 'Could not load client balance.',
+    'select_client_to_see_balance' => 'Select a client to see the balance',
+    'close' => 'Close',
 
     // Live warehouse remaining check on the create/edit form
     'stock_warning' => [
@@ -100,6 +106,7 @@ return [
         'bulk_deleted' => '{1} :count entry deleted successfully.|[2,*] :count entries deleted successfully.',
         'bulk_skipped' => '{1} :count entry was skipped (only draft orders can be deleted; new orders require an administrator).|[2,*] :count entries were skipped (only draft orders can be deleted; new orders require an administrator).',
         'not_found' => 'Order not found',
+        'client_not_found' => 'Client not found',
         'only_draft_confirm' => 'Only draft orders can be confirmed',
         'confirmed' => 'Order confirmed successfully',
         'only_ready_finish' => 'Only ready orders can be finished',

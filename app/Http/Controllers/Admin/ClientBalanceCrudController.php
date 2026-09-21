@@ -134,6 +134,10 @@ class ClientBalanceCrudController extends CrudController
             'type' => 'number',
             'decimals' => 0,
             'searchLogic' => false,
+            'orderable' => true,
+            'orderLogic' => function ($query, $column, $columnDirection) {
+                return $this->orderBySnapshotAmount($query, 'payments_total', $columnDirection);
+            },
             'value' => function ($entry) {
                 return $this->resolveRowComponents($entry)['payments_total'];
             },
@@ -146,6 +150,10 @@ class ClientBalanceCrudController extends CrudController
             'type' => 'number',
             'decimals' => 0,
             'searchLogic' => false,
+            'orderable' => true,
+            'orderLogic' => function ($query, $column, $columnDirection) {
+                return $this->orderBySnapshotAmount($query, 'orders_total', $columnDirection);
+            },
             'value' => function ($entry) {
                 return $this->resolveRowComponents($entry)['orders_total'];
             },

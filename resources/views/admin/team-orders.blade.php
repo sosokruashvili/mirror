@@ -23,7 +23,10 @@
     if (!is_array($stageFilter)) {
         $stageFilter = $stageFilter === 'all' ? [] : [$stageFilter];
     }
-    $clientFilter = $clientFilter ?? 'all';
+    $clientFilter = $clientFilter ?? [];
+    if (!is_array($clientFilter)) {
+        $clientFilter = $clientFilter === 'all' ? [] : [$clientFilter];
+    }
     $canRestoreFilters = $canRestoreFilters ?? false;
     $productTypes = $productTypes ?? collect();
     $services = $services ?? collect();
@@ -41,7 +44,6 @@
     $toggleQuery = array_filter([
         'from' => $dateFrom ?: null,
         'to' => $dateTo ?: null,
-        'client' => ($clientFilter !== 'all') ? $clientFilter : null,
     ]);
     if (!empty($productTypeFilter)) {
         $toggleQuery['product_type'] = $productTypeFilter;
@@ -51,6 +53,9 @@
     }
     if (!empty($stageFilter)) {
         $toggleQuery['stage'] = $stageFilter;
+    }
+    if (!empty($clientFilter)) {
+        $toggleQuery['client'] = $clientFilter;
     }
 @endphp
 <style>
@@ -724,20 +729,56 @@
     }
 
     #clientFilterSelect + .select2-container {
-        width: 240px !important;
+        width: 300px !important;
     }
-    #clientFilterSelect + .select2-container .select2-selection--single {
+    #clientFilterSelect + .select2-container .select2-selection--multiple {
         min-height: 38px;
         background-color: var(--tblr-bg-forms, #1a2234);
         border-color: var(--tblr-border-color, #2c3c56);
         color: var(--tblr-body-color, #dadcde);
     }
-    #clientFilterSelect + .select2-container .select2-selection__rendered {
+    #clientFilterSelect + .select2-container .select2-selection--multiple .select2-selection__rendered {
+        padding: 2px 6px;
         color: var(--tblr-body-color, #dadcde);
-        line-height: 36px;
     }
-    #clientFilterSelect + .select2-container .select2-selection__arrow b {
-        border-color: var(--tblr-body-color, #dadcde) transparent transparent transparent;
+    #clientFilterSelect + .select2-container .select2-selection--multiple .select2-selection__choice {
+        background-color: #6081b3;
+        border-color: #4a6a96;
+        color: #fff;
+        margin: 3px 4px 3px 0;
+        padding: 0 6px;
+        line-height: 22px;
+        font-size: 12px;
+    }
+    #clientFilterSelect + .select2-container .select2-selection--multiple .select2-selection__choice__remove {
+        color: #fff;
+        margin-right: 4px;
+    }
+    #clientFilterSelect + .select2-container .select2-selection--multiple .select2-selection__clear {
+        color: var(--tblr-body-color, #dadcde);
+        margin-right: 4px;
+    }
+    #clientFilterSelect + .select2-container .select2-selection--multiple .select2-search--inline .select2-search__field {
+        color: var(--tblr-body-color, #dadcde);
+        margin-top: 4px;
+        height: 22px;
+        min-width: 3em;
+    }
+    #clientFilterSelect + .select2-container .select2-selection--multiple .select2-search--inline .select2-search__field::placeholder {
+        color: var(--tblr-body-color, #dadcde);
+        opacity: 0.75;
+    }
+    /* Keep the closed control as tall as the other filters: hide the leftover
+       search row once chips are showing. Re-open it with the dropdown. */
+    #clientFilterSelect + .select2-container .select2-selection--multiple .select2-selection__choice ~ .select2-search--inline {
+        display: none;
+    }
+    #clientFilterSelect + .select2-container.select2-container--open .select2-selection--multiple .select2-search--inline {
+        display: inline-block;
+    }
+    #clientFilterSelect + .select2-container.select2-container--focus .select2-selection--multiple {
+        border-color: #90b5e2;
+        box-shadow: 0 0 0 0.25rem rgba(32,107,196,0.25);
     }
 
     .team-user-bar {
@@ -793,8 +834,13 @@
     .select2-container--default .select2-results__option {
         color: var(--tblr-body-color, #dadcde);
     }
+    .select2-container--default .select2-results__option[aria-selected=true] {
+        background-color: rgba(96, 129, 179, 0.35);
+        color: var(--tblr-body-color, #dadcde);
+    }
     .select2-container--default .select2-results__option--highlighted[aria-selected] {
         background-color: #6081b3;
+        color: #fff;
     }
 </style>
 
@@ -940,10 +986,9 @@
 
             <div>
                 <label class="form-label mb-1 text-light">კლიენტი</label>
-                <select class="form-select" id="clientFilterSelect" name="client" style="width: 240px;" autocomplete="off">
-                    <option value="all" {{ $clientFilter === 'all' ? 'selected' : '' }}>ყველა</option>
+                <select class="form-select" id="clientFilterSelect" name="client[]" multiple style="width: 300px;" autocomplete="off" data-placeholder="ყველა">
                     @foreach($clients as $client)
-                        <option value="{{ $client->id }}" {{ $clientFilter == $client->id ? 'selected' : '' }}>{{ $client->name }}</option>
+                        <option value="{{ $client->id }}" {{ in_array($client->id, $clientFilter) ? 'selected' : '' }}>{{ $client->name }}</option>
                     @endforeach
                 </select>
             </div>
@@ -1357,8 +1402,10 @@ jQuery(function($) {
 
     var $clientSelect = $(clientSelect);
     $clientSelect.select2({
-        width: '240px',
-        minimumResultsForSearch: 0,
+        width: '300px',
+        placeholder: 'ყველა',
+        allowClear: true,
+        closeOnSelect: false,
         dropdownParent: $clientSelect.parent()
     });
     $clientSelect.on('select2:open', function() {

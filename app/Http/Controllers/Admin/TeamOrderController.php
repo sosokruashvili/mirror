@@ -278,7 +278,7 @@ class TeamOrderController extends Controller
      * Resolve the active team-order filters from the request, falling back to
      * the user's saved filters when the filter form was not just submitted.
      *
-     * @return array{applied:bool,from:?string,to:?string,product_type:array,service:array,stage:array,client:mixed,sort:string}
+     * @return array{applied:bool,from:?string,to:?string,product_type:array,service:array,stage:array,client:array,sort:string}
      */
     private function resolveFilters(Request $request): array
     {
@@ -297,7 +297,7 @@ class TeamOrderController extends Controller
                 $value = ($value === 'all' || $value === null || $value === '') ? [] : [$value];
             }
 
-            return array_values(array_filter($value, fn ($v) => $v !== '' && $v !== null));
+            return array_values(array_filter($value, fn ($v) => $v !== '' && $v !== null && $v !== 'all'));
         };
 
         return [
@@ -307,7 +307,7 @@ class TeamOrderController extends Controller
             'product_type' => $normalizeArray($pick('product_type', [])),
             'service' => $normalizeArray($pick('service', [])),
             'stage' => $normalizeArray($pick('stage', [])),
-            'client' => $pick('client', 'all'),
+            'client' => $normalizeArray($pick('client', [])),
             'sort' => $this->normalizeSort($pick('sort', null)),
         ];
     }
@@ -319,7 +319,14 @@ class TeamOrderController extends Controller
     private function normalizeFilterState(array $filters): array
     {
         $normalizeList = function ($value): array {
-            $list = array_values(array_map('strval', is_array($value) ? $value : []));
+            if (!is_array($value)) {
+                $value = ($value === 'all' || $value === null || $value === '') ? [] : [$value];
+            }
+
+            $list = array_values(array_map(
+                'strval',
+                array_filter($value, fn ($v) => $v !== '' && $v !== null && $v !== 'all')
+            ));
             sort($list);
 
             return $list;
@@ -331,7 +338,7 @@ class TeamOrderController extends Controller
             'product_type' => $normalizeList($filters['product_type'] ?? []),
             'service' => $normalizeList($filters['service'] ?? []),
             'stage' => $normalizeList($filters['stage'] ?? []),
-            'client' => (string) (($filters['client'] ?? 'all') ?: 'all'),
+            'client' => $normalizeList($filters['client'] ?? []),
             'sort' => $this->normalizeSort($filters['sort'] ?? null),
         ];
     }
@@ -391,7 +398,12 @@ class TeamOrderController extends Controller
         $productTypeFilter = $filters['product_type'] ?? [];
         $serviceFilter = $filters['service'] ?? [];
         $stageFilter = $filters['stage'] ?? [];
-        $clientFilter = $filters['client'] ?? 'all';
+        $clientFilter = $filters['client'] ?? [];
+        if (!is_array($clientFilter)) {
+            $clientFilter = ($clientFilter === 'all' || $clientFilter === '' || $clientFilter === null)
+                ? []
+                : [$clientFilter];
+        }
         $dateFrom = $filters['from'] ?? null;
         $dateTo = $filters['to'] ?? null;
 
@@ -453,8 +465,8 @@ class TeamOrderController extends Controller
             });
         }
 
-        if ($clientFilter !== 'all' && $clientFilter !== '' && $clientFilter !== null) {
-            $ordersQuery->where('client_id', $clientFilter);
+        if (!empty($clientFilter)) {
+            $ordersQuery->whereIn('client_id', $clientFilter);
         }
 
         if (is_string($dateFrom) && $dateFrom !== '') {
@@ -712,7 +724,7 @@ class TeamOrderController extends Controller
      * the same "ჩემი ეტაპი" selection the cards were rendered with; fall
      * back to the user's saved filters otherwise.
      *
-     * @return array{applied:bool,from:?string,to:?string,product_type:array,service:array,stage:array,client:mixed,sort:string}
+     * @return array{applied:bool,from:?string,to:?string,product_type:array,service:array,stage:array,client:array,sort:string}
      */
     private function boardFiltersFromRequest(Request $request): array
     {

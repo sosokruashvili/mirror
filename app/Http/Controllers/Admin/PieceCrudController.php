@@ -200,7 +200,7 @@ class PieceCrudController extends CrudController
             $this->crud->addClause('where', 'order_id', $value);
         });
 
-        // Product filter (piece.product_id)
+        // Product filter (products of the owning order; pieces has no product_id column)
         CRUD::addFilter([
             'name' => 'product_id',
             'type' => 'select2',
@@ -208,7 +208,9 @@ class PieceCrudController extends CrudController
         ], function () {
             return \App\Models\Product::orderBy('title')->pluck('title', 'id')->toArray();
         }, function ($value) {
-            $this->crud->addClause('where', 'product_id', $value);
+            $this->crud->addClause('whereHas', 'order.products', function ($query) use ($value) {
+                $query->where('products.id', $value);
+            });
         });
 
         // Product Type filter (on the owning order)

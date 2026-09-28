@@ -1049,7 +1049,13 @@
                                 
                                 <div class="detail-row">
                                     <span class="detail-label">ფასი:</span>
-                                    <span class="detail-value">{{ number_format($order->price_gel ?? $order->calculateTotalPrice(false), 2) }} ₾</span>
+                                    <span class="detail-value">{{ number_format($order->price_gel ?? $order->calculateTotalPrice(false), 2) }} ₾
+                                        @if($order->paid)
+                                            <span class="badge text-bg-success" style="font-size: 10px; margin-left: 4px;">გადახდილი</span>
+                                        @else
+                                            <span class="badge text-bg-danger" style="font-size: 10px; margin-left: 4px;">გადაუხდელი</span>
+                                        @endif
+                                    </span>
                                 </div>
                                 
                                 <div class="detail-row">

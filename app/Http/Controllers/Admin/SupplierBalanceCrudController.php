@@ -38,6 +38,7 @@ class SupplierBalanceCrudController extends CrudController
 
         // Read-only screen
         $this->crud->denyAccess(['create', 'update', 'delete', 'show']);
+        $this->crud->enableExportButtons();
     }
 
     protected function setupListOperation(): void

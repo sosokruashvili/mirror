@@ -29,6 +29,8 @@ class PieceCrudController extends CrudController
         CRUD::setModel(\App\Models\Piece::class);
         CRUD::setRoute(config('backpack.base.route_prefix') . '/piece');
         CRUD::setEntityNameStrings(__('piece.entity'), __('piece.entity_plural'));
+
+        $this->crud->enableExportButtons();
     }
 
     /**

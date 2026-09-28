@@ -24,6 +24,8 @@ class PieceStageLogCrudController extends CrudController
         CRUD::setModel(PieceStageLog::class);
         CRUD::setRoute(config('backpack.base.route_prefix') . '/piece-stage-log');
         CRUD::setEntityNameStrings(__('piece_stage_log.entity'), __('piece_stage_log.entity_plural'));
+
+        $this->crud->enableExportButtons();
     }
 
     protected function setupListOperation()

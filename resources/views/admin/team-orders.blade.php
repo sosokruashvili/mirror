@@ -200,6 +200,11 @@
         color: #2c3e50;
         text-align: right;
     }
+
+    .material-row .detail-label,
+    .material-row .detail-value {
+        font-weight: 700;
+    }
     
     .order-actions {
         display: flex;
@@ -1063,7 +1068,7 @@
                                     <span class="detail-value">{{ product_type_ge($order->product_type ?? '') }}</span>
                                 </div>
                                 
-                                <div class="detail-row">
+                                <div class="detail-row material-row">
                                     <span class="detail-label">მასალა:</span>
                                     <span class="detail-value">{{ $order->products->pluck('title')->implode(' x ') }}</span>
                                 </div>

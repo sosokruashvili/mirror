@@ -19,6 +19,7 @@ use App\Models\Client;
 use App\Models\CustomPrice;
 use App\Models\Payment;
 use App\Services\ClientBalanceService;
+use App\Services\OrderListStats;
 use App\Services\WarehouseSnapshotService;
 /**
  * Class OrderCrudController
@@ -1723,18 +1724,69 @@ class OrderCrudController extends CrudController
      * Returned as raw numbers; formatting happens in the widget view and in
      * order-stats-refresh.js.
      *
+     * The result is cached per filter set. Loading every order into memory
+     * takes seconds and more RAM than a PHP worker is allowed, so a cache miss
+     * still walks the orders in batches instead of one giant collection.
+     *
      * @return array{ordersCount: int, totalPriceGel: float, totalExpenses: float, totalPaid: float, totalUnpaid: float}
      */
     protected function computeOrderStats(): array
     {
-        // Get the model and start building query
+        return app(OrderListStats::class)->remember(
+            $this->orderStatsCacheSignature(),
+            fn () => $this->aggregateOrderStats($this->orderStatsQuery())
+        );
+    }
+
+    /**
+     * Filter values that change the stats query, in a stable order so the same
+     * filters always share one cache entry. DataTables parameters (page, sort,
+     * draw) are left out on purpose: they do not change these totals.
+     */
+    private function orderStatsCacheSignature(): string
+    {
+        $payload = [];
+
+        foreach ([
+            'id',
+            'status',
+            'client_id',
+            'author',
+            'paid',
+            'order_type',
+            'product_type',
+            'products',
+            'created_at',
+            'price_gel',
+        ] as $key) {
+            if (!request()->has($key)) {
+                continue;
+            }
+
+            $value = request()->input($key);
+            if ($value === null || $value === '' || $value === []) {
+                continue;
+            }
+
+            $payload[$key] = $value;
+        }
+
+        return json_encode($payload);
+    }
+
+    /**
+     * Orders included in the list stats, with the same filters as the list.
+     *
+     * @return \Illuminate\Database\Eloquent\Builder<Order>
+     */
+    private function orderStatsQuery()
+    {
         $query = Order::query();
-        
-        // Apply filters from request (mimic what CRUD filters do)
+
         if (request()->has('id') && request()->get('id')) {
             $query->where('id', request()->get('id'));
         }
-        
+
         if (request()->has('status') && request()->get('status')) {
             $statuses = $this->parseStatusFilterValue(request()->get('status'));
             if (!empty($statuses)) {
@@ -1743,7 +1795,7 @@ class OrderCrudController extends CrudController
         } else {
             $query->where('status', '!=', 'draft');
         }
-        
+
         if (request()->has('client_id') && request()->get('client_id')) {
             $query->where('client_id', request()->get('client_id'));
         }
@@ -1759,7 +1811,7 @@ class OrderCrudController extends CrudController
         if (request()->has('order_type') && request()->get('order_type')) {
             $query->where('order_type', request()->get('order_type'));
         }
-        
+
         if (request()->has('product_type') && request()->get('product_type')) {
             $query->where('product_type', request()->get('product_type'));
         }
@@ -1784,57 +1836,68 @@ class OrderCrudController extends CrudController
                 $query->where('created_at', '<=', $dateRange['to']);
             }
         }
-        
-        // Apply price filter if set
+
         if (request()->has('price_gel') && request()->get('price_gel')) {
             $range = json_decode(request()->get('price_gel'), true);
             if (is_array($range)) {
                 if (isset($range['from']) && $range['from'] !== '') {
-                    $query->whereHas('services', function($q) use ($range) {
+                    $query->whereHas('services', function ($q) use ($range) {
                         $q->where('order_service.price_gel', '>=', $range['from']);
                     });
                 }
                 if (isset($range['to']) && $range['to'] !== '') {
-                    $query->whereHas('services', function($q) use ($range) {
+                    $query->whereHas('services', function ($q) use ($range) {
                         $q->where('order_service.price_gel', '<=', $range['to']);
                     });
                 }
             }
         }
-        
-        // Get all filtered orders with relationships for price calculation.
-        // pieces.brokenGlasses is needed by calculateExpenses() (via
-        // Piece::getBrokenCount()) — without it every piece fires its own
-        // count query, turning this into thousands of queries per page load.
-        $orders = $query->with(['pieces.brokenGlasses', 'products', 'services', 'payments'])->get();
 
-        // Payment summary: how much has been paid across the filtered orders and
-        // how much is still left to pay. Paid amount comes from the payments
-        // linked to each order (payments.order_id); the outstanding balance per
-        // order is its value minus what's been paid, floored at 0 so overpaid
-        // orders don't offset the underpaid ones.
-        $totalPaid = 0.0;
-        $totalUnpaid = 0.0;
-        $totalPriceGel = 0.0;
-        $totalExpenses = 0.0;
+        return $query;
+    }
 
-        foreach ($orders as $order) {
-            $orderValue = $order->calculateTotalPriceExcludingDraftPieces();
-            $paid = $order->calculatePaidAmount();
-
-            $totalPriceGel += $orderValue;
-            $totalExpenses += $order->calculateExpenses();
-            $totalPaid += $paid;
-            $totalUnpaid += max(0, $orderValue - $paid);
-        }
-
-        return [
-            'ordersCount' => $orders->count(),
-            'totalPriceGel' => $totalPriceGel,
-            'totalExpenses' => $totalExpenses,
-            'totalPaid' => $totalPaid,
-            'totalUnpaid' => $totalUnpaid,
+    /**
+     * Sum order value, expenses, paid, and unpaid for a filtered order query.
+     *
+     * Walks the orders in batches. One ->get() of every non-draft order, with
+     * pieces, services, and payments, uses more than the 128MB worker limit.
+     * withCount('brokenGlasses') feeds Piece::getBrokenCount() without loading
+     * every break row.
+     *
+     * @param  \Illuminate\Database\Eloquent\Builder<Order>  $query
+     * @return array{ordersCount: int, totalPriceGel: float, totalExpenses: float, totalPaid: float, totalUnpaid: float}
+     */
+    private function aggregateOrderStats($query): array
+    {
+        $totals = [
+            'ordersCount' => 0,
+            'totalPriceGel' => 0.0,
+            'totalExpenses' => 0.0,
+            'totalPaid' => 0.0,
+            'totalUnpaid' => 0.0,
         ];
+
+        $query->with([
+            'pieces' => fn ($q) => $q->withCount('brokenGlasses'),
+            'products',
+            'services',
+            'payments',
+        ])->chunkById(500, function ($orders) use (&$totals) {
+            foreach ($orders as $order) {
+                $orderValue = $order->calculateTotalPriceExcludingDraftPieces();
+                $paid = $order->calculatePaidAmount();
+
+                $totals['ordersCount']++;
+                $totals['totalPriceGel'] += $orderValue;
+                $totals['totalExpenses'] += $order->calculateExpenses();
+                $totals['totalPaid'] += $paid;
+                // Floor each order at 0 so an overpayment does not shrink the
+                // amount still owed on the other orders.
+                $totals['totalUnpaid'] += max(0, $orderValue - $paid);
+            }
+        });
+
+        return $totals;
     }
 
     /**

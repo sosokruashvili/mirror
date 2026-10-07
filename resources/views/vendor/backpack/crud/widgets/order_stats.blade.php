@@ -5,7 +5,7 @@
                 <h4 class="mb-0">{{ __('order.stats.orders_count') }}</h4>
             </div>
             <div class="card-body">
-                <h2 class="mb-0" data-stat="ordersCount" data-decimals="0">{{ number_format($widget['ordersCount']) }}</h2>
+                <h2 class="mb-0" data-stat="ordersCount" data-decimals="0" aria-busy="true"><span class="spinner-border spinner-border-sm" role="status"></span></h2>
             </div>
         </div>
     </div>
@@ -15,7 +15,7 @@
                 <h4 class="mb-0">{{ __('order.stats.total_price') }}</h4>
             </div>
             <div class="card-body">
-                <h2 class="mb-0" data-stat="totalPriceGel" data-decimals="2">{{ number_format($widget['totalPriceGel'], 2) }}</h2>
+                <h2 class="mb-0" data-stat="totalPriceGel" data-decimals="2" aria-busy="true"><span class="spinner-border spinner-border-sm" role="status"></span></h2>
             </div>
         </div>
     </div>
@@ -25,7 +25,7 @@
                 <h4 class="mb-0">{{ __('order.stats.total_paid') }}</h4>
             </div>
             <div class="card-body">
-                <h2 class="mb-0" data-stat="totalPaid" data-decimals="2" data-suffix=" ₾">{{ number_format($widget['totalPaid'], 2) }} ₾</h2>
+                <h2 class="mb-0" data-stat="totalPaid" data-decimals="2" data-suffix=" ₾" aria-busy="true"><span class="spinner-border spinner-border-sm" role="status"></span></h2>
             </div>
         </div>
     </div>
@@ -35,7 +35,7 @@
                 <h4 class="mb-0">{{ __('order.stats.left_to_pay') }}</h4>
             </div>
             <div class="card-body">
-                <h2 class="mb-0" data-stat="totalUnpaid" data-decimals="2" data-suffix=" ₾">{{ number_format($widget['totalUnpaid'], 2) }} ₾</h2>
+                <h2 class="mb-0" data-stat="totalUnpaid" data-decimals="2" data-suffix=" ₾" aria-busy="true"><span class="spinner-border spinner-border-sm" role="status"></span></h2>
             </div>
         </div>
     </div>
@@ -45,8 +45,13 @@
                 <h4 class="mb-0">{{ __('order.stats.total_expenses') }}</h4>
             </div>
             <div class="card-body">
-                <h2 class="mb-0" data-stat="totalExpenses" data-decimals="2">{{ number_format($widget['totalExpenses'], 2) }}</h2>
+                <h2 class="mb-0" data-stat="totalExpenses" data-decimals="2" aria-busy="true"><span class="spinner-border spinner-border-sm" role="status"></span></h2>
             </div>
         </div>
     </div>
 </div>
+
+@push('after_scripts')
+    {{-- Fills the cards above once the page has loaded. Loaded with a version string, not Basset, so a stale cached copy cannot leave the cards spinning. --}}
+    <script src="{{ asset('assets/js/order-stats-refresh.js') }}?v={{ filemtime(public_path('assets/js/order-stats-refresh.js')) }}"></script>
+@endpush

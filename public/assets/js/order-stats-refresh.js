@@ -1,21 +1,25 @@
 /**
  * Order Stats Widgets Refresh
  *
- * Keeps the stats cards above the orders list in sync with the list itself.
- * Every time the DataTable fetches rows with a different set of filters
- * (filter change, remove filters), this asks the order/stats endpoint for the
- * totals using the same filter parameters the table used, and updates the
- * cards in place — no full page reload needed. Redraws that don't change the
- * filters (pagination, sorting) reuse the already-displayed stats.
+ * Fills the stats cards above the orders list and keeps them in sync with the
+ * list itself. The page renders the cards empty so the list does not wait for
+ * the stats; this asks the order/stats endpoint for the totals as soon as the
+ * page is ready, in parallel with the table's first fetch. After that, every
+ * time the DataTable fetches rows with a different set of filters (filter
+ * change, remove filters), it asks again with the same filter parameters the
+ * table used and updates the cards in place — no full page reload needed.
+ * Redraws that don't change the filters (pagination, sorting) reuse the
+ * already-displayed stats.
  */
 
 (function () {
     'use strict';
 
     var pendingRequest = null;
-    // The server rendered the widgets for the filters the page loaded with,
-    // so that signature is already "displayed".
+    // Signature of the filters whose stats are displayed or being fetched.
     var lastSignature = null;
+
+    var SPINNER = '<span class="spinner-border spinner-border-sm" role="status"></span>';
 
     // Canonical "key=value" list of the non-empty query params of a query
     // string, sorted so ordering differences don't matter when comparing.
@@ -52,24 +56,42 @@
             pendingRequest.abort();
         }
 
-        pendingRequest = jQuery.getJSON(statsUrl + (queryString ? '?' + queryString : ''), function (stats) {
-            $widgets.find('[data-stat]').each(function () {
+        // Show the spinner while fetching, so the old totals are never read as
+        // the totals of the new filters.
+        var $values = $widgets.find('[data-stat]');
+        $values.attr('aria-busy', 'true').html(SPINNER);
+
+        var request = jQuery.getJSON(statsUrl + (queryString ? '?' + queryString : ''), function (stats) {
+            $values.each(function () {
                 var $el = jQuery(this);
                 var key = $el.data('stat');
                 if (stats[key] === undefined) {
+                    $el.text('—');
                     return;
                 }
                 var decimals = parseInt($el.data('decimals'), 10) || 0;
                 var suffix = $el.data('suffix') || '';
                 $el.text(formatNumber(stats[key], decimals) + suffix);
             });
+        }).fail(function (xhr, status) {
+            // An aborted request was replaced by a newer one, which owns the cards.
+            if (status !== 'abort') {
+                $values.text('—');
+            }
         }).always(function () {
-            pendingRequest = null;
+            if (pendingRequest === request) {
+                pendingRequest = null;
+                $values.removeAttr('aria-busy');
+            }
         });
+        pendingRequest = request;
     }
 
     jQuery(document).ready(function ($) {
+        // The table's first fetch uses the page's own query string, so these
+        // stats match the rows it is about to show.
         lastSignature = paramSignature(window.location.search);
+        refreshStats(window.location.search.replace(/^\?/, ''));
 
         // DataTables events bubble up to the document, so this catches the
         // table's every ajax load without having to wait for crud.table to

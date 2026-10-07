@@ -12,6 +12,7 @@ use App\Models\Piece;
 use App\Models\Service;
 use App\Models\Product;
 use Illuminate\Support\Arr;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Carbon;
@@ -57,9 +58,6 @@ class OrderCrudController extends CrudController
         // orders.js is loaded directly in the create/edit views with a cache-busting
         // version string (see order/create.blade.php and order/edit.blade.php) so that
         // browsers always pick up the latest version instead of a stale cached copy.
-        // Refresh the stats widgets via AJAX whenever the list table redraws
-        // (filter change, pagination, etc.) so they always match the list.
-        Widget::add()->type('script')->content('assets/js/order-stats-refresh.js');
     }
 
     /**
@@ -426,7 +424,19 @@ class OrderCrudController extends CrudController
 
         // Set validation rules
         $this->crud->setValidation(\App\Http\Requests\OrderRequest::class);
-        
+
+        // Idempotency token, unique per form render, that makes the create form
+        // safe against duplicate submissions (a second click on a Save dropdown
+        // action, Ctrl+S, a browser/proxy retry). Only on create — updates must
+        // not touch the stored key. See store() for how the duplicate is caught.
+        if ($this->crud->getOperation() === 'create') {
+            CRUD::addField([
+                'name' => 'idempotency_key',
+                'type' => 'hidden',
+                'value' => (string) \Illuminate\Support\Str::uuid(),
+            ]);
+        }
+
         CRUD::addField([
             'name' => 'order_type',
             'label' => __('order.order_type'),
@@ -1036,7 +1046,32 @@ class OrderCrudController extends CrudController
      */
     public function store()
     {
-        return DB::transaction(function () {
+        $idempotencyKey = request()->input('idempotency_key') ?: null;
+
+        // Idempotency guard against duplicate submissions of the same create form.
+        // The form carries a token unique to each render, so a repeated submission
+        // returns the original order instead of inserting a second one. Forms
+        // rendered before the token existed send none and are not deduplicated.
+        if ($idempotencyKey && $existing = Order::where('idempotency_key', $idempotencyKey)->first()) {
+            return $this->crud->performSaveAction($existing->getKey());
+        }
+
+        try {
+            return $this->storeOrder($idempotencyKey);
+        } catch (UniqueConstraintViolationException $e) {
+            // Two submissions overlapped: the other one inserted the token first, so
+            // the unique index rejected this insert and the transaction rolled back
+            // everything this request wrote. Send the browser to the original order.
+            if ($idempotencyKey && $existing = Order::where('idempotency_key', $idempotencyKey)->first()) {
+                return $this->crud->performSaveAction($existing->getKey());
+            }
+            throw $e;
+        }
+    }
+
+    private function storeOrder(?string $idempotencyKey)
+    {
+        return DB::transaction(function () use ($idempotencyKey) {
             $fields = request()->all();
 
             // Remember the manual USD rate so it prefills future orders until
@@ -1057,6 +1092,7 @@ class OrderCrudController extends CrudController
                     'atachment' => $fields['atachment'] ?? null,
                     'comment' => $fields['comment'] ?? null,
                     'due_date' => !empty($fields['due_date']) ? $fields['due_date'] : null,
+                    'idempotency_key' => $idempotencyKey,
                 ]
             );
 
@@ -1689,40 +1725,26 @@ class OrderCrudController extends CrudController
 
     /**
      * Add widgets for order statistics (count and total price).
-     * 
+     *
+     * The cards render empty with a spinner; order-stats-refresh.js fills them
+     * from the order/stats endpoint once the page has loaded. A cache miss on
+     * the stats takes seconds, and computing them here held back the whole list.
+     *
      * @return void
      */
     protected function addOrderStatsWidgets()
     {
-        // The DataTables /search AJAX endpoint runs setupListOperation() too but
-        // only returns row JSON — widgets are never rendered there, so skip the
-        // (expensive) stats computation entirely for those requests. The widgets
-        // are kept in sync with the list via the order/stats endpoint instead
-        // (see order-stats-refresh.js).
-        if (request()->ajax()) {
-            return;
-        }
-
-        $stats = $this->computeOrderStats();
-
-        // Add stats cards - pass data to view
         Widget::add([
             'type' => 'view',
             'view' => 'vendor.backpack.crud.widgets.order_stats',
             'wrapper' => ['class' => 'col-12'],
-            'ordersCount' => $stats['ordersCount'],
-            'totalPriceGel' => $stats['totalPriceGel'],
-            'totalExpenses' => $stats['totalExpenses'],
-            'totalPaid' => $stats['totalPaid'],
-            'totalUnpaid' => $stats['totalUnpaid'],
         ])->to('before_content');
     }
 
     /**
      * Stats for the order list widgets (count / price / paid / unpaid /
      * expenses), honoring the same filter parameters the list filters apply.
-     * Returned as raw numbers; formatting happens in the widget view and in
-     * order-stats-refresh.js.
+     * Returned as raw numbers; formatting happens in order-stats-refresh.js.
      *
      * The result is cached per filter set. Loading every order into memory
      * takes seconds and more RAM than a PHP worker is allowed, so a cache miss
@@ -1902,9 +1924,9 @@ class OrderCrudController extends CrudController
 
     /**
      * Stats for the order list widgets as JSON (AJAX). Called by
-     * order-stats-refresh.js on every list table redraw, with the same filter
-     * query parameters the list uses, so the widgets stay in sync with the
-     * filtered list without a full page reload.
+     * order-stats-refresh.js when the list page loads and whenever the list
+     * filters change, with the same filter query parameters the list uses, so
+     * the widgets stay in sync with the filtered list without a page reload.
      *
      * @return \Illuminate\Http\JsonResponse
      */

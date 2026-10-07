@@ -22,6 +22,7 @@
     var bannerTimer = null;
     var stockConfirmPassed = false;
     var stockCheckInProgress = false;
+    var formSubmitted = false;
     var stockNoty = null;
     var lastNotyKey = '';
     var notyDismissedKey = '';
@@ -395,24 +396,68 @@
         return deferred.promise();
     }
 
+    // Every control that can submit the form: the main Save button, the split
+    // toggle, and the alternative save actions ("Save and preview", ...) in its
+    // dropdown. Backpack's anti double-click only disables button[type=submit];
+    // the dropdown actions are type="button", and their click handler stops
+    // propagation, so the menu stays open and a second click submits again.
+    // That was the source of duplicate orders.
+    function saveControls($form) {
+        return $form.find('#saveActions button');
+    }
+
+    function lockSaveButtons($form) {
+        $form.find('#saveActions .dropdown-menu').removeClass('show');
+        saveControls($form).prop('disabled', true);
+    }
+
     function enableSaveButtons($form) {
-        // Backpack's form_content disables submit buttons on the submit event
-        // (anti double-click). If we cancel the save we have to turn them back on.
-        $form.find('button[type="submit"]').prop('disabled', false);
+        saveControls($form).prop('disabled', false);
     }
 
     function bindSubmit($form) {
+        // Re-submit after the stock check. requestSubmit() re-runs native
+        // validation; if that fails no submit event fires and formSubmitted
+        // stays false, so the .always() below unlocks the form.
+        function resubmit(formEl) {
+            stockConfirmPassed = true;
+            if (formEl.requestSubmit) {
+                formEl.requestSubmit();
+            } else {
+                formSubmitted = true; // submit() fires no submit event
+                formEl.submit();
+            }
+            stockConfirmPassed = false;
+        }
+
+        // This handler is bound last on the form, so returning without
+        // preventDefault() means the browser really sends the request.
         $form.on('submit', function (e) {
-            if (stockConfirmPassed) { return; }
+            // The order is already on its way to the server: any further submit
+            // (second click, Ctrl+S, Enter) would create a duplicate order.
+            if (formSubmitted) {
+                e.preventDefault();
+                return;
+            }
+            // The stock check passed and re-submitted: let this one through, once.
+            if (stockConfirmPassed) {
+                stockConfirmPassed = false;
+                formSubmitted = true;
+                return;
+            }
             if (stockCheckInProgress) {
                 e.preventDefault();
                 return;
             }
-            if (isServiceType()) { return; }
+
+            lockSaveButtons($form);
 
             var ids = selectedProductIds();
             var needed = currentNeeded();
-            if (!ids.length || !(needed > 0)) { return; }
+            if (isServiceType() || !ids.length || !(needed > 0)) {
+                formSubmitted = true;
+                return;
+            }
 
             e.preventDefault();
             stockCheckInProgress = true;
@@ -424,27 +469,20 @@
                 renderBanner();
                 var rows = shortagesFor(needed);
                 if (!rows.length) {
-                    stockConfirmPassed = true;
-                    if (formEl.requestSubmit) { formEl.requestSubmit(); }
-                    else { formEl.submit(); }
+                    resubmit(formEl);
                     return;
                 }
                 return confirmShortages(rows).then(function (ok) {
-                    if (ok) {
-                        stockConfirmPassed = true;
-                        if (formEl.requestSubmit) { formEl.requestSubmit(); }
-                        else { formEl.submit(); }
-                    } else {
-                        enableSaveButtons($form);
-                    }
+                    if (ok) { resubmit(formEl); }
                 });
             }, function () {
                 // API failure must not block saving.
-                stockConfirmPassed = true;
-                if (formEl.requestSubmit) { formEl.requestSubmit(); }
-                else { formEl.submit(); }
+                resubmit(formEl);
             }).always(function () {
                 stockCheckInProgress = false;
+                // Cancelled, failed validation, or an error: nothing was sent,
+                // so give the user their buttons back.
+                if (!formSubmitted) { enableSaveButtons($form); }
             });
         });
     }

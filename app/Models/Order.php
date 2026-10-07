@@ -35,6 +35,7 @@ class Order extends Model
         'expenses',
         'confirm_date',
         'due_date',
+        'idempotency_key',
     ];
     // protected $hidden = [];
 

@@ -51,4 +51,23 @@ return [
         'create_failed' => 'Failed to create client: :error',
     ],
 
+    'cabinet' => [
+        'heading' => 'Client cabinet',
+        'intro' => 'The client signs in with the phone number on this form.',
+        'enabled' => 'Cabinet access',
+        'column' => 'Cabinet',
+        'on' => 'On',
+        'off' => 'Off',
+        'password' => 'Cabinet password',
+        'password_confirmation' => 'Confirm password',
+        'password_hint' => 'At least 8 characters. Leave blank to keep the current password.',
+        'password_required' => 'Set a password to turn cabinet access on.',
+        'password_min' => 'The cabinet password must be at least 8 characters.',
+        'password_confirmed' => 'The password confirmation does not match.',
+        'phone_invalid' => 'This phone number cannot be used to sign in.',
+        'phone_taken' => 'Another client already signs in with this phone number.',
+        'last_login' => 'Last sign-in',
+        'never_logged_in' => 'has not signed in yet',
+    ],
+
 ];

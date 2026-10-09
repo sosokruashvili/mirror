@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Support\Cabinet\Cabinet;
 use Carbon\Carbon;
 use Closure;
 use Illuminate\Http\Request;
@@ -39,6 +40,14 @@ class SetLocale
 
     protected function resolve(Request $request): string
     {
+        // The cabinet never reads a staff user's language. Guests start in
+        // Georgian; a choice made on this host stays in this host's session.
+        if (Cabinet::isHost($request)) {
+            $candidate = $request->session()->get('locale');
+
+            return $this->isSupported($candidate) ? $candidate : 'ka';
+        }
+
         $user = backpack_auth()->user();
 
         foreach ([$user?->locale, $request->session()->get('locale')] as $candidate) {

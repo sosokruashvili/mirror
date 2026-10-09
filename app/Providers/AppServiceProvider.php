@@ -2,10 +2,13 @@
 
 namespace App\Providers;
 
+use App\Models\Client;
+use App\Services\CabinetAccess;
+use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Facades\Gate;
-use Illuminate\Contracts\Auth\StatefulGuard;
-use Backpack\CRUD\app\Library\Auth\BackpackUserProvider;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -31,7 +34,20 @@ class AppServiceProvider extends ServiceProvider
         // exception. Returning null (not false) lets everyone else fall through
         // to the normal permission checks.
         Gate::before(function ($user) {
-            return $user?->isSuperAdmin() ? true : null;
+            return $user instanceof \App\Models\User && $user->isSuperAdmin() ? true : null;
+        });
+
+        Client::saved(function (Client $client) {
+            app(CabinetAccess::class)->sync($client);
+        });
+
+        RateLimiter::for('cabinet-login', function (Request $request) {
+            $phone = \App\Support\Cabinet\Cabinet::phoneDigits((string) $request->input('phone', ''));
+
+            return [
+                Limit::perMinute(5)->by('cabinet-phone|'.$request->ip().'|'.$phone),
+                Limit::perMinute(15)->by('cabinet-ip|'.$request->ip()),
+            ];
         });
     }
 }

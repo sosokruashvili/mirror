@@ -1,0 +1,14 @@
+/* Georgian glyphs fall through Tabler's latin font to a system face. */
+body {
+    font-family: var(--tblr-font-sans-serif), "Noto Sans Georgian", Sylfaen, sans-serif;
+}
+
+.urgent-red-pulse {
+    box-shadow: 0 0 0 0 rgba(220, 53, 69, 0.7);
+    animation: urgent-red-pulse 1.4s ease-in-out infinite !important;
+}
+
+@keyframes urgent-red-pulse {
+    0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(220, 53, 69, 0.7); transform: scale(1); }
+    50% { opacity: 0.2; box-shadow: 0 0 0 6px rgba(220, 53, 69, 0); transform: scale(1.08); }
+}

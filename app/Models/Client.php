@@ -40,7 +40,18 @@ class Client extends Model
                     $client->{$field} = null;
                 }
             }
+
+            // Cabinet credentials are stored on client_accounts, never here.
+            unset($client->cabinet_enabled, $client->cabinet_password, $client->cabinet_password_confirmation);
         });
+    }
+
+    /**
+     * The cabinet login for this client, when staff have created one.
+     */
+    public function cabinetAccount()
+    {
+        return $this->hasOne(ClientAccount::class);
     }
 
     /**

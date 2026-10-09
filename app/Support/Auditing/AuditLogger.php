@@ -56,6 +56,7 @@ class AuditLogger
     protected array $ignoredDiffKeys = [
         'updated_at',
         'created_at',
+        'last_login_at',
     ];
 
     /**

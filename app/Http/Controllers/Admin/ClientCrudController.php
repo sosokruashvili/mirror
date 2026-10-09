@@ -2,8 +2,10 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Models\ClientAccount;
 use Backpack\CRUD\app\Http\Controllers\CrudController;
 use Backpack\CRUD\app\Library\CrudPanel\CrudPanelFacade as CRUD;
+use Illuminate\Validation\Rule;
 
 /**
  * Class ClientCrudController
@@ -140,6 +142,22 @@ class ClientCrudController extends CrudController
         function($value) {
             $this->crud->addClause('where', 'address', 'LIKE', "%{$value}%");
         });
+
+        $this->crud->query->with('cabinetAccount');
+
+        CRUD::addColumn([
+            'name' => 'cabinet_access',
+            'label' => __('client.cabinet.column'),
+            'type' => 'closure',
+            'escaped' => false,
+            'function' => function ($entry) {
+                $on = (bool) $entry->cabinetAccount?->is_active;
+                $class = $on ? 'badge bg-success' : 'badge bg-secondary';
+                $label = e($on ? __('client.cabinet.on') : __('client.cabinet.off'));
+
+                return '<span class="'.$class.'">'.$label.'</span>';
+            },
+        ]);
     }
 
     /**
@@ -267,6 +285,8 @@ class ClientCrudController extends CrudController
         ]);
 
 
+        $this->addCabinetFields();
+
         // Labels the toggle below writes back into the DOM. Pre-encoded here so
         // the inline script stays readable and the translations are escaped once.
         $required = ' <span class="text-danger">*</span>';
@@ -326,6 +346,101 @@ class ClientCrudController extends CrudController
                 });
                 </script>
             '
+        ]);
+
+        $this->crud->setValidation();
+    }
+
+    /**
+     * Cabinet login is not a clients-table column. The password is written to
+     * client_accounts after save, and only when this form posted the toggle.
+     */
+    protected function addCabinetFields(): void
+    {
+        $entryId = $this->crud->getCurrentEntryId() ?: null;
+        $account = $entryId
+            ? ClientAccount::query()->where('client_id', $entryId)->first()
+            : null;
+
+        $host = e((string) config('cabinet.host'));
+        $loginUrl = 'https://'.$host.'/login';
+        $lastLogin = '';
+
+        if ($account) {
+            $when = $account->last_login_at
+                ? $account->last_login_at->timezone(config('app.timezone'))->format('Y-m-d H:i')
+                : __('client.cabinet.never_logged_in');
+            $lastLogin = '<p class="help-block mb-2">'.e(__('client.cabinet.last_login')).': '.e($when).'</p>';
+        }
+
+        CRUD::addField([
+            'name' => 'cabinet_heading',
+            'type' => 'custom_html',
+            'value' => '<hr><h3 class="mb-1">'.e(__('client.cabinet.heading')).'</h3>'
+                .'<p class="text-muted">'.e(__('client.cabinet.intro')).' '
+                .'<a href="'.$loginUrl.'" target="_blank" rel="noopener noreferrer">'.$host.'</a></p>'
+                .$lastLogin,
+        ]);
+
+        CRUD::addField([
+            'name' => 'cabinet_enabled',
+            'label' => __('client.cabinet.enabled'),
+            'type' => 'checkbox',
+            'value' => $account?->is_active ? 1 : 0,
+            'validationRules' => 'required|in:0,1',
+            'wrapper' => [
+                'class' => 'form-group col-md-12',
+            ],
+        ]);
+
+        CRUD::addField([
+            'name' => 'cabinet_password',
+            'label' => __('client.cabinet.password'),
+            'type' => 'password',
+            'validationRules' => [
+                Rule::requiredIf(function () use ($entryId) {
+                    if (! request()->boolean('cabinet_enabled')) {
+                        return false;
+                    }
+
+                    if (! $entryId) {
+                        return true;
+                    }
+
+                    return ! ClientAccount::query()->where('client_id', $entryId)->exists();
+                }),
+                'nullable',
+                'string',
+                'min:8',
+                'max:255',
+                'confirmed',
+            ],
+            'validationMessages' => [
+                'required' => __('client.cabinet.password_required'),
+                'required_if' => __('client.cabinet.password_required'),
+                'min' => __('client.cabinet.password_min'),
+                'confirmed' => __('client.cabinet.password_confirmed'),
+            ],
+            'validationAttribute' => __('client.cabinet.password'),
+            'hint' => __('client.cabinet.password_hint'),
+            'attributes' => [
+                'autocomplete' => 'new-password',
+            ],
+            'wrapper' => [
+                'class' => 'form-group col-md-6',
+            ],
+        ]);
+
+        CRUD::addField([
+            'name' => 'cabinet_password_confirmation',
+            'label' => __('client.cabinet.password_confirmation'),
+            'type' => 'password',
+            'attributes' => [
+                'autocomplete' => 'new-password',
+            ],
+            'wrapper' => [
+                'class' => 'form-group col-md-6',
+            ],
         ]);
     }
 

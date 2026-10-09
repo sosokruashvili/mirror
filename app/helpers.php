@@ -547,3 +547,40 @@ if (!function_exists('order_service_measure')) {
     }
 }
 
+if (!function_exists('isDeveloper')) {
+    /**
+     * Whether the signed-in admin user holds the `developer` role.
+     *
+     * The user is resolved by SwitchDatabaseConnection against the PRODUCTION
+     * connection (roles eager-loaded) before any DB switch happens, so this
+     * answer is always the real one even while the session runs on the dev DB.
+     */
+    function isDeveloper(): bool
+    {
+        $user = backpack_auth()->check() ? backpack_user() : null;
+
+        return $user instanceof \App\Models\User && $user->hasRole('developer');
+    }
+}
+
+if (!function_exists('isDevDatabase')) {
+    /**
+     * Whether the current default connection points at the development
+     * database (by dev host or by the developer's session switch).
+     */
+    function isDevDatabase(): bool
+    {
+        return \App\Support\DevEnvironment::isDevDatabase();
+    }
+}
+
+if (!function_exists('canSyncDbFromProd')) {
+    /**
+     * The "copy production → development" action is offered only to a
+     * developer who is currently working on the development database.
+     */
+    function canSyncDbFromProd(): bool
+    {
+        return isDeveloper() && isDevDatabase();
+    }
+}

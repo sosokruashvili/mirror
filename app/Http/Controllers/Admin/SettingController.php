@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Setting;
+use App\Support\DevEnvironment;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Log;
@@ -31,24 +32,33 @@ class SettingController extends Controller
 
         return view('admin.settings', [
             'settingGroups' => $settings,
-            'dbSyncAvailable' => $this->isDbSyncAvailable(),
-            'dbSyncSource' => config('dbsync.source.database'),
+            'dbSyncAvailable' => canSyncDbFromProd(),
+            'dbSyncSource' => DevEnvironment::prodDatabaseName(),
+            'dbSyncTarget' => DevEnvironment::devDatabaseName(),
         ]);
     }
 
     /**
-     * Replace the current (dev) database with a fresh copy of production.
+     * Replace the development database with a fresh copy of production.
      *
-     * Only ever available on dev: the underlying command refuses to run when
-     * the current database is the same as the configured source, and the
-     * button is hidden on production for the same reason.
+     * Only for a developer whose current request already runs on the dev DB
+     * (dev host or session switch), and only after typing the target database
+     * name. The command itself refuses to touch the production database.
      *
      * @return \Illuminate\Http\RedirectResponse
      */
-    public function syncFromProd()
+    public function syncFromProd(Request $request)
     {
-        if (! $this->isDbSyncAvailable()) {
+        if (! canSyncDbFromProd()) {
             Alert::error(__('setting.dev.unavailable'))->flash();
+
+            return redirect()->route('settings.edit');
+        }
+
+        $target = (string) DevEnvironment::devDatabaseName();
+
+        if (trim((string) $request->input('confirm_database')) !== $target) {
+            Alert::error(__('setting.dev.confirm_mismatch', ['db' => $target]))->flash();
 
             return redirect()->route('settings.edit');
         }
@@ -57,9 +67,10 @@ class SettingController extends Controller
         $output = trim(Artisan::output());
 
         if ($exitCode === 0) {
+            Log::info('db:sync-from-prod run from Settings', ['user_id' => backpack_user()?->id, 'output' => $output]);
             Alert::success(__('setting.dev.synced'))->flash();
         } else {
-            Log::error('db:sync-from-prod failed', ['output' => $output]);
+            Log::error('db:sync-from-prod failed', ['user_id' => backpack_user()?->id, 'output' => $output]);
             Alert::error(__('setting.dev.failed', ['error' => $this->flashable($output)]))->flash();
         }
 
@@ -83,25 +94,6 @@ class SettingController extends Controller
         $message = (string) (end($lines) ?: __('setting.dev.no_output'));
 
         return Str::limit(str_replace(['"', "'"], '', preg_replace('/\s+/', ' ', $message)), 300);
-    }
-
-    /**
-     * DB sync is available only on non-production environments, and only when
-     * the current database differs from the configured production source.
-     */
-    private function isDbSyncAvailable(): bool
-    {
-        if (app()->isProduction()) {
-            return false;
-        }
-
-        $default = config('database.default');
-        $current = config('database.connections.' . $default);
-
-        return ($current['driver'] ?? null) === 'pgsql'
-            && ! empty($current['database'])
-            && ! empty(config('dbsync.source.database'))
-            && $current['database'] !== config('dbsync.source.database');
     }
 
     /**

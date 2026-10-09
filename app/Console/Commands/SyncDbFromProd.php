@@ -2,57 +2,70 @@
 
 namespace App\Console\Commands;
 
+use App\Support\DevEnvironment;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\DB;
 use Symfony\Component\Process\Process;
 
 /**
- * Replace the current (dev) database with a fresh copy of the production
- * database.
+ * Replace the DEVELOPMENT database with a fresh copy of PRODUCTION.
  *
- * Prod and dev share one PostgreSQL server and role, differing only by
- * database name, so this dumps the source DB and reloads it into the current
- * connection's DB after wiping the latter's `public` schema.
+ * Source: the production connection (`database.prod_connection`, i.e. the
+ * app's normal DB_* settings). Target: the dev connection
+ * (`database.dev_connection` → DB_DEV_DATABASE). Both live on the same
+ * PostgreSQL server under the same role and differ only by database name.
  *
- * SAFETY: the command only ever writes into the CURRENT connection's database
- * and aborts when that database is the same as the source. Because the prod
- * app runs against the source database itself, running this there is a no-op
- * refusal — it can never overwrite prod.
+ * Steps: create the target DB if missing (no backup then) → otherwise back it
+ * up to storage/app/db-backups/ → pg_dump prod (custom format) → drop and
+ * recreate the dev `public` schema → pg_restore --no-owner --no-acl.
+ *
+ * SAFETY: the command never writes to the source. It refuses when source and
+ * target database names are equal, or when they are not on the same server.
+ * It is reached from the Settings page (SettingController@syncFromProd, only
+ * for a developer currently on the dev DB) and from the CLI.
  */
 class SyncDbFromProd extends Command
 {
     protected $signature = 'db:sync-from-prod
                             {--force : Skip the interactive confirmation}';
 
-    protected $description = 'Copy the production database into the current (dev) database, overwriting it';
+    protected $description = 'Copy the production database into the development database, overwriting it';
+
+    /** Seconds allowed for each pg_dump / pg_restore / psql step. */
+    private const PROCESS_TIMEOUT = 1800;
 
     public function handle(): int
     {
-        $source = config('dbsync.source');
-        $target = config('database.connections.' . config('database.default'));
+        $sourceName = DevEnvironment::prodConnection();
+        $targetName = DevEnvironment::devConnection();
+        $source = (array) config("database.connections.{$sourceName}", []);
+        $target = (array) config("database.connections.{$targetName}", []);
 
         // --- Guards --------------------------------------------------------
-        if (($target['driver'] ?? null) !== 'pgsql') {
-            $this->error('This command only supports the pgsql driver.');
+        if (($source['driver'] ?? null) !== 'pgsql' || ($target['driver'] ?? null) !== 'pgsql') {
+            $this->error('This command only supports pgsql connections.');
 
             return self::FAILURE;
         }
 
         if (empty($source['database']) || empty($target['database'])) {
-            $this->error('Source or target database name is not configured.');
+            $this->error('Source (DB_DATABASE) or target (DB_DEV_DATABASE) database name is not configured.');
 
             return self::FAILURE;
         }
 
-        // The single most important guard: never write onto the source DB.
-        // On production the app's own DB is the source, so this blocks there.
-        if ($source['database'] === $target['database']
-            && $source['host'] === ($target['host'] ?? null)) {
+        if ($source['database'] === $target['database']) {
             $this->error(sprintf(
-                'Refusing to run: source and target are the same database (%s@%s). '
-                . 'This looks like the production environment.',
-                $target['database'],
-                $target['host'] ?? '?'
+                'Refusing to run: source and target are the same database ("%s"). Set DB_DEV_DATABASE to a different name.',
+                $target['database']
             ));
+
+            return self::FAILURE;
+        }
+
+        if (($source['host'] ?? null) !== ($target['host'] ?? null)
+            || (string) ($source['port'] ?? 5432) !== (string) ($target['port'] ?? 5432)) {
+            $this->error('Refusing to run: source and target must be on the same database server.');
 
             return self::FAILURE;
         }
@@ -67,72 +80,146 @@ class SyncDbFromProd extends Command
             return self::SUCCESS;
         }
 
-        // --- Run -----------------------------------------------------------
-        $dumpFile = storage_path('app/db-sync-prod-dump.sql');
-        @mkdir(dirname($dumpFile), 0775, true);
+        // --- Tooling -------------------------------------------------------
+        try {
+            $bin = $this->clientBinaries($sourceName);
+        } catch (\Throwable $e) {
+            $this->error('Cannot determine PostgreSQL client binaries: '.$e->getMessage());
+
+            return self::FAILURE;
+        }
+
+        $backupDir = storage_path('app/db-backups');
+        if (! is_dir($backupDir) && ! @mkdir($backupDir, 02775, true) && ! is_dir($backupDir)) {
+            $this->error("Cannot create backup directory {$backupDir}.");
+
+            return self::FAILURE;
+        }
+        if (! is_writable($backupDir)) {
+            $this->error("Backup directory {$backupDir} is not writable by ".(get_current_user() ?: 'the current user').'.');
+
+            return self::FAILURE;
+        }
+
+        $stamp = now()->format('Ymd_His');
+        $prodDump = $backupDir.DIRECTORY_SEPARATOR.".prod-{$source['database']}-{$stamp}.dump";
+        $devBackup = $backupDir.DIRECTORY_SEPARATOR."{$target['database']}-{$stamp}.dump";
+        $connArgs = fn (array $c) => [
+            '--host='.$c['host'],
+            '--port='.($c['port'] ?? 5432),
+            '--username='.$c['username'],
+            '--no-password',
+        ];
 
         try {
-            $this->line('1/3 Dumping production database…');
-            $this->runProcess([
-                'pg_dump',
-                '--host=' . $source['host'],
-                '--port=' . $source['port'],
-                '--username=' . $source['username'],
-                '--no-owner',
-                '--no-privileges',
-                '--file=' . $dumpFile,
-                $source['database'],
-            ], $source['password']);
+            // 1. Target database: create when missing, otherwise back it up.
+            $exists = (bool) DB::connection($sourceName)
+                ->selectOne('select 1 as ok from pg_database where datname = ?', [$target['database']]);
 
-            $this->line('2/3 Wiping the dev schema…');
+            if (! $exists) {
+                $this->line(sprintf('1/4 Target database "%s" does not exist — creating it (no backup needed).', $target['database']));
+                DB::connection($sourceName)->statement(sprintf(
+                    'CREATE DATABASE %s OWNER %s',
+                    $this->quoteIdent($target['database']),
+                    $this->quoteIdent($target['username'])
+                ));
+            } else {
+                $this->line(sprintf('1/4 Backing up current "%s" to %s…', $target['database'], $devBackup));
+                $this->runProcess([
+                    $bin['pg_dump'], ...$connArgs($target),
+                    '--format=custom', '--no-owner', '--no-acl',
+                    '--file='.$devBackup,
+                    $target['database'],
+                ], $target['password'] ?? '');
+            }
+
+            // 2. Dump production.
+            $this->line(sprintf('2/4 Dumping production "%s"…', $source['database']));
             $this->runProcess([
-                'psql',
-                '--host=' . $target['host'],
-                '--port=' . ($target['port'] ?? 5432),
-                '--username=' . $target['username'],
-                '--dbname=' . $target['database'],
-                '--set=ON_ERROR_STOP=1',
+                $bin['pg_dump'], ...$connArgs($source),
+                '--format=custom', '--no-owner', '--no-acl',
+                '--file='.$prodDump,
+                $source['database'],
+            ], $source['password'] ?? '');
+
+            // 3. Reset the dev schema (drop our own connection to it first).
+            $this->line('3/4 Resetting the development schema…');
+            DB::purge($targetName);
+            $this->runProcess([
+                $bin['psql'], ...$connArgs($target),
+                '--dbname='.$target['database'],
+                '--set=ON_ERROR_STOP=1', '--quiet',
                 '--command=DROP SCHEMA IF EXISTS public CASCADE; CREATE SCHEMA public;',
             ], $target['password'] ?? '');
 
-            $this->line('3/3 Restoring production data into dev…');
+            // 4. Restore production data into dev.
+            $this->line('4/4 Restoring production data into development…');
             $this->runProcess([
-                'psql',
-                '--host=' . $target['host'],
-                '--port=' . ($target['port'] ?? 5432),
-                '--username=' . $target['username'],
-                '--dbname=' . $target['database'],
-                '--set=ON_ERROR_STOP=1',
-                '--file=' . $dumpFile,
+                $bin['pg_restore'], ...$connArgs($target),
+                '--dbname='.$target['database'],
+                '--no-owner', '--no-acl', '--exit-on-error', '--single-transaction',
+                $prodDump,
             ], $target['password'] ?? '');
-        } catch (\RuntimeException $e) {
-            $this->error('Sync failed: ' . $e->getMessage());
+
+            DB::purge($targetName);
+        } catch (\Throwable $e) {
+            $this->error('Sync failed: '.$e->getMessage());
 
             return self::FAILURE;
         } finally {
-            @unlink($dumpFile);
+            if (is_file($prodDump)) {
+                @unlink($prodDump);
+            }
         }
 
         $this->info(sprintf('Done. "%s" now mirrors "%s".', $target['database'], $source['database']));
+        if (is_file($devBackup)) {
+            $this->line("Previous development data saved at {$devBackup}");
+        }
 
         return self::SUCCESS;
     }
 
     /**
-     * Run a psql/pg_dump process with the given PGPASSWORD, throwing on failure.
+     * pg_dump refuses servers newer than itself, so prefer the client binaries
+     * matching the server's major version (/usr/lib/postgresql/<major>/bin),
+     * falling back to whatever is on PATH.
+     *
+     * @return array{pg_dump: string, pg_restore: string, psql: string}
+     */
+    private function clientBinaries(string $connection): array
+    {
+        $versionNum = (int) (DB::connection($connection)->selectOne("select current_setting('server_version_num') as v")->v ?? 0);
+        $major = $versionNum >= 100000 ? intdiv($versionNum, 10000) : null;
+
+        $tools = [];
+        foreach (['pg_dump', 'pg_restore', 'psql'] as $tool) {
+            $candidate = $major ? "/usr/lib/postgresql/{$major}/bin/{$tool}" : null;
+            $tools[$tool] = ($candidate && is_executable($candidate)) ? $candidate : $tool;
+        }
+
+        return $tools;
+    }
+
+    private function quoteIdent(string $identifier): string
+    {
+        return '"'.str_replace('"', '""', $identifier).'"';
+    }
+
+    /**
+     * Run a PostgreSQL client process with PGPASSWORD set, throwing on failure.
      *
      * @param array<int, string> $command
      */
     private function runProcess(array $command, string $password): void
     {
-        $process = new Process($command, null, ['PGPASSWORD' => $password]);
-        $process->setTimeout(600);
+        $process = new Process($command, null, ['PGPASSWORD' => $password, 'PATH' => getenv('PATH') ?: '/usr/local/bin:/usr/bin:/bin']);
+        $process->setTimeout(self::PROCESS_TIMEOUT);
         $process->run();
 
         if (! $process->isSuccessful()) {
-            // Prefer stderr; fall back to stdout for the error message.
             $message = trim($process->getErrorOutput()) ?: trim($process->getOutput());
-            throw new \RuntimeException($message ?: 'process exited with code ' . $process->getExitCode());
+            throw new \RuntimeException($message ?: 'process exited with code '.$process->getExitCode());
         }
     }
 }

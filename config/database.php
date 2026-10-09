@@ -20,6 +20,21 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Production / development connection names
+    |--------------------------------------------------------------------------
+    |
+    | `database.default` is swapped to the dev connection at runtime on the dev
+    | host or for a developer's session switch, so code that needs to know
+    | which connection is PROD (auth user lookup, sync source, infra pinning)
+    | must read these fixed names instead of `default`.
+    |
+    */
+
+    'prod_connection' => env('DB_CONNECTION', 'sqlite'),
+    'dev_connection' => env('DB_DEV_CONNECTION', 'pgsql_dev'),
+
+    /*
+    |--------------------------------------------------------------------------
     | Database Connections
     |--------------------------------------------------------------------------
     |
@@ -89,6 +104,27 @@ return [
             'host' => env('DB_HOST', '127.0.0.1'),
             'port' => env('DB_PORT', '5432'),
             'database' => env('DB_DATABASE', 'laravel'),
+            'username' => env('DB_USERNAME', 'root'),
+            'password' => env('DB_PASSWORD', ''),
+            'charset' => env('DB_CHARSET', 'utf8'),
+            'prefix' => '',
+            'prefix_indexes' => true,
+            'search_path' => 'public',
+            'sslmode' => 'prefer',
+        ],
+
+        /*
+        | Development copy of the production database on the same server and
+        | role, differing only by database name. Activated per request by
+        | App\Support\DevEnvironment (dev host) or the developer's session
+        | switch (SwitchDatabaseConnection). Refreshed with `db:sync-from-prod`.
+        */
+        'pgsql_dev' => [
+            'driver' => 'pgsql',
+            'url' => env('DB_URL'),
+            'host' => env('DB_HOST', '127.0.0.1'),
+            'port' => env('DB_PORT', '5432'),
+            'database' => env('DB_DEV_DATABASE', env('DB_DATABASE', 'laravel').'_dev'),
             'username' => env('DB_USERNAME', 'root'),
             'password' => env('DB_PASSWORD', ''),
             'charset' => env('DB_CHARSET', 'utf8'),

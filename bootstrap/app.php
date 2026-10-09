@@ -1,13 +1,15 @@
 <?php
 
 use App\Support\Cabinet\Cabinet;
+use App\Support\DevEnvironment;
 use Illuminate\Foundation\Application;
+use Illuminate\Foundation\Bootstrap\LoadConfiguration;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
 
-return Application::configure(basePath: dirname(__DIR__))
+$app = Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
         web: __DIR__.'/../routes/web.php',
         commands: __DIR__.'/../routes/console.php',
@@ -18,8 +20,16 @@ return Application::configure(basePath: dirname(__DIR__))
 
         $middleware->web(append: [
             \App\Http\Middleware\VerifyCsrfToken::class,
+            \App\Http\Middleware\SwitchDatabaseConnection::class,
             \App\Http\Middleware\SetLocale::class,
         ]);
+
+        // The developer DB switch needs the session but must run before route
+        // model binding (and anything else) touches the database.
+        $middleware->prependToPriorityList(
+            \Illuminate\Routing\Middleware\SubstituteBindings::class,
+            \App\Http\Middleware\SwitchDatabaseConnection::class
+        );
 
         $middleware->alias([
             'backpack.can' => \App\Http\Middleware\CheckBackpackPermission::class,
@@ -53,3 +63,13 @@ return Application::configure(basePath: dirname(__DIR__))
             ], $status));
         });
     })->create();
+
+// Host-based development mode (dev.mirrorgallery.ge): decided right after the
+// configuration is loaded, before any service provider registers. CLI runs
+// (artisan, scheduler, queue) are never affected.
+$app->afterBootstrapping(
+    LoadConfiguration::class,
+    fn (Application $app) => DevEnvironment::detect($app)
+);
+
+return $app;

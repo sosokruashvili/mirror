@@ -10,14 +10,16 @@ return [
     'unit_mm' => 'მმ',
     'saved' => 'პარამეტრები შენახულია.',
 
-    // Developer tools card (dev environments only)
+    // Developer tools card (developer on the development DB only)
     'dev' => [
         'title' => 'დეველოპერის ხელსაწყოები',
-        'description' => 'ამ dev ბაზის ჩანაცვლება productions-ის ახალი ასლით (:source).',
-        'warning' => 'ეს <strong>წაშლის dev-ზე არსებულ ყველა მონაცემს</strong> და ვერ დაბრუნდება. სჭირდება რამდენიმე წამი.',
-        'confirm' => 'წავშალოთ dev ბაზა და ჩავანაცვლოთ production-ის ასლით? ამის დაბრუნება შეუძლებელია.',
-        'button' => 'ბაზის სინქრონიზაცია Production-იდან',
-        'unavailable' => 'ბაზის სინქრონიზაცია ამ გარემოში ხელმისაწვდომი არ არის.',
+        'description' => 'Development ბაზის :target ჩანაცვლება production-ის ახალი ასლით (:source).',
+        'warning' => 'ეს <strong>წაშლის :target-ში არსებულ ყველა მონაცემს</strong> (ჯერ იქმნება სარეზერვო ასლი storage/app/db-backups-ში). Production არ იცვლება. სჭირდება რამდენიმე წამი.',
+        'confirm' => 'წავშალოთ development ბაზა ":target" და ჩავანაცვლოთ production-ის ასლით?',
+        'type_to_confirm' => 'დასადასტურებლად აკრიფეთ :target',
+        'confirm_mismatch' => 'დადასტურება არ ემთხვევა development ბაზის სახელს (:db). არაფერი შეცვლილა.',
+        'button' => 'Production → Development კოპირება',
+        'unavailable' => 'ბაზის სინქრონიზაცია ხელმისაწვდომია მხოლოდ დეველოპერისთვის development ბაზაზე მუშაობისას.',
         'synced' => 'ბაზა სინქრონიზდა production-იდან.',
         'failed' => 'ბაზის სინქრონიზაცია ვერ მოხერხდა: :error',
         'no_output' => 'პასუხი არ არის — იხილეთ ლოგი დეტალებისთვის',

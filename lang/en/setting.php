@@ -19,14 +19,16 @@ return [
     'unit_mm' => 'mm',
     'saved' => 'Settings saved.',
 
-    // Developer tools card (dev environments only)
+    // Developer tools card (developer on the development DB only)
     'dev' => [
         'title' => 'Developer tools',
-        'description' => 'Replace this dev database with a fresh copy of production (:source).',
-        'warning' => 'This <strong>erases all data on dev</strong> and cannot be undone. It takes a few seconds.',
-        'confirm' => 'Erase the dev database and replace it with a copy of production? This cannot be undone.',
-        'button' => 'Sync DB from Production',
-        'unavailable' => 'Database sync is not available in this environment.',
+        'description' => 'Replace the development database :target with a fresh copy of production (:source).',
+        'warning' => 'This <strong>erases all data in :target</strong> (a backup is written to storage/app/db-backups first). Production is never touched. It takes a few seconds.',
+        'confirm' => 'Erase the development database ":target" and replace it with a copy of production?',
+        'type_to_confirm' => 'Type :target to confirm',
+        'confirm_mismatch' => 'Confirmation did not match the development database name (:db). Nothing was changed.',
+        'button' => 'Copy Production → Development',
+        'unavailable' => 'Database sync is only available to developers while working on the development database.',
         'synced' => 'Database synced from production.',
         'failed' => 'Database sync failed: :error',
         'no_output' => 'no output — see the log for details',

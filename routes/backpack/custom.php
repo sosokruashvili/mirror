@@ -88,6 +88,9 @@ Route::group([
     Route::put('settings', 'SettingController@update')->name('settings.update')->middleware('backpack.can:settings.update');
     Route::post('settings/sync-from-prod', 'SettingController@syncFromProd')->name('settings.syncFromProd')->middleware('backpack.can:settings.update');
 
+    // Developer-only: switch this session between the prod and dev databases (topbar selector)
+    Route::post('db-connection', 'DbConnectionController@update')->name('db-connection.update');
+
     // Team order processing page (access-controlled: team-order.view / team-order.operate)
     Route::get('team/orders', 'TeamOrderController@index')->name('team.orders')->middleware('backpack.can:team-order.view');
     Route::get('team/orders/check', 'TeamOrderController@check')->name('team.orders.check')->middleware('backpack.can:team-order.view');

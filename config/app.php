@@ -56,6 +56,20 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Development Hosts
+    |--------------------------------------------------------------------------
+    |
+    | Hostnames that serve this same codebase in development mode: requests
+    | arriving on one of them run with APP_ENV=local, APP_DEBUG=true, Debugbar
+    | on and against the development database (see App\Support\DevEnvironment).
+    | Comma-separated in .env: DEV_HOSTS=dev.example.com
+    |
+    */
+
+    'dev_hosts' => array_values(array_filter(array_map('trim', explode(',', (string) env('DEV_HOSTS', ''))))),
+
+    /*
+    |--------------------------------------------------------------------------
     | Application Timezone
     |--------------------------------------------------------------------------
     |

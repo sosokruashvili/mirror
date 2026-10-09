@@ -24,6 +24,10 @@ app()->booted(function () {
     // computes each product's position as of the end of the given date, so a
     // 00:00 run stored the previous day's state under today's label.
     app(Schedule::class)->command('warehouse:snapshot-daily')->dailyAt('23:57');
+
+    // Debugbar (dev.mirrorgallery.ge only) stores one JSON file per request in
+    // storage/debugbar and never prunes it; wipe it daily so it cannot grow.
+    app(Schedule::class)->command('debugbar:clear')->dailyAt('04:30');
 });
 
 

@@ -99,24 +99,38 @@
         </form>
 
         @if (! empty($dbSyncAvailable))
-            <div class="card border-warning">
+            {{-- Developer on the development DB only (canSyncDbFromProd()). --}}
+            <div class="card border-danger">
                 <div class="card-header">
                     <div class="card-title mb-0">{{ __('setting.dev.title') }}</div>
                 </div>
                 <div class="card-body">
                     <p class="mb-2">
-                        {!! __('setting.dev.description', ['source' => '<strong>' . e($dbSyncSource) . '</strong>']) !!}
+                        {!! __('setting.dev.description', [
+                            'source' => '<strong>' . e($dbSyncSource) . '</strong>',
+                            'target' => '<strong>' . e($dbSyncTarget) . '</strong>',
+                        ]) !!}
                     </p>
                     <p class="text-danger mb-3">
                         <i class="la la-exclamation-triangle"></i>
-                        {!! __('setting.dev.warning') !!}
+                        {!! __('setting.dev.warning', ['target' => '<strong>' . e($dbSyncTarget) . '</strong>']) !!}
                     </p>
-                    <form method="post" action="{{ route('settings.syncFromProd') }}"
-                          onsubmit="return confirm({{ Illuminate\Support\Js::from(__('setting.dev.confirm')) }});">
+                    <form method="post" action="{{ route('settings.syncFromProd') }}" class="row g-2 align-items-end"
+                          onsubmit="return confirm({{ Illuminate\Support\Js::from(__('setting.dev.confirm', ['target' => $dbSyncTarget])) }});">
                         {!! csrf_field() !!}
-                        <button type="submit" class="btn btn-warning">
-                            <i class="la la-database"></i> {{ __('setting.dev.button') }}
-                        </button>
+                        <div class="col-md-5">
+                            <label class="form-label" for="db-sync-confirm">
+                                {!! __('setting.dev.type_to_confirm', ['target' => '<code>' . e($dbSyncTarget) . '</code>']) !!}
+                            </label>
+                            <input type="text" id="db-sync-confirm" name="confirm_database" class="form-control"
+                                   autocomplete="off" required pattern="{{ preg_quote($dbSyncTarget) }}"
+                                   placeholder="{{ $dbSyncTarget }}">
+                        </div>
+                        <div class="col-md-auto">
+                            <button type="submit" class="btn btn-danger">
+                                <i class="la la-database"></i> {{ __('setting.dev.button') }}
+                            </button>
+                        </div>
                     </form>
                 </div>
             </div>

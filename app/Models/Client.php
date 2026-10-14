@@ -44,6 +44,14 @@ class Client extends Model
     {
         parent::boot();
 
+        // Match orders.author: stamp the creating admin on insert (CRUD + AJAX).
+        // Only set on insert, so later edits keep the original author.
+        static::creating(function (Client $client) {
+            if ($client->author === null && function_exists('backpack_user') && backpack_user()) {
+                $client->author = backpack_user()->id;
+            }
+        });
+
         static::saving(function ($client) {
             foreach (['personal_id', 'legal_id', 'email'] as $field) {
                 if ($client->{$field} === '') {
@@ -62,6 +70,18 @@ class Client extends Model
     public function cabinetAccount()
     {
         return $this->hasOne(ClientAccount::class);
+    }
+
+    /**
+     * The user who created the client (stored on clients.author).
+     *
+     * Named authorUser() rather than author() on purpose: a relationship method
+     * that shares its name with the real `author` column collides, and Eloquent
+     * returns the raw column value instead of loading the relation.
+     */
+    public function authorUser()
+    {
+        return $this->belongsTo(User::class, 'author');
     }
 
     /**

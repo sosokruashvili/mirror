@@ -16,6 +16,7 @@ return [
     // Columns & fields
     'id' => 'ID',
     'name' => 'Name',
+    'author' => 'Author',
     'email' => 'Email',
     'phone' => 'Phone',
     'type' => 'Type',

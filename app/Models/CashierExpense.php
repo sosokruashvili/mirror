@@ -48,6 +48,17 @@ class CashierExpense extends Model
         'product_id' => 'integer',
     ];
 
+    protected static function booted(): void
+    {
+        // Match orders.author: stamp the creating admin on insert.
+        // Only set on insert, so later edits keep the original author.
+        static::creating(function (CashierExpense $expense) {
+            if ($expense->author === null && function_exists('backpack_user') && backpack_user()) {
+                $expense->author = backpack_user()->id;
+            }
+        });
+    }
+
     /**
      * Only the expenses that count: everywhere an expense feeds a balance, a
      * total or a report, the query goes through this scope.
@@ -120,6 +131,18 @@ class CashierExpense extends Model
     public function getPurchaseAmountAttribute(): float
     {
         return round((float) $this->amount_gel + (float) $this->credit, 2);
+    }
+
+    /**
+     * The user who created the expense (stored on cashier_expenses.author).
+     *
+     * Named authorUser() rather than author() on purpose: a relationship method
+     * that shares its name with the real `author` column collides, and Eloquent
+     * returns the raw column value instead of loading the relation.
+     */
+    public function authorUser(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'author');
     }
 
     public function category(): BelongsTo

@@ -8,6 +8,7 @@ return [
     // Columns & fields
     'id' => 'ID',
     'name' => 'სახელი',
+    'author' => 'ავტორი',
     'email' => 'ელ. ფოსტა',
     'phone' => 'ტელეფონი',
     'type' => 'ტიპი',

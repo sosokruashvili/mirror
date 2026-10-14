@@ -23,6 +23,7 @@ return [
 
     // Columns & fields
     'id' => 'ID',
+    'author' => 'Author',
     'status' => 'Status',
     'type' => 'Type',
     'category' => 'Category',

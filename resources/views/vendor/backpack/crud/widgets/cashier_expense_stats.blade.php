@@ -79,6 +79,7 @@
 
         var params = {};
         if (urlParams.get('type')) params.type = urlParams.get('type');
+        if (urlParams.get('author')) params.author = urlParams.get('author');
         if (urlParams.get('category_id')) params.category_id = urlParams.get('category_id');
         if (urlParams.get('supplier_id')) params.supplier_id = urlParams.get('supplier_id');
         if (urlParams.get('product_id')) params.product_id = urlParams.get('product_id');

@@ -57,6 +57,14 @@ class ClientCrudController extends CrudController
         ]);
 
         CRUD::addColumn([
+            'name' => 'author',
+            'label' => __('client.author'),
+            'type' => 'relationship',
+            'entity' => 'authorUser',
+            'attribute' => 'name',
+        ]);
+
+        CRUD::addColumn([
             'name' => 'email',
             'label' => __('client.email'),
             'type' => 'email',
@@ -103,6 +111,17 @@ class ClientCrudController extends CrudController
             $this->crud->addClause('where', 'client_type', $value);
         });
 
+        // Author filter (clients.author stores the creating user's id)
+        CRUD::addFilter([
+            'type' => 'select2',
+            'name' => 'author',
+            'label' => __('client.author'),
+        ], function () {
+            return \App\Models\User::orderBy('name')->pluck('name', 'id')->toArray();
+        }, function ($value) {
+            $this->crud->addClause('where', 'author', $value);
+        });
+
         CRUD::addFilter([
             'type' => 'text',
             'name' => 'name',
@@ -143,7 +162,7 @@ class ClientCrudController extends CrudController
             $this->crud->addClause('where', 'address', 'LIKE', "%{$value}%");
         });
 
-        $this->crud->query->with('cabinetAccount');
+        $this->crud->query->with(['cabinetAccount', 'authorUser']);
 
         CRUD::addColumn([
             'name' => 'cabinet_access',
@@ -158,6 +177,25 @@ class ClientCrudController extends CrudController
                 return '<span class="'.$class.'">'.$label.'</span>';
             },
         ]);
+    }
+
+    /**
+     * setFromDb() only picks up $fillable columns, and author is intentionally
+     * not fillable, so the preview has to add it itself.
+     */
+    protected function setupShowOperation()
+    {
+        $this->autoSetupShowOperation();
+
+        CRUD::addColumn([
+            'name' => 'author',
+            'label' => __('client.author'),
+            'type' => 'select',
+            'entity' => 'authorUser',
+            'attribute' => 'name',
+            'model' => \App\Models\User::class,
+        ]);
+        CRUD::afterColumn('name');
     }
 
     /**

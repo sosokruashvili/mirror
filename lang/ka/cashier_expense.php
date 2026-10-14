@@ -7,6 +7,7 @@ return [
 
     // Columns & fields
     'id' => 'ID',
+    'author' => 'ავტორი',
     'status' => 'სტატუსი',
     'type' => 'ტიპი',
     'category' => 'კატეგორია',

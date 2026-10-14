@@ -46,13 +46,21 @@ class CashierExpenseCrudController extends CrudController
 
     protected function setupListOperation(): void
     {
-        $this->crud->query->with(['category', 'supplier', 'product']);
+        $this->crud->query->with(['category', 'supplier', 'product', 'authorUser']);
         $this->addExpenseStatsWidget();
 
         CRUD::addColumn([
             'name' => 'id',
             'label' => __('cashier_expense.id'),
             'type' => 'number',
+        ]);
+
+        CRUD::addColumn([
+            'name' => 'author',
+            'label' => __('cashier_expense.author'),
+            'type' => 'relationship',
+            'entity' => 'authorUser',
+            'attribute' => 'name',
         ]);
 
         CRUD::addColumn([
@@ -147,6 +155,17 @@ class CashierExpenseCrudController extends CrudController
             return CashierExpense::statuses();
         }, function ($value) {
             $this->crud->addClause('where', 'status', $value);
+        });
+
+        // Author filter (cashier_expenses.author stores the creating user's id)
+        CRUD::addFilter([
+            'type' => 'select2',
+            'name' => 'author',
+            'label' => __('cashier_expense.author'),
+        ], function () {
+            return \App\Models\User::orderBy('name')->pluck('name', 'id')->toArray();
+        }, function ($value) {
+            $this->crud->addClause('where', 'author', $value);
         });
 
         CRUD::addFilter([
@@ -417,6 +436,18 @@ class CashierExpenseCrudController extends CrudController
             'type' => 'select_from_array',
             'options' => CashierExpense::statuses(),
         ]);
+
+        // setFromDb() only picks up $fillable columns, and author is intentionally
+        // not fillable, so the preview has to add it itself.
+        CRUD::addColumn([
+            'name' => 'author',
+            'label' => __('cashier_expense.author'),
+            'type' => 'select',
+            'entity' => 'authorUser',
+            'attribute' => 'name',
+            'model' => \App\Models\User::class,
+        ]);
+        CRUD::afterColumn('status');
     }
 
     /**
@@ -443,6 +474,10 @@ class CashierExpenseCrudController extends CrudController
     {
         if (request()->filled('type')) {
             $query->where('type', request()->get('type'));
+        }
+
+        if (request()->filled('author')) {
+            $query->where('author', request()->get('author'));
         }
 
         if (request()->filled('category_id')) {

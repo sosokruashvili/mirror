@@ -5,4 +5,5 @@ return [
     App\Providers\AuditServiceProvider::class,
     App\Providers\ClientBalanceServiceProvider::class,
     App\Providers\OrderListStatsServiceProvider::class,
+    App\Providers\SmsServiceProvider::class,
 ];

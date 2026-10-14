@@ -5,11 +5,21 @@ namespace App\Models;
 use Backpack\CRUD\app\Models\Traits\CrudTrait;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Notifications\Notifiable;
 
 class Client extends Model
 {
     use CrudTrait;
     use HasFactory;
+    use Notifiable;
+
+    /**
+     * Phone number used by the SMS notification channel.
+     */
+    public function routeNotificationForSms(): ?string
+    {
+        return $this->phone_number ?: null;
+    }
 
     protected $table = 'clients';
     protected $guarded = ['id'];

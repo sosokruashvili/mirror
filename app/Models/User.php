@@ -67,6 +67,14 @@ class User extends Authenticatable
     }
 
     /**
+     * Phone number used by the SMS notification channel.
+     */
+    public function routeNotificationForSms(): ?string
+    {
+        return $this->phone ?: null;
+    }
+
+    /**
      * Column-visibility map for a CRUD list, keyed by column name.
      *
      * @return array<string, bool>

@@ -17,6 +17,7 @@ class ClientAccount extends Authenticatable
         'is_active',
         'session_version',
         'last_login_at',
+        'access_token_hash',
     ];
 
     protected $hidden = [

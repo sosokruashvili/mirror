@@ -88,6 +88,7 @@ return [
         'stage' => 'ეტაპი',
         'services' => 'მომსახურება (:count):',
         'no_services' => 'ამ ნაჭერს მომსახურება არ აქვს მინიჭებული',
+        'stage_not_started' => 'ჯერ არ დაწყებულა',
     ],
 
     // Flash / JSON responses

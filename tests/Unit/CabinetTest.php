@@ -27,10 +27,12 @@ class CabinetTest extends TestCase
     public function test_only_cabinet_paths_are_allowed(): void
     {
         $this->assertTrue(Cabinet::allowsPath('/'));
-        $this->assertTrue(Cabinet::allowsPath('login'));
+        $this->assertTrue(Cabinet::allowsPath('01a39323'));
+        $this->assertFalse(Cabinet::allowsPath('zzzzzzzz'));
         $this->assertTrue(Cabinet::allowsPath('orders'));
         $this->assertTrue(Cabinet::allowsPath('orders/15'));
         $this->assertTrue(Cabinet::allowsPath('payments'));
+        $this->assertTrue(Cabinet::allowsPath('notifications'));
         $this->assertTrue(Cabinet::allowsPath('locale/ka'));
 
         $this->assertFalse(Cabinet::allowsPath('admin'));

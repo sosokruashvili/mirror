@@ -13,6 +13,8 @@ return [
     'stage_changes' => 'Stage Changes',
     'broken_glasses' => 'Broken Glasses',
     'clients' => 'Clients',
+    'notifications' => 'Notifications',
+    'sms_templates' => 'SMS Templates',
     'client_balances' => 'Client Balances',
     'products' => 'Products',
     'services' => 'Services',

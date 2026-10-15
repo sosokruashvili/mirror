@@ -18,6 +18,7 @@ class RedirectTeamUsers
         'team.pieces.broken',
         'team.pieces.broken-group',
         'team.pieces.stage',
+        'team.orders.stage',
         'piece-stage-log.index',
         'piece-stage-log.search',
         'piece-stage-log.showDetailsRow',

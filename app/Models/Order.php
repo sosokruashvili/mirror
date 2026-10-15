@@ -2,9 +2,12 @@
 
 namespace App\Models;
 
+use App\Services\OrderPieceStatusSync;
+use App\Support\Auditing\PieceStageLogger;
 use Backpack\CRUD\app\Models\Traits\CrudTrait;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Collection;
 
 class Order extends Model
 {
@@ -45,6 +48,13 @@ class Order extends Model
         'confirm_date' => 'datetime',
         'due_date' => 'date',
     ];
+
+    /**
+     * Stages a service order never goes through: there is no glass to cut.
+     * Services that point at მოჭრა only because a stage had to be picked for
+     * them count as stage-less on service orders.
+     */
+    public const SERVICE_ORDER_SKIPPED_STAGES = ['cutting'];
 
     /**
      * Boot the model.
@@ -126,6 +136,178 @@ class Order extends Model
 
     /*
     |--------------------------------------------------------------------------
+    | SERVICE ORDER STAGES
+    |--------------------------------------------------------------------------
+    |
+    | Service orders have no pieces, so they go through the production stages
+    | themselves (order_stage), the same way a piece does with piece_stage.
+    | Orders with pieces never use any of this.
+    */
+
+    /**
+     * Whether this order tracks its production stages on itself instead of on
+     * its pieces: true only for service orders, which have no pieces.
+     */
+    public function tracksStagesOnOrder(): bool
+    {
+        if ($this->product_type !== 'service') {
+            return false;
+        }
+
+        return $this->relationLoaded('pieces')
+            ? $this->pieces->isEmpty()
+            : ! $this->pieces()->exists();
+    }
+
+    /**
+     * The stages this service order goes through, in canonical order: the
+     * stages of its services plus the universal stages, minus the ones a
+     * service order skips (see SERVICE_ORDER_SKIPPED_STAGES). Mirrors
+     * Piece::relevantStages().
+     *
+     * @return \Illuminate\Support\Collection<int, \App\Models\Stage>
+     */
+    public function relevantStages(): Collection
+    {
+        $services = $this->relationLoaded('services') ? $this->services : $this->services()->get();
+        $serviceStageIds = $services
+            ->filter(fn ($service) => $service->pivot->piece_id === null)
+            ->pluck('stage_id')
+            ->filter()
+            ->unique()
+            ->all();
+
+        return Stage::ordered()
+            ->reject(fn (Stage $stage) => in_array($stage->name, self::SERVICE_ORDER_SKIPPED_STAGES, true))
+            ->filter(fn (Stage $stage) => $stage->is_universal || in_array($stage->id, $serviceStageIds, true))
+            ->values();
+    }
+
+    /**
+     * The relevant stages that come before დასრულება — the real work. Empty
+     * when none of the order's services has a stage of its own (e.g. only
+     * სილიკონი): then there is nothing to track and nothing gates hand-out.
+     *
+     * @return \Illuminate\Support\Collection<int, \App\Models\Stage>
+     */
+    public function gatingStages(): Collection
+    {
+        $relevant = $this->relevantStages();
+        $completion = $relevant->firstWhere('name', OrderPieceStatusSync::COMPLETION_STAGE);
+
+        if ($completion === null) {
+            return collect();
+        }
+
+        return $relevant
+            ->filter(fn (Stage $stage) => $stage->position < $completion->position)
+            ->values();
+    }
+
+    /**
+     * Slugs (names) of the stages this service order has completed.
+     *
+     * @return array<int, string>
+     */
+    public function completedStageNames(): array
+    {
+        return $this->stages->pluck('name')->all();
+    }
+
+    /**
+     * The slug of the highest completed stage, or null when nothing is
+     * completed yet. Drives the service tag colour on the team page.
+     */
+    public function currentStageName(): ?string
+    {
+        return $this->stages->sortByDesc('position')->first()?->name;
+    }
+
+    /**
+     * Mark a stage completed (dated pivot row stamped with the current user)
+     * or not completed (row removed). Same behaviour as
+     * Piece::setStageCompleted(): completing the last gating stage auto-closes
+     * დასრულება, and the order status follows.
+     */
+    public function setStageCompleted(Stage $stage, bool $completed): void
+    {
+        $has = $this->stages()->where('stages.id', $stage->id)->exists();
+
+        if ($completed && ! $has) {
+            $this->stages()->attach($stage->id, static::stageCompletionPivot());
+            $this->logStageChange($stage, PieceStageLog::ACTION_COMPLETED);
+        } elseif (! $completed && $has) {
+            $this->stages()->detach($stage->id);
+            $this->logStageChange($stage, PieceStageLog::ACTION_CLEARED);
+        }
+
+        $this->load('stages');
+
+        // Only on completion, so deliberately clearing დასრულება sticks.
+        if ($completed) {
+            $this->autoCompleteFinalStage();
+        }
+
+        // The stage change came FROM an order status change (handing out):
+        // the status is the input, not the result.
+        if (! OrderPieceStatusSync::isSyncingFromOrder()) {
+            OrderPieceStatusSync::syncOrderStatusFromPieces($this);
+        }
+    }
+
+    /**
+     * Close დასრულება once every gating stage is done. No team member is
+     * responsible for it. Mirrors Piece::autoCompleteFinalStage().
+     *
+     * @return bool True when it just completed the final stage.
+     */
+    protected function autoCompleteFinalStage(): bool
+    {
+        $completion = $this->relevantStages()->firstWhere('name', OrderPieceStatusSync::COMPLETION_STAGE);
+        $gatingStages = $this->gatingStages();
+
+        if ($completion === null || $gatingStages->isEmpty()) {
+            return false;
+        }
+
+        $completedIds = $this->stages->pluck('id')->all();
+
+        if (in_array($completion->id, $completedIds, true)) {
+            return false;
+        }
+        if (! $gatingStages->every(fn (Stage $stage) => in_array($stage->id, $completedIds, true))) {
+            return false;
+        }
+
+        $this->stages()->attach($completion->id, static::stageCompletionPivot());
+        $this->logStageChange($completion, PieceStageLog::ACTION_COMPLETED);
+        $this->load('stages');
+
+        return true;
+    }
+
+    /**
+     * Pivot attributes stored with a stage completion: when, and by whom.
+     *
+     * @return array<string, mixed>
+     */
+    protected static function stageCompletionPivot(): array
+    {
+        $user = function_exists('backpack_user') ? backpack_user() : null;
+
+        return [
+            'completed_at' => now(),
+            'user_id' => $user ? $user->getKey() : auth()->id(),
+        ];
+    }
+
+    protected function logStageChange(Stage $stage, string $action): void
+    {
+        app(PieceStageLogger::class)->recordForOrder($this, $stage, $action);
+    }
+
+    /*
+    |--------------------------------------------------------------------------
     | RELATIONS
     |--------------------------------------------------------------------------
     */
@@ -144,6 +326,18 @@ class Order extends Model
     public function pieces()
     {
         return $this->hasMany(Piece::class);
+    }
+
+    /**
+     * The production stages this SERVICE order has completed (pivot
+     * `completed_at` / `user_id`). Orders with pieces track stages on the
+     * pieces instead and never have rows here.
+     */
+    public function stages()
+    {
+        return $this->belongsToMany(Stage::class, 'order_stage')
+            ->withPivot('completed_at', 'user_id')
+            ->withTimestamps();
     }
 
     /**

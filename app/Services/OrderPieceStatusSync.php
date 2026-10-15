@@ -18,6 +18,13 @@ class OrderPieceStatusSync
      */
     public const COMPLETION_STAGE = 'completion';
 
+    /**
+     * Service orders created before this moment are not locked from hand-out
+     * by their stages: they were opened before service orders had a stage
+     * flow, so nobody has been ticking their stages.
+     */
+    public const SERVICE_ORDER_LOCK_FROM = '2026-10-15 14:45:00';
+
     private static bool $syncingFromOrder = false;
 
     public static function isSyncingFromOrder(): bool
@@ -68,6 +75,18 @@ class OrderPieceStatusSync
      */
     public static function determineOrderStatus(Order $order): ?string
     {
+        // Service orders have no pieces: the same rules, on the order's own
+        // completed stages (order_stage).
+        if ($order->tracksStagesOnOrder()) {
+            $order->loadMissing('stages');
+
+            if ($order->stages->contains('name', self::COMPLETION_STAGE)) {
+                return 'ready';
+            }
+
+            return $order->stages->isNotEmpty() ? 'working' : null;
+        }
+
         $pieces = self::productionPieces($order);
 
         if ($pieces->isEmpty()) {
@@ -90,8 +109,11 @@ class OrderPieceStatusSync
      * piece must have completed a stage at or past the დასრულება stage's
      * position. An order whose pieces never went through production fails
      * this check, so a stray "გატანილია" tap on the team page cannot finish
-     * it. Pieceless (service-only) orders pass, and so does everything when
-     * the დასრულება stage is missing (there is no gate to measure against).
+     * it. Everything passes when the დასრულება stage is missing (there is no
+     * gate to measure against).
+     *
+     * Service orders (no pieces) are gated on their own stages instead; see
+     * serviceOrderReadyForFinish().
      */
     public static function piecesReadyForFinish(Order $order): bool
     {
@@ -101,9 +123,33 @@ class OrderPieceStatusSync
             return true;
         }
 
+        if ($order->tracksStagesOnOrder()) {
+            return self::serviceOrderReadyForFinish($order, $gate);
+        }
+
         return self::productionPieces($order)->every(
             fn ($piece) => $piece->stages->contains(fn ($stage) => $stage->position >= $gate)
         );
+    }
+
+    /**
+     * A service order may be handed out once it has completed a stage at or
+     * past დასრულება. It passes when its services have no stage of their own
+     * (nothing to do), and when it was created before SERVICE_ORDER_LOCK_FROM.
+     */
+    private static function serviceOrderReadyForFinish(Order $order, int $gate): bool
+    {
+        if ($order->created_at !== null && $order->created_at->lt(self::SERVICE_ORDER_LOCK_FROM)) {
+            return true;
+        }
+
+        if ($order->gatingStages()->isEmpty()) {
+            return true;
+        }
+
+        $order->loadMissing('stages');
+
+        return $order->stages->contains(fn ($stage) => $stage->position >= $gate);
     }
 
     /**
@@ -147,7 +193,9 @@ class OrderPieceStatusSync
      * The piece→order direction is suppressed while running: the order status
      * is the input here, so it must not be recalculated from the pieces.
      *
-     * @return int Number of pieces moved onto the stage.
+     * A service order (no pieces) moves onto the stage itself.
+     *
+     * @return int Number of pieces (or service orders) moved onto the stage.
      */
     public static function markPiecesFinished(Order $order): int
     {
@@ -158,6 +206,16 @@ class OrderPieceStatusSync
         }
 
         return self::withoutPieceToOrderSync(function () use ($order, $stage) {
+            if ($order->tracksStagesOnOrder()) {
+                if ($order->stages()->where('stages.id', $stage->id)->exists()) {
+                    return 0;
+                }
+
+                $order->setStageCompleted($stage, true);
+
+                return 1;
+            }
+
             $updated = 0;
 
             foreach (self::productionPieces($order) as $piece) {

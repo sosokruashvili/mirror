@@ -45,13 +45,38 @@ class LoginController extends Controller
             ]);
         }
 
-        Auth::guard('cabinet')->login($account);
-        $request->session()->regenerate();
-        $request->session()->put('cabinet_session_version', (int) $account->session_version);
-
-        $account->forceFill(['last_login_at' => now()])->save();
+        $this->remember($request, $account);
 
         return redirect()->intended(route('cabinet.home'));
+    }
+
+    /**
+     * Open the cabinet from the private link in the client's notification.
+     * A missing or unknown token is refused, so a guessed address does nothing.
+     */
+    public function access(Request $request, ?string $token = null)
+    {
+        if (! is_string($token) || $token === '') {
+            $query = $request->query('token');
+            $token = is_string($query) ? $query : '';
+        }
+
+        if ($token === '' || strlen($token) > 128) {
+            abort(404);
+        }
+
+        $account = ClientAccount::query()
+            ->where('access_token_hash', Cabinet::hashAccessToken($token))
+            ->where('is_active', true)
+            ->first();
+
+        if (! $account || ! $account->client) {
+            abort(404);
+        }
+
+        $this->remember($request, $account);
+
+        return redirect()->route('cabinet.home');
     }
 
     public function destroy(Request $request)
@@ -61,5 +86,14 @@ class LoginController extends Controller
         $request->session()->regenerateToken();
 
         return redirect()->route('cabinet.login');
+    }
+
+    protected function remember(Request $request, ClientAccount $account): void
+    {
+        Auth::guard('cabinet')->login($account);
+        $request->session()->regenerate();
+        $request->session()->put('cabinet_session_version', (int) $account->session_version);
+
+        $account->forceFill(['last_login_at' => now()])->save();
     }
 }

@@ -200,6 +200,7 @@ class TeamOrderController extends Controller
             'client',
             'products',
             'services',
+            'stages',
             'pieces' => fn ($q) => $q->withCount('brokenGlasses')->with(['stages', 'services'])->orderBy('id'),
         ])
             ->whereNotIn('status', ['draft', 'finished']);
@@ -436,32 +437,65 @@ class TeamOrderController extends Controller
             // one of its services, or a universal stage (present on every piece).
             $universalSlugs = array_keys(piece_universal_stages());
 
-            $ordersQuery->whereHas('pieces', function ($pieceQ) use ($realStages, $wantsNoStage, $universalSlugs) {
-                $pieceQ->where(function ($pq) use ($realStages, $wantsNoStage, $universalSlugs) {
-                    foreach ($realStages as $slug) {
-                        $pq->orWhere(function ($p) use ($slug, $universalSlugs) {
-                            // The piece must HAVE the stage. Universal stages are
-                            // on every piece, so no extra condition is needed for
-                            // them; otherwise it must have a service of that stage.
-                            if (!in_array($slug, $universalSlugs, true)) {
-                                $p->whereHas('services', function ($serviceQ) use ($slug) {
-                                    $serviceQ->whereHas('stage', function ($stageQ) use ($slug) {
-                                        $stageQ->where('stages.name', $slug);
+            // Service orders have no pieces and go through the stages
+            // themselves (minus the ones they skip), with the same rule.
+            $serviceOrderStages = array_values(array_diff($realStages, Order::SERVICE_ORDER_SKIPPED_STAGES));
+
+            $ordersQuery->where(function ($orderQ) use ($realStages, $wantsNoStage, $universalSlugs, $serviceOrderStages) {
+                $orderQ->whereHas('pieces', function ($pieceQ) use ($realStages, $wantsNoStage, $universalSlugs) {
+                    $pieceQ->where(function ($pq) use ($realStages, $wantsNoStage, $universalSlugs) {
+                        foreach ($realStages as $slug) {
+                            $pq->orWhere(function ($p) use ($slug, $universalSlugs) {
+                                // The piece must HAVE the stage. Universal stages are
+                                // on every piece, so no extra condition is needed for
+                                // them; otherwise it must have a service of that stage.
+                                if (!in_array($slug, $universalSlugs, true)) {
+                                    $p->whereHas('services', function ($serviceQ) use ($slug) {
+                                        $serviceQ->whereHas('stage', function ($stageQ) use ($slug) {
+                                            $stageQ->where('stages.name', $slug);
+                                        });
                                     });
+                                }
+
+                                // ...and must NOT have completed it (no piece_stage record).
+                                $p->whereDoesntHave('stages', function ($stageQ) use ($slug) {
+                                    $stageQ->where('stages.name', $slug);
                                 });
-                            }
-
-                            // ...and must NOT have completed it (no piece_stage record).
-                            $p->whereDoesntHave('stages', function ($stageQ) use ($slug) {
-                                $stageQ->where('stages.name', $slug);
                             });
-                        });
-                    }
+                        }
 
-                    if ($wantsNoStage) {
-                        $pq->orWhereDoesntHave('services');
-                    }
+                        if ($wantsNoStage) {
+                            $pq->orWhereDoesntHave('services');
+                        }
+                    });
                 });
+
+                // Guarded: an empty nested where would match every service order.
+                if (!empty($serviceOrderStages)) {
+                    $orderQ->orWhere(function ($serviceOrderQ) use ($serviceOrderStages, $universalSlugs) {
+                        $serviceOrderQ->where('product_type', 'service')
+                            ->whereDoesntHave('pieces')
+                            ->where(function ($oq) use ($serviceOrderStages, $universalSlugs) {
+                                foreach ($serviceOrderStages as $slug) {
+                                    $oq->orWhere(function ($o) use ($slug, $universalSlugs) {
+                                        if (!in_array($slug, $universalSlugs, true)) {
+                                            $o->whereHas('services', function ($serviceQ) use ($slug) {
+                                                $serviceQ->whereNull('order_service.piece_id')
+                                                    ->whereHas('stage', function ($stageQ) use ($slug) {
+                                                        $stageQ->where('stages.name', $slug);
+                                                    });
+                                            });
+                                        }
+
+                                        // ...and not completed yet (no order_stage record).
+                                        $o->whereDoesntHave('stages', function ($stageQ) use ($slug) {
+                                            $stageQ->where('stages.name', $slug);
+                                        });
+                                    });
+                                }
+                            });
+                    });
+                }
             });
         }
 
@@ -663,6 +697,90 @@ class TeamOrderController extends Controller
     }
 
     /**
+     * Toggle the completion of a production stage for a SERVICE order (AJAX).
+     * Service orders have no pieces, so the order itself goes through the
+     * stages of its services (order_stage). Replies with the same JSON shape
+     * as updatePieceStage() so the board updates the tag the same way.
+     *
+     * @param  int  $id  Order ID
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function updateOrderStage(Request $request, $id)
+    {
+        try {
+            $order = Order::findOrFail($id);
+
+            if ($response = $this->rejectIfArchived($order, $request)) {
+                return $response;
+            }
+
+            if (!$order->tracksStagesOnOrder()) {
+                return response()->json(['success' => false, 'message' => 'This order tracks stages on its pieces.'], 422);
+            }
+
+            $stage = \App\Models\Stage::where('name', (string) $request->input('stage'))->first();
+
+            if (!$stage || !$order->relevantStages()->contains('id', $stage->id)) {
+                return response()->json(['success' => false, 'message' => 'Invalid stage'], 422);
+            }
+
+            $order->setStageCompleted($stage, $request->boolean('completed'));
+
+            return response()->json($this->orderStageUpdatePayload($order, $request));
+        } catch (\Exception $e) {
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 422);
+        }
+    }
+
+    /**
+     * Same JSON as pieceStageUpdatePayload(), for a service order's tag.
+     *
+     * @return array<string, mixed>
+     */
+    private function orderStageUpdatePayload(Order $order, Request $request): array
+    {
+        $order->refresh();
+        $order->load(['stages', 'services', 'pieces']);
+
+        $currentStage = $order->currentStageName();
+        [$stageColor, $stageTextColor] = $this->stageTagColors($currentStage);
+
+        $matches = $this->teamBoardOrderMatchesFilters($order, $this->boardFiltersFromRequest($request));
+
+        return [
+            'success' => true,
+            'stage' => $currentStage,
+            'stage_label' => piece_stage_ge($currentStage),
+            'completed_stages' => $order->stages->sortBy('position')->pluck('name')->values()->all(),
+            'stage_color' => $stageColor,
+            'stage_text_color' => $stageTextColor,
+            'order_id' => $order->id,
+            'order_status' => $order->status,
+            'order_status_html' => status_badge($order->status),
+            'can_finish' => OrderPieceStatusSync::piecesReadyForFinish($order),
+            'piece_matches_filter' => $matches,
+            'order_matches_filter' => $matches,
+        ];
+    }
+
+    /**
+     * Background / text colour of a size tag at the given stage (the draft
+     * colour when no stage is completed yet).
+     *
+     * @return array{0: string, 1: string}
+     */
+    private function stageTagColors(?string $stage): array
+    {
+        $color = $stage ? piece_stage_color($stage) : '';
+        $textColor = $stage ? piece_stage_text_color($stage) : '';
+
+        return [
+            $color !== '' ? $color : piece_draft_color(),
+            $textColor !== '' ? $textColor : '#ffffff',
+        ];
+    }
+
+    /**
      * JSON the team board uses to retint a size tag and refresh the parent
      * card (status badge / hand-out lock) without reloading the page.
      *
@@ -678,14 +796,7 @@ class TeamOrderController extends Controller
         $piece->load(['stages', 'services']);
 
         $currentStage = $piece->currentStageName();
-        $stageColor = $currentStage ? piece_stage_color($currentStage) : '';
-        if ($stageColor === '') {
-            $stageColor = piece_draft_color();
-        }
-        $stageTextColor = $currentStage ? piece_stage_text_color($currentStage) : '';
-        if ($stageTextColor === '') {
-            $stageTextColor = '#ffffff';
-        }
+        [$stageColor, $stageTextColor] = $this->stageTagColors($currentStage);
 
         $order = $piece->order;
         if ($order) {

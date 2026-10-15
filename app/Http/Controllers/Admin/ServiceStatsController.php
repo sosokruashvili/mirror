@@ -3,7 +3,9 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\Order;
 use App\Models\Service;
+use App\Services\OrderPieceStatusSync;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 
@@ -12,7 +14,10 @@ use Illuminate\Support\Facades\DB;
  *
  * A service line (order_service pivot row) counts as "completed" once the piece
  * it was applied to has finished the production stage that owns the service
- * (a piece_stage row for that piece + services.stage_id). Quantity is summed
+ * (a piece_stage row for that piece + services.stage_id). Service orders have
+ * no pieces, so their lines count once the order completes that stage — or,
+ * for services with no stage of their own there, once the order is handed out
+ * (see lineCompletions()). Quantity is summed
  * from the service's billable measure column — perimeter for edges/frames, area
  * for matting, length_cm for cutouts, quantity for per-piece work, and so on —
  * resolved exactly the way the invoice does (see order_service_measure() in
@@ -140,12 +145,8 @@ class ServiceStatsController extends Controller
         }
 
         return DB::table('order_service as os')
-            ->join('services as s', 'os.service_id', '=', 's.id')
             ->join('orders as o', 'os.order_id', '=', 'o.id')
-            ->join('piece_stage as ps', function ($join) {
-                $join->on('ps.piece_id', '=', 'os.piece_id')
-                    ->on('ps.stage_id', '=', 's.stage_id');
-            })
+            ->joinSub($this->lineCompletions(), 'ps', 'ps.line_id', '=', 'os.id')
             ->where('o.status', '!=', 'draft')
             ->when($from, fn ($q) => $q->whereDate('ps.completed_at', '>=', $from))
             ->when($to, fn ($q) => $q->whereDate('ps.completed_at', '<=', $to))
@@ -153,6 +154,57 @@ class ServiceStatsController extends Controller
             ->select($select)
             ->get()
             ->keyBy('service_id');
+    }
+
+    /**
+     * When each completed order_service line was completed (line_id,
+     * completed_at). A line appears at most once:
+     *  - on a piece: the piece completed the service's stage (piece_stage);
+     *  - on a service order (no pieces): the order completed the service's
+     *    stage (order_stage);
+     *  - on a service order, for a service with no stage of its own there
+     *    (none set, or one service orders skip, e.g. მოჭრა): the order was
+     *    handed out (its გატანილია row).
+     *
+     * @return \Illuminate\Database\Query\Builder
+     */
+    private function lineCompletions()
+    {
+        $pieceLines = DB::table('order_service as os')
+            ->join('services as s', 'os.service_id', '=', 's.id')
+            ->join('piece_stage as ps', function ($join) {
+                $join->on('ps.piece_id', '=', 'os.piece_id')
+                    ->on('ps.stage_id', '=', 's.stage_id');
+            })
+            ->select('os.id as line_id', 'ps.completed_at');
+
+        $serviceOrderLines = DB::table('order_service as os')
+            ->join('services as s', 'os.service_id', '=', 's.id')
+            ->join('order_stage as ost', function ($join) {
+                $join->on('ost.order_id', '=', 'os.order_id')
+                    ->on('ost.stage_id', '=', 's.stage_id');
+            })
+            ->whereNull('os.piece_id')
+            ->select('os.id as line_id', 'ost.completed_at');
+
+        $stagelessServiceOrderLines = DB::table('order_service as os')
+            ->join('services as s', 'os.service_id', '=', 's.id')
+            ->leftJoin('stages as ss', 'ss.id', '=', 's.stage_id')
+            ->join('order_stage as ost', 'ost.order_id', '=', 'os.order_id')
+            ->join('stages as fs', function ($join) {
+                $join->on('fs.id', '=', 'ost.stage_id')
+                    ->where('fs.name', '=', OrderPieceStatusSync::FINISHED_STAGE);
+            })
+            ->whereNull('os.piece_id')
+            ->where(function ($q) {
+                $q->whereNull('ss.id')
+                    ->orWhereIn('ss.name', Order::SERVICE_ORDER_SKIPPED_STAGES);
+            })
+            ->select('os.id as line_id', 'ost.completed_at');
+
+        return $pieceLines
+            ->unionAll($serviceOrderLines)
+            ->unionAll($stagelessServiceOrderLines);
     }
 
     /**

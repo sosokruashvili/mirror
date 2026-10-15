@@ -25,6 +25,11 @@ app()->booted(function () {
     // 00:00 run stored the previous day's state under today's label.
     app(Schedule::class)->command('warehouse:snapshot-daily')->dailyAt('23:57');
 
+    // Pending SMS notifications. Models only insert a row; this command is
+    // what actually calls the gateway. The lock expires so a crashed run
+    // cannot block the queue for the rest of the day.
+    app(Schedule::class)->command('notifications:send')->everyTwoMinutes()->withoutOverlapping(10);
+
     // Debugbar (dev.mirrorgallery.ge only) stores one JSON file per request in
     // storage/debugbar and never prunes it; wipe it daily so it cannot grow.
     app(Schedule::class)->command('debugbar:clear')->dailyAt('04:30');

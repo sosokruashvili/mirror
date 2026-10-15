@@ -164,6 +164,8 @@ class ClientCrudController extends CrudController
 
         $this->crud->query->with(['cabinetAccount', 'authorUser']);
 
+        $this->crud->addButton('line', 'allow_cabinet', 'view', 'crud::buttons.allow_cabinet', 'beginning');
+
         CRUD::addColumn([
             'name' => 'cabinet_access',
             'label' => __('client.cabinet.column'),
@@ -546,5 +548,34 @@ class ClientCrudController extends CrudController
                 'message' => __('client.messages.create_failed', ['error' => $e->getMessage()])
             ], 422);
         }
+    }
+
+    /**
+     * Turn cabinet access on and queue the SMS that carries this client's
+     * private link. Delivery happens later; this action does not call the gateway.
+     */
+    public function allowCabinet($id)
+    {
+        $user = backpack_user();
+
+        if (! $user || ! $user->can('client.update')) {
+            abort(403);
+        }
+
+        $client = \App\Models\Client::query()->findOrFail($id);
+
+        try {
+            $client->allowCabinet();
+        } catch (\InvalidArgumentException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+            ], 422);
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => __('client.cabinet.sms_queued'),
+        ]);
     }
 }

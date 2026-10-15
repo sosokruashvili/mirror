@@ -75,6 +75,8 @@ class RoleSeeder extends Seeder
             'employee'  => [
                 'order'   => ['list', 'create', 'update'],
                 'client'  => ['list', 'create', 'update'],
+                'notification' => ['list', 'create', 'update', 'show'],
+                'sms-template' => ['list', 'create', 'update', 'show'],
                 'piece'   => ['list', 'update'],
                 'product' => ['list', 'show'],
                 'service' => ['list', 'show'],

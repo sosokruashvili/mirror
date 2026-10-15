@@ -22,6 +22,18 @@
         </div>
     </div>
 
+    @if ($cabinetNotices->isNotEmpty())
+        <div class="card mb-3">
+            <div class="card-header">
+                <h3 class="card-title">{{ __('cabinet.notifications') }}</h3>
+                <div class="card-actions">
+                    <a href="{{ route('cabinet.notifications.index') }}" class="btn btn-link">{{ __('cabinet.all_notifications') }}</a>
+                </div>
+            </div>
+            @include('cabinet.partials.notification-list', ['notifications' => $cabinetNotices])
+        </div>
+    @endif
+
     <div class="row row-deck row-cards mb-3">
         <div class="col-lg-8">
             <div class="card">

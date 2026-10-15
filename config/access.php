@@ -40,6 +40,8 @@ return [
         // ----- Operational pages -----
         'order'            => ['label' => 'Orders',           'actions' => ['list', 'create', 'update', 'delete', 'show']],
         'client'           => ['label' => 'Clients',          'actions' => ['list', 'create', 'update', 'delete', 'show']],
+        'notification'     => ['label' => 'Notifications',   'actions' => ['list', 'create', 'update', 'delete', 'show']],
+        'sms-template'     => ['label' => 'SMS Templates',   'actions' => ['list', 'create', 'update', 'delete', 'show']],
         'client-balance'   => ['label' => 'Client Balances',  'actions' => ['list']],
         'product'          => ['label' => 'Products',         'actions' => ['list', 'create', 'update', 'delete', 'show']],
         'service'          => ['label' => 'Services',         'actions' => ['list', 'create', 'update', 'delete', 'show']],

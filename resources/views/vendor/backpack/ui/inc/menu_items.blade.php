@@ -34,6 +34,18 @@
 @if($u && $u->can('client.list'))
     <x-backpack::menu-item title="{{ __('menu.clients') }}" icon="la la-user-alt" :link="backpack_url('client')" />
 @endif
+@if($u && ($u->can('notification.list') || $u->can('sms-template.list')))
+    @if($u->can('sms-template.list'))
+        <x-backpack::menu-dropdown title="{{ __('menu.notifications') }}" icon="la la-comment">
+            @if($u->can('notification.list'))
+                <x-backpack::menu-dropdown-item title="{{ __('menu.notifications') }}" icon="la la-comment" :link="backpack_url('notification')" />
+            @endif
+            <x-backpack::menu-dropdown-item title="{{ __('menu.sms_templates') }}" icon="la la-sms" :link="backpack_url('sms-template')" />
+        </x-backpack::menu-dropdown>
+    @else
+        <x-backpack::menu-item title="{{ __('menu.notifications') }}" icon="la la-comment" :link="backpack_url('notification')" />
+    @endif
+@endif
 @if($u && $u->can('client-balance.list'))
     <x-backpack::menu-item title="{{ __('menu.client_balances') }}" icon="la la-wallet" :link="backpack_url('client-balance')" />
 @endif

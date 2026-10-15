@@ -64,6 +64,46 @@
         <p class="text-secondary">{{ $order->products->pluck('title')->filter()->implode(', ') }}</p>
     @endif
 
+    @if ($order->tracksStagesOnOrder())
+        {{-- Service orders have no pieces: list their services with the stage
+             the order itself has reached (order_stage). Orders handed out
+             before service orders had stages have no stage rows. --}}
+        @php
+            $stage = $order->currentStageName();
+            $stageLabel = $stage
+                ? piece_stage_ge($stage)
+                : ($order->status === 'finished' ? piece_stage_ge(\App\Services\OrderPieceStatusSync::FINISHED_STAGE) : __('cabinet.stage_waiting'));
+        @endphp
+        <div class="card mb-3">
+            <div class="card-header">
+                <h3 class="card-title">{{ __('cabinet.services') }}</h3>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-vcenter card-table">
+                    <thead>
+                        <tr>
+                            <th>{{ __('cabinet.service') }}</th>
+                            <th>{{ __('cabinet.quantity') }}</th>
+                            <th>{{ __('cabinet.stage') }}</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @forelse ($order->services->filter(fn ($service) => $service->pivot->piece_id === null) as $service)
+                            <tr>
+                                <td class="fw-medium">{{ $service->title }}</td>
+                                <td>{{ $service->pivot->quantity ?: '—' }}</td>
+                                <td>{{ $stageLabel }}</td>
+                            </tr>
+                        @empty
+                            <tr>
+                                <td colspan="3" class="text-secondary">—</td>
+                            </tr>
+                        @endforelse
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    @else
     <div class="card mb-3">
         <div class="card-header">
             <h3 class="card-title">{{ __('cabinet.pieces') }}</h3>
@@ -104,6 +144,7 @@
             </table>
         </div>
     </div>
+    @endif
 
     <div class="card">
         <div class="card-header">

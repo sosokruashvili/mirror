@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Cabinet;
 
 use App\Http\Controllers\Controller;
 use App\Models\ClientAccount;
+use App\Models\Notification;
 use App\Models\Order;
 use App\Models\Payment;
 use App\Services\ClientBalanceService;
@@ -43,6 +44,11 @@ class DashboardController extends Controller
             'openCount' => $visibleOrders->whereIn('status', ['new', 'working', 'ready'])->count(),
             'recentOrders' => $visibleOrders->take(5),
             'recentPayments' => $recentPayments,
+            'cabinetNotices' => Notification::query()
+                ->visibleInCabinet($client)
+                ->orderByDesc('id')
+                ->limit(5)
+                ->get(),
         ]);
     }
 

@@ -16,17 +16,37 @@ class Cabinet
     {
         $path = trim($path, '/');
 
-        if ($path === '' || $path === 'up' || $path === 'login' || $path === 'logout') {
+        if ($path === '' || $path === 'up' || $path === 'login' || $path === 'logout' || $path === 'access') {
             return true;
         }
 
-        foreach (['orders', 'payments', 'locale'] as $prefix) {
+        if (preg_match('/^[a-f0-9]{8}$/i', $path) === 1) {
+            return true;
+        }
+
+        foreach (['orders', 'payments', 'notifications', 'locale'] as $prefix) {
             if ($path === $prefix || str_starts_with($path, $prefix.'/')) {
                 return true;
             }
         }
 
         return false;
+    }
+
+    /**
+     * Private cabinet link for one client. The token is unguessable, so the
+     * public login address alone does not open anyone's cabinet.
+     */
+    public static function accessUrl(string $token): string
+    {
+        $host = trim((string) config('cabinet.host'));
+
+        return 'https://'.$host.'/'.$token;
+    }
+
+    public static function hashAccessToken(string $token): string
+    {
+        return hash('sha256', $token);
     }
 
     public static function isHost(Request $request): bool

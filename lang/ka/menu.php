@@ -8,6 +8,8 @@ return [
     'stage_changes' => 'ეტაპის ცვლილებები',
     'broken_glasses' => 'გატეხილი მინები',
     'clients' => 'კლიენტები',
+    'notifications' => 'შეტყობინებები',
+    'sms_templates' => 'SMS შაბლონები',
     'client_balances' => 'კლიენტების ბალანსი',
     'products' => 'პროდუქტები',
     'services' => 'მომსახურება',

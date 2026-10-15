@@ -1036,6 +1036,31 @@ class OrderCrudController extends CrudController
                     }
                     $html .= '</div>';
                 }
+
+                // Service orders have no pieces: their services sit on the order
+                // and the order itself goes through the stages (order_stage).
+                // Read-only here; the team page ticks them.
+                if ($entry->tracksStagesOnOrder()) {
+                    $entry->loadMissing('stages');
+                    $orderServices = $entry->services->filter(fn($s) => $s->pivot->piece_id === null);
+                    $orderStage = $entry->currentStageName();
+
+                    $html .= '<div class="mb-3 p-3 border rounded piece-item">';
+                    $html .= '<div class="mb-2 small"><span class="fw-bold me-2">' . e(__('order.piece.stage')) . ':</span>'
+                        . e($orderStage ? piece_stage_ge($orderStage) : __('order.piece.stage_not_started')) . '</div>';
+                    foreach ($entry->stages->sortBy('position') as $completedStage) {
+                        $completedAt = $completedStage->pivot->completed_at
+                            ? \Illuminate\Support\Carbon::parse($completedStage->pivot->completed_at)->format('Y-m-d H:i')
+                            : '✓';
+                        $html .= '<div class="small text-muted">' . e($completedStage->title) . ': ' . e($completedAt) . '</div>';
+                    }
+                    if ($orderServices->count() > 0) {
+                        $html .= '<div class="mt-2 pt-2 border-top"><div class="small mb-2">' . e(__('order.piece.services', ['count' => $orderServices->count()])) . '</div>';
+                        foreach ($orderServices as $service) $html .= $renderService($service, $entry);
+                        $html .= '</div>';
+                    }
+                    $html .= '</div>';
+                }
                 
                 return $html . '</div>';
             }

@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Cabinet\DashboardController;
 use App\Http\Controllers\Cabinet\LoginController;
+use App\Http\Controllers\Cabinet\NotificationController;
 use App\Http\Controllers\Cabinet\OrderController;
 use App\Http\Controllers\Cabinet\PaymentController;
 use Illuminate\Support\Facades\Route;
@@ -18,6 +19,9 @@ Route::domain((string) config('cabinet.host'))->group(function () {
             ->middleware('throttle:cabinet-login');
     });
 
+    Route::get('/access', [LoginController::class, 'access'])
+        ->middleware('throttle:30,1');
+
     Route::post('/logout', [LoginController::class, 'destroy'])
         ->middleware('cabinet.auth')
         ->name('cabinet.logout');
@@ -29,5 +33,13 @@ Route::domain((string) config('cabinet.host'))->group(function () {
             ->whereNumber('order')
             ->name('cabinet.orders.show');
         Route::get('/payments', [PaymentController::class, 'index'])->name('cabinet.payments.index');
+        Route::get('/notifications', [NotificationController::class, 'index'])->name('cabinet.notifications.index');
     });
+
+    // Registered last. Only an 8-character access code matches, so /login
+    // and /orders stay their own pages. Public link: https://host/{token}
+    Route::get('/{token}', [LoginController::class, 'access'])
+        ->where('token', '[a-fA-F0-9]{8}')
+        ->middleware('throttle:30,1')
+        ->name('cabinet.access');
 });

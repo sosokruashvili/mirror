@@ -50,6 +50,11 @@
                                         <span class="nav-link-title">{{ __('cabinet.nav_home') }}</span>
                                     </a>
                                 </li>
+                                <li class="nav-item {{ request()->routeIs('cabinet.notifications.*') ? 'active' : '' }}">
+                                    <a class="nav-link" href="{{ route('cabinet.notifications.index') }}">
+                                        <span class="nav-link-title">{{ __('cabinet.nav_notifications') }}</span>
+                                    </a>
+                                </li>
                                 <li class="nav-item {{ request()->routeIs('cabinet.orders.*') ? 'active' : '' }}">
                                     <a class="nav-link" href="{{ route('cabinet.orders.index') }}">
                                         <span class="nav-link-title">{{ __('cabinet.nav_orders') }}</span>

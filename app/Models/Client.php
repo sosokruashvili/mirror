@@ -2,6 +2,9 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\QueuesNotifications;
+use App\Services\CabinetAccess;
+use App\Support\Cabinet\Cabinet;
 use Backpack\CRUD\app\Models\Traits\CrudTrait;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -12,6 +15,7 @@ class Client extends Model
     use CrudTrait;
     use HasFactory;
     use Notifiable;
+    use QueuesNotifications;
 
     /**
      * Phone number used by the SMS notification channel.
@@ -95,6 +99,28 @@ class Client extends Model
             return $this->name . ' (' . $id . ')';
         }
         return $this->name;
+    }
+
+    /**
+     * Georgian text of the cabinet-access SMS. Always Georgian, whatever
+     * language the admin panel is using, because the client reads it.
+     */
+    /**
+     * The cabinet-access SMS, rendered from the system template.
+     */
+    public function cabinetSmsBody(string $url): string
+    {
+        return SmsTemplate::findByKey(SmsTemplate::KEY_CABINET_ACCESS)->render([
+            'cabinet_url' => $url,
+        ], $this);
+    }
+
+    /**
+     * Turn cabinet access on and queue the SMS with this client's private link.
+     */
+    public function allowCabinet(): Notification
+    {
+        return app(CabinetAccess::class)->allow($this);
     }
 
     /**

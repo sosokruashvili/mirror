@@ -98,6 +98,7 @@ return [
         'stage' => 'Stage',
         'services' => 'Services (:count):',
         'no_services' => 'No services assigned to this piece',
+        'stage_not_started' => 'Not started',
     ],
 
     // Flash / JSON responses

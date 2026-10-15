@@ -30,6 +30,7 @@ class OrderController extends Controller
                 'products',
                 'pieces.product',
                 'pieces.stages',
+                'stages',
                 'payments',
             ])
             ->whereKey($order)

@@ -40,6 +40,9 @@ Route::group([
     Route::post('order/piece/{id}/stage', 'OrderCrudController@updatePieceStage')->name('order.piece.updateStage');
     Route::crud('user', 'UserCrudController');
     Route::crud('client', 'ClientCrudController');
+    Route::post('client/{id}/allow-cabinet', 'ClientCrudController@allowCabinet')->whereNumber('id')->name('client.allowCabinet');
+    Route::crud('notification', 'NotificationCrudController');
+    Route::crud('sms-template', 'SmsTemplateCrudController');
     Route::post('client/create-ajax', 'ClientCrudController@createAjax')->name('client.createAjax');
     Route::crud('role', 'RoleCrudController');
     Route::crud('permission', 'PermissionCrudController');
@@ -100,6 +103,7 @@ Route::group([
     Route::post('team/pieces/{id}/broken', 'TeamOrderController@markPieceBroken')->name('team.pieces.broken')->middleware('backpack.can:team-order.operate');
     Route::post('team/pieces/broken', 'TeamOrderController@markGroupBroken')->name('team.pieces.broken-group')->middleware('backpack.can:team-order.operate');
     Route::post('team/pieces/{id}/stage', 'TeamOrderController@updatePieceStage')->name('team.pieces.stage')->middleware('backpack.can:team-order.operate');
+    Route::post('team/orders/{id}/stage', 'TeamOrderController@updateOrderStage')->name('team.orders.stage')->middleware('backpack.can:team-order.operate');
 }); // this should be the absolute last line of this file
 
 /**

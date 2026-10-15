@@ -69,6 +69,15 @@ return [
         'phone_taken' => 'Another client already signs in with this phone number.',
         'last_login' => 'Last sign-in',
         'never_logged_in' => 'has not signed in yet',
+        'send' => 'Allow Cabinet',
+        'allow' => 'Allow Cabinet',
+        'allow_confirm' => 'A notification will be created with this client\'s private cabinet link. The link only works with its access token. Any previous link will stop working.',
+        'allow_confirm_button' => 'Allow',
+        'sms_body' => 'თქვენი ელექტრონული კაბინეტის მისამართი: :url',
+        'sms_confirm' => "An SMS will be queued and sent within a few minutes:\n:message",
+        'sms_confirm_inactive' => "Cabinet access is off for this client. An SMS will still be queued and sent within a few minutes:\n:message",
+        'sms_queued' => 'The notification was created. The SMS will be sent within a few minutes.',
+        'sms_failed' => 'The notification could not be created.',
     ],
 
 ];

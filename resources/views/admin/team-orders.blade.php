@@ -1169,7 +1169,10 @@
                                 @else
                                     {{-- Service-only orders have no pieces; services live on the order
                                          with piece_id null. Show them the same way shortnames appear
-                                         on size tags so the card is not empty. --}}
+                                         on size tags so the card is not empty. When the services have
+                                         a stage of their own, the order itself goes through the stages
+                                         (order_stage): the labels then sit in one stage tag that opens
+                                         the same menu as a size tag. --}}
                                     @php
                                         $orderLevelServices = $order->services
                                             ->filter(fn ($service) => is_null($service->pivot->piece_id))
@@ -1179,8 +1182,28 @@
                                             ->filter()
                                             ->unique()
                                             ->values();
+                                        $orderHasStageFlow = $order->tracksStagesOnOrder() && $order->gatingStages()->isNotEmpty();
+                                        if ($orderHasStageFlow) {
+                                            $orderStage = $order->currentStageName();
+                                            $orderStageStyle = $orderStage
+                                                ? 'background-color: ' . piece_stage_color($orderStage) . '; color: ' . piece_stage_text_color($orderStage) . ';'
+                                                : 'background-color: ' . piece_draft_color() . '; color: #ffffff;';
+                                            $orderStageSlugs = $order->relevantStages()->pluck('name')->all();
+                                            $orderCompletedSlugs = array_values(array_filter($stageOrderSlugs, fn ($slug) => in_array($slug, $order->completedStageNames(), true)));
+                                        }
                                     @endphp
-                                    @if($orderServiceLabels->isNotEmpty())
+                                    @if($orderHasStageFlow)
+                                        <div class="size-tags">
+                                            <span class="size-tag{{ $orderStage ? ' has-stage' : '' }}{{ $showArchived ? ' size-tag-readonly' : '' }}" data-stage-order-id="{{ $order->id }}" data-piece-ids="" data-piece-stage="{{ $orderStage ?? '' }}" data-piece-stages="{{ implode(',', $orderStageSlugs) }}" data-piece-completed="{{ implode(',', $orderCompletedSlugs) }}" style="{{ $orderStageStyle }}"@if(!$showArchived) onclick="togglePieceMenu(event, this)"@endif>
+                                                @foreach($orderServiceLabels as $label)
+                                                    <span class="service-shortname-tag">{{ $label }}</span>
+                                                @endforeach
+                                                @if(!$showArchived)
+                                                <span class="piece-dots-btn" aria-hidden="true">⋮</span>
+                                                @endif
+                                            </span>
+                                        </div>
+                                    @elseif($orderServiceLabels->isNotEmpty())
                                         <div class="size-tags">
                                             @foreach($orderServiceLabels as $label)
                                                 <span class="service-shortname-tag service-shortname-tag--standalone">{{ $label }}</span>
@@ -1664,6 +1687,10 @@ jQuery(function($) {
             if (_pieceCtxMenuHint) _pieceCtxMenuHint.style.display = allowed.length ? '' : 'none';
             if (_pieceCtxMenuEmpty) _pieceCtxMenuEmpty.style.display = allowed.length ? 'none' : 'block';
 
+            // A service order's tag has no glass that could break.
+            var brokenItem = document.getElementById('pieceCtxMenuBroken');
+            if (brokenItem) brokenItem.style.display = tag.hasAttribute('data-stage-order-id') ? 'none' : '';
+
             var anchor = tag.querySelector('.piece-dots-btn') || tag;
             var rect = anchor.getBoundingClientRect();
 
@@ -1844,6 +1871,12 @@ jQuery(function($) {
     // (true/false) records or removes that stage's dated completion. The page
     // stays put: the tag colour and the card's status come from the JSON.
     function applyStageToPieces(tag, stage, completed) {
+        var stageOrderId = tag.getAttribute('data-stage-order-id');
+        if (stageOrderId) {
+            applyStageToOrder(tag, stageOrderId, stage, completed);
+            return;
+        }
+
         var pieceIds = (tag.getAttribute('data-piece-ids') || '')
             .split(',').filter(function(s) { return s !== ''; });
         if (pieceIds.length === 0) return;
@@ -1902,6 +1935,53 @@ jQuery(function($) {
                 }
                 applyPieceStageResult(tag, lastData);
             });
+        });
+    }
+
+    // Service orders have no pieces: their one tag toggles the stage on the
+    // order itself. The reply has the same shape as a piece's.
+    function applyStageToOrder(tag, orderId, stage, completed) {
+        var token = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') ||
+                    document.querySelector('input[name="_token"]')?.value;
+
+        closeCtxMenus();
+        tag.classList.add('is-updating');
+
+        var formData = new FormData();
+        formData.append('_token', token);
+        formData.append('stage', stage);
+        formData.append('completed', completed ? '1' : '0');
+        if (TEAM_STAGE_FILTER.length) {
+            TEAM_STAGE_FILTER.forEach(function(slug) {
+                formData.append('filter_stage[]', slug);
+            });
+        } else {
+            formData.append('filter_stage', '');
+        }
+
+        fetch('{{ route("team.orders.stage", ":id") }}'.replace(':id', orderId), {
+            method: 'POST',
+            headers: {
+                'Accept': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-CSRF-TOKEN': token
+            },
+            body: formData
+        })
+        .then(function(res) { return res.json().catch(function() { return {}; }).then(function(data) {
+            return { ok: res.ok, data: data };
+        }); })
+        .then(function(result) {
+            tag.classList.remove('is-updating');
+            if (!result.ok || !result.data || !result.data.success) {
+                alert('ეტაპი – მოთხოვნა ვერ შესრულდა.');
+                return;
+            }
+            applyPieceStageResult(tag, result.data);
+        })
+        .catch(function() {
+            tag.classList.remove('is-updating');
+            alert('ეტაპი – მოთხოვნა ვერ შესრულდა.');
         });
     }
 

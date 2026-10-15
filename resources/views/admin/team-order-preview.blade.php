@@ -284,7 +284,7 @@
 @section('content')
 @php
     $order = $entry;
-    $order->load(['pieces' => function ($q) { $q->withCount('brokenGlasses')->with(['product', 'stages']); }, 'services', 'client']);
+    $order->load(['pieces' => function ($q) { $q->withCount('brokenGlasses')->with(['product', 'stages']); }, 'services', 'client', 'stages']);
     
     // Sort pieces by ID
     $pieces = $order->pieces->sortBy('id');
@@ -487,6 +487,23 @@
 				<div class="row">
 					<div class="col-12">
 						<div class="piece-tile">
+							{{-- Service orders go through the stages themselves (order_stage). --}}
+							@if($order->tracksStagesOnOrder() && $order->stages->isNotEmpty())
+								<div class="piece-details">
+									@foreach($order->stages->sortBy('position') as $completedStage)
+										<div class="piece-detail-item">
+											<span class="piece-detail-label">{{ $completedStage->title }}:</span>
+											<span class="piece-detail-value">
+												@if($completedStage->pivot->completed_at)
+													{{ \Illuminate\Support\Carbon::parse($completedStage->pivot->completed_at)->format('Y-m-d H:i') }}
+												@else
+													✓
+												@endif
+											</span>
+										</div>
+									@endforeach
+								</div>
+							@endif
 							<div class="services-section">
 								@foreach($servicesWithoutPiece as $service)
 									<div class="service-item">

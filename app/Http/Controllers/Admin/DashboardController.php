@@ -455,7 +455,7 @@ class DashboardController
      * Ranks users by how many piece stages they marked complete in the range,
      * broken down per stage (a stacked bar). Data comes from the piece_stage
      * pivot's `user_id` / `completed_at` — the authoritative record of who
-     * finished what.
+     * finished what — and from order_stage for service orders (no pieces).
      *
      * Excluded so the numbers reflect real per-worker effort:
      *  - rows with no `user_id` (historical backfill, no known actor);
@@ -471,10 +471,18 @@ class DashboardController
         $range = $this->resolveTopUsersRangeKey($request);
         [$from, $to] = $this->resolveTopUsersRange($range);
 
-        $rows = DB::table('piece_stage as ps')
-            ->join('stages as s', 's.id', '=', 'ps.stage_id')
+        // Piece stage completions, plus those of service orders: they have no
+        // pieces and record their stages on the order itself (order_stage).
+        $completions = DB::table('piece_stage as ps')
             ->join('pieces as p', 'p.id', '=', 'ps.piece_id')
-            ->join('orders as o', 'o.id', '=', 'p.order_id')
+            ->select('ps.user_id', 'ps.stage_id', 'ps.completed_at', 'p.order_id')
+            ->unionAll(
+                DB::table('order_stage')->select('user_id', 'stage_id', 'completed_at', 'order_id')
+            );
+
+        $rows = DB::query()->fromSub($completions, 'ps')
+            ->join('stages as s', 's.id', '=', 'ps.stage_id')
+            ->join('orders as o', 'o.id', '=', 'ps.order_id')
             ->join('users as u', 'u.id', '=', 'ps.user_id')
             ->whereNotNull('ps.user_id')
             ->where('o.status', '!=', 'draft')

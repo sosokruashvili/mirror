@@ -86,6 +86,10 @@ class CashierExpenseRequest extends FormRequest
                 'product_id' => null,
                 'price_usd' => null,
             ]);
+        } elseif (! backpack_user()?->canCorrectPrices()) {
+            // Employees cannot type over the supplier price. An unchanged
+            // supplier/product pair keeps the price already stored.
+            $this->merge(['price_usd' => $this->employeePurchasePrice()]);
         } elseif (($this->input('price_usd') === null || $this->input('price_usd') === '')
             && $this->input('supplier_id')
             && $this->input('product_id')) {
@@ -99,6 +103,43 @@ class CashierExpenseRequest extends FormRequest
                 $this->merge(['price_usd' => $price]);
             }
         }
+    }
+
+    /**
+     * Purchase price an employee is allowed to save: the stored price when the
+     * supplier and product did not change, otherwise today's supplier price.
+     */
+    protected function employeePurchasePrice(): mixed
+    {
+        $supplierId = $this->input('supplier_id');
+        $productId = $this->input('product_id');
+        $stored = $this->storedExpense();
+
+        if ($stored
+            && (string) ($stored->supplier_id ?? '') === (string) ($supplierId ?? '')
+            && (string) ($stored->product_id ?? '') === (string) ($productId ?? '')) {
+            return $stored->price_usd;
+        }
+
+        if ($supplierId && $productId) {
+            return SupplierPrice::query()
+                ->where('supplier_id', $supplierId)
+                ->where('product_id', $productId)
+                ->value('price_usd');
+        }
+
+        return null;
+    }
+
+    protected function storedExpense(): ?CashierExpense
+    {
+        $id = $this->input('id') ?? $this->route('id');
+
+        if (! $id) {
+            return null;
+        }
+
+        return CashierExpense::query()->find($id);
     }
 
     /**

@@ -110,6 +110,10 @@
 
         if (autofill) {
             fillPieceMetrics($row, true);
+            // Employees cannot type a price. Fill the read-only field from the formula.
+            if (DATA.lockServicePrice) {
+                calculateRowPrice($row);
+            }
         }
     }
 
@@ -389,7 +393,7 @@
             '#ps-pieces-container [data-piece-field="quantity"]', function () {
             $(this).closest('[data-piece-card]').find('[data-service-row]').each(function () {
                 var $row = $(this);
-                if (getSvc($row, 'service_id') && String(getSvc($row, 'price_gel')).trim() !== '') {
+                if (getSvc($row, 'service_id') && (DATA.lockServicePrice || String(getSvc($row, 'price_gel')).trim() !== '')) {
                     calculateRowPrice($row);
                 }
             });

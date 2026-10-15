@@ -574,27 +574,29 @@ class PaymentCrudController extends CrudController
 
     /**
      * Calculate payment statistics from a collection of payments.
-     * 
+     *
+     * Money totals count only Paid payments. Pending amounts are reported
+     * separately and are left out of the total and per-method sums.
+     *
      * @param \Illuminate\Support\Collection $payments
      * @return array
      */
     protected function calculatePaymentStats($payments)
     {
-
         $paidPayments = $payments->where('status', 'Paid');
         $pendingPayments = $payments->where('status', 'Pending');
 
         return [
             'paymentsCount' => $payments->count(),
-            'totalAmountGel' => $payments->sum('amount_gel') ?? 0,
+            'totalAmountGel' => $paidPayments->sum('amount_gel') ?? 0,
             'paidCount' => $paidPayments->count(),
             'paidAmountGel' => $paidPayments->sum('amount_gel') ?? 0,
             'pendingCount' => $pendingPayments->count(),
             'pendingAmountGel' => $pendingPayments->sum('amount_gel') ?? 0,
-            'cashSum' => $payments->where('method', 'Cash')->sum('amount_gel') ?? 0,
-            'transferSum' => $payments->where('method', 'Transfer')->sum('amount_gel') ?? 0,
-            'terminalSum' => $payments->where('method', 'Terminal')->sum('amount_gel') ?? 0,
-            'pmTransferSum' => $payments->where('method', 'PM Transfer')->sum('amount_gel') ?? 0,
+            'cashSum' => $paidPayments->where('method', 'Cash')->sum('amount_gel') ?? 0,
+            'transferSum' => $paidPayments->where('method', 'Transfer')->sum('amount_gel') ?? 0,
+            'terminalSum' => $paidPayments->where('method', 'Terminal')->sum('amount_gel') ?? 0,
+            'pmTransferSum' => $paidPayments->where('method', 'PM Transfer')->sum('amount_gel') ?? 0,
         ];
     }
 

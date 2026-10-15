@@ -77,6 +77,7 @@ return [
     'hints' => [
         'usd_rate' => 'Actual current USD rate: :rate',
         'product_price_locked' => 'Auto-filled from the product (or client custom price). Only administrators can change it.',
+        'service_price_locked' => 'Calculated automatically.',
         'products' => 'Add products to this order (filtered by Order Product Type)',
         'pieces' => 'Add pieces to this order. Each piece can have its own services.',
         'payments_create' => 'A payment is saved the moment you add it, and is linked to this order when you save the order. Check the list above before adding another one — to fix a payment, edit or delete it instead of creating a second one.',

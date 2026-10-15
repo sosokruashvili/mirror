@@ -569,6 +569,9 @@ class OrderCrudController extends CrudController
             'label' => __('order.pieces'),
             'type'  => 'pieces_services',
             'hint'  => __('order.hints.pieces'),
+            // Employees see the calculated service price but cannot type over it.
+            // store()/update() enforce the same rule.
+            'lock_service_price' => ! (backpack_user()?->canCorrectPrices() ?? false),
         ]);
 
         // Hidden on create: new orders always start as draft. Made a visible select on edit
@@ -1133,6 +1136,7 @@ class OrderCrudController extends CrudController
 
             // Attach services (many-to-many with pivot data) allowing duplicates and preserving order inputs
             $order->services()->detach();
+            $preservedServicePrices = [];
             if (!empty($fields['services'])) {
                 foreach ($fields['services'] as $service) {
                     if (empty($service['service_id'])) {
@@ -1144,17 +1148,8 @@ class OrderCrudController extends CrudController
                     if ($pieceId && strpos($pieceId, 'temp_') === 0) {
                         $pieceId = $pieceIdMap[$pieceId] ?? null;
                     }
-                    
-                    // Calculate price_gel if not provided
-                    $priceGel = $service['price_gel'] ?? null;
-                    if ($priceGel === null || $priceGel === '') {
-                        $serviceModel = Service::find($service['service_id']);
-                        if ($serviceModel) {
-                            $priceGel = $this->calculateServicePriceGel($serviceModel, $service);
-                        } else {
-                            $priceGel = 0;
-                        }
-                    }
+
+                    $priceGel = $this->priceForSubmittedService($service, $fields, $preservedServicePrices);
                     
                     $order->services()->attach($service['service_id'], [
                         'piece_id' => $pieceId,
@@ -1221,6 +1216,11 @@ class OrderCrudController extends CrudController
             if (!$order->canBeEditedBy(backpack_user())) {
                 abort(403, __('order.messages.no_permission_edit'));
             }
+
+            // Snapshot service prices before pieces are deleted and recreated.
+            // Employees cannot type a new price; an unchanged line keeps the
+            // price already stored (including an administrator's correction).
+            $preservedServicePrices = $this->preservedServicePrices($order);
 
             // Update order basic fields. Attachment is omitted unless a new file is
             // uploaded or the user cleared it — otherwise `$fields['atachment'] ?? null`
@@ -1324,16 +1324,7 @@ class OrderCrudController extends CrudController
                         }
                     }
 
-                    // Calculate price_gel if not provided
-                    $priceGel = $service['price_gel'] ?? null;
-                    if ($priceGel === null || $priceGel === '') {
-                        $serviceModel = Service::find($service['service_id']);
-                        if ($serviceModel) {
-                            $priceGel = $this->calculateServicePriceGel($serviceModel, $service);
-                        } else {
-                            $priceGel = 0;
-                        }
-                    }
+                    $priceGel = $this->priceForSubmittedService($service, $fields, $preservedServicePrices);
 
                     $order->services()->attach($service['service_id'], [
                         'piece_id' => $pieceId,
@@ -1496,6 +1487,232 @@ class OrderCrudController extends CrudController
         return (float) ($orderType === 'wholesale' && $priceW !== null && $priceW !== ''
             ? $priceW
             : $price);
+    }
+
+    /**
+     * Price stored on one submitted service line.
+     *
+     * Users who may correct prices keep the value they typed (blank falls back
+     * to the unscaled formula, matching the previous behaviour). Employees
+     * cannot override it: an unchanged line keeps its stored price, and a new
+     * or changed line is priced with the same formula the order form uses
+     * (base price × piece quantity × glass/mirror product count).
+     *
+     * @param  array<int, array{service_id: int, piece_id: ?int, price_gel: float, signature: string}>  $preservedPool
+     */
+    private function priceForSubmittedService(array $service, array $fields, array &$preservedPool): float
+    {
+        $serviceModel = Service::find($service['service_id']);
+        if (! $serviceModel) {
+            return 0.0;
+        }
+
+        if (backpack_user()?->canCorrectPrices() ?? false) {
+            $submitted = $service['price_gel'] ?? null;
+            if ($submitted === null || $submitted === '') {
+                return $this->calculateServicePriceGel($serviceModel, $service);
+            }
+
+            return round((float) $submitted, 2);
+        }
+
+        [$pieceQty, $oldPieceId] = $this->submittedPieceContext($service, $fields);
+        $productCount = $this->eligibleGlassMirrorCount($fields['products'] ?? []);
+        $signature = $this->servicePriceSignature($serviceModel->slug, $service, $pieceQty, $productCount);
+        $preserved = $this->pullPreservedServicePrice(
+            $preservedPool,
+            (int) $service['service_id'],
+            $oldPieceId,
+            $signature
+        );
+        if ($preserved !== null) {
+            return round($preserved, 2);
+        }
+
+        return $this->calculatedServiceLinePrice($serviceModel, $service, $pieceQty, $productCount);
+    }
+
+    /**
+     * Service prices already on the order, keyed so an employee save can keep
+     * them when the line's price inputs did not change.
+     *
+     * @return array<int, array{service_id: int, piece_id: ?int, price_gel: float, signature: string}>
+     */
+    private function preservedServicePrices(Order $order): array
+    {
+        if (backpack_user()?->canCorrectPrices() ?? false) {
+            return [];
+        }
+
+        $order->loadMissing(['services', 'pieces', 'products']);
+
+        $pieceQty = [];
+        foreach ($order->pieces as $piece) {
+            $pieceQty[$piece->id] = max(1, (int) $piece->quantity);
+        }
+
+        $productCount = $this->eligibleGlassMirrorCount(
+            $order->products->map(fn ($product) => ['product_id' => $product->id])->all()
+        );
+
+        $pool = [];
+        foreach ($order->services as $service) {
+            $oldPieceId = $service->pivot->piece_id ? (int) $service->pivot->piece_id : null;
+            $pool[] = [
+                'service_id' => (int) $service->id,
+                'piece_id' => $oldPieceId,
+                'price_gel' => (float) $service->pivot->price_gel,
+                'signature' => $this->servicePriceSignature(
+                    (string) $service->slug,
+                    $service->pivot->toArray(),
+                    $oldPieceId ? ($pieceQty[$oldPieceId] ?? 1) : 1,
+                    $productCount
+                ),
+            ];
+        }
+
+        return $pool;
+    }
+
+    /**
+     * @param  array<int, array{service_id: int, piece_id: ?int, price_gel: float, signature: string}>  $pool
+     */
+    private function pullPreservedServicePrice(array &$pool, int $serviceId, ?int $pieceId, string $signature): ?float
+    {
+        foreach ($pool as $index => $row) {
+            $rowPiece = $row['piece_id'] ?? null;
+            $samePiece = ($pieceId === null && $rowPiece === null)
+                || ($pieceId !== null && (int) $rowPiece === $pieceId);
+
+            if ((int) $row['service_id'] === $serviceId && $samePiece && $row['signature'] === $signature) {
+                unset($pool[$index]);
+
+                return (float) $row['price_gel'];
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Piece quantity and the existing piece id for a submitted service line.
+     *
+     * The form addresses pieces as temp_{index}. An existing piece id, when
+     * present, is what the stored service pivot still points at.
+     *
+     * @return array{0: int, 1: ?int}
+     */
+    private function submittedPieceContext(array $service, array $fields): array
+    {
+        $pieceQty = 1;
+        $oldPieceId = null;
+        $pieceKey = $service['piece_id'] ?? null;
+
+        if (is_string($pieceKey) && str_starts_with($pieceKey, 'temp_')) {
+            $index = (int) substr($pieceKey, 5);
+            $pieceRow = array_values($fields['pieces'] ?? [])[$index] ?? null;
+            if (is_array($pieceRow)) {
+                $pieceQty = max(1, (int) ($pieceRow['quantity'] ?? 1));
+                if (! empty($pieceRow['id'])) {
+                    $oldPieceId = (int) $pieceRow['id'];
+                }
+            }
+        }
+
+        return [$pieceQty, $oldPieceId];
+    }
+
+    /**
+     * Glass and mirror product lines. The order form multiplies a service
+     * price by this count, and uses 1 when the order has none.
+     *
+     * @param  array<int, array<string, mixed>>  $productRows
+     */
+    private function eligibleGlassMirrorCount(array $productRows): int
+    {
+        $ids = [];
+        foreach ($productRows as $row) {
+            if (! empty($row['product_id'])) {
+                $ids[] = (int) $row['product_id'];
+            }
+        }
+
+        if ($ids === []) {
+            return 1;
+        }
+
+        $types = Product::query()
+            ->whereIn('id', array_values(array_unique($ids)))
+            ->pluck('product_type', 'id');
+
+        $count = 0;
+        foreach ($ids as $id) {
+            $type = strtolower((string) ($types[$id] ?? ''));
+            if ($type === 'glass' || $type === 'mirror') {
+                $count++;
+            }
+        }
+
+        return max(1, $count);
+    }
+
+    /**
+     * Fields that change the calculated price for a service slug.
+     *
+     * @return list<string>
+     */
+    private function priceDriverFields(string $slug): array
+    {
+        return match ($slug) {
+            'ek', 'fk', 'oval', 'alum_frame', 'rubber_frame' => ['perimeter'],
+            'training', 'matt' => ['area'],
+            'delivery' => ['distance'],
+            'cutout' => ['length_cm'],
+            'hole', 'hingcut', 'hanger', 'silicone', 'stick', 'kutxis_momrgvaleba' => ['quantity'],
+            'light' => ['tape_length', 'foam_length', 'sensor_quantity1'],
+            'antifog' => [],
+            default => ['perimeter', 'area', 'distance', 'length_cm', 'quantity', 'tape_length', 'foam_length', 'sensor_quantity1'],
+        };
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     */
+    private function servicePriceSignature(string $slug, array $data, int $pieceQty, int $productCount): string
+    {
+        $parts = [(string) max(1, $pieceQty), (string) max(1, $productCount)];
+        foreach ($this->priceDriverFields($slug) as $field) {
+            $value = $data[$field] ?? null;
+            $parts[] = ($value === null || $value === '')
+                ? ''
+                : number_format((float) $value, 4, '.', '');
+        }
+
+        return implode('|', $parts);
+    }
+
+    /**
+     * Service line price the way the order form computes it: the per-unit
+     * formula, then × piece quantity × glass/mirror product count.
+     *
+     * @param  array<string, mixed>  $serviceData
+     */
+    private function calculatedServiceLinePrice(Service $service, array $serviceData, int $pieceQty, int $productCount): float
+    {
+        $data = $serviceData;
+        $qty = max(1, $pieceQty);
+        if ($qty > 1) {
+            if (isset($data['perimeter']) && $data['perimeter'] !== '' && $data['perimeter'] !== null) {
+                $data['perimeter'] = ((float) $data['perimeter']) / $qty;
+            }
+            if (isset($data['area']) && $data['area'] !== '' && $data['area'] !== null) {
+                $data['area'] = ((float) $data['area']) / $qty;
+            }
+        }
+
+        $base = $this->calculateServicePriceGel($service, $data);
+
+        return round($base * $qty * max(1, $productCount), 2);
     }
 
     /**

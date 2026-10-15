@@ -306,17 +306,25 @@ class CashierExpenseCrudController extends CrudController
             ],
         ]);
 
+        $canCorrectPrices = backpack_user()?->canCorrectPrices() ?? false;
+        $purchasePriceAttributes = [
+            'step' => '0.01',
+            'min' => '0',
+            'placeholder' => __('cashier_expense.placeholders.price_usd'),
+        ];
+        if (! $canCorrectPrices) {
+            $purchasePriceAttributes['readonly'] = 'readonly';
+        }
+
         CRUD::addField([
             'name' => 'price_usd',
             'label' => __('cashier_expense.price_usd_field'),
             'type' => 'number',
-            'attributes' => [
-                'step' => '0.01',
-                'min' => '0',
-                'placeholder' => __('cashier_expense.placeholders.price_usd'),
-            ],
+            'attributes' => $purchasePriceAttributes,
             'prefix' => '$',
-            'hint' => __('cashier_expense.hints.price_usd'),
+            'hint' => $canCorrectPrices
+                ? __('cashier_expense.hints.price_usd')
+                : __('cashier_expense.hints.price_usd_locked'),
             // Product purchases only; JS toggles this with the product field.
             'wrapper' => [
                 'class' => 'form-group col-sm-12 mb-3 d-none',

@@ -18,6 +18,7 @@
     use App\Models\Service;
 
     $entry = $crud->getCurrentEntry();
+    $lockServicePrice = (bool) ($field['lock_service_price'] ?? false);
 
     // --- Services available for selection (id, title, price and which extra fields they use)
     $servicesList = Service::orderBy('id')->get()->map(function ($service) {
@@ -282,11 +283,16 @@
 
             <div class="form-group col-md-2 mb-1 svc-price d-none">
                 <label>Price (GEL)</label>
-                <input type="number" class="form-control" data-svc-field="price_gel" step="0.01">
+                <input type="number" class="form-control" data-svc-field="price_gel" step="0.01" @if($lockServicePrice) readonly @endif>
+                @if($lockServicePrice)
+                    <small class="form-text text-muted">{{ __('order.hints.service_price_locked') }}</small>
+                @endif
             </div>
+            @unless($lockServicePrice)
             <div class="form-group col-md-2 mb-1 svc-calc-btn d-none">
                 <button type="button" class="btn btn-primary calculate-price-btn">Calculate Price</button>
             </div>
+            @endunless
             <div class="form-group col-md-1 mb-1">
                 <button type="button" class="btn btn-outline-danger" data-remove-service title="Remove service">
                     <i class="la la-trash"></i>
@@ -301,5 +307,6 @@
         services: {!! $servicesList->toJson() !!},
         initialPieces: @json($initialPieces),
         initialOrderServices: @json($initialOrderServices),
+        lockServicePrice: @json($lockServicePrice),
     };
 </script>

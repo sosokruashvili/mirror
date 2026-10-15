@@ -143,6 +143,21 @@ class User extends Authenticatable
     }
 
     /**
+     * Whether this user may override a calculated or catalog price.
+     *
+     * Employees record orders and purchases at the system price. Super roles
+     * may still correct a price even if they also hold the employee role.
+     */
+    public function canCorrectPrices(): bool
+    {
+        if ($this->isSuperAdmin()) {
+            return true;
+        }
+
+        return ! $this->hasRole('employee');
+    }
+
+    /**
      * Check if user has any of the given roles (slugs or names).
      */
     public function hasAnyRole(...$roles): bool

@@ -52,7 +52,7 @@
     var lastData = null;
     var metric = 'count'; // 'count' (orders count) or 'value' (income)
 
-    // Fixed slice colors matching the product type order returned by the endpoint.
+    // Slice colors follow the endpoint order: mirror / glass / lamix / glass_pkg / service.
     var sliceColors = [
         'rgba(32, 107, 196, 0.85)',
         'rgba(47, 179, 68, 0.85)',

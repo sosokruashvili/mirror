@@ -42,6 +42,21 @@
 
 @push('crud_list_scripts')
 <script>
+    // The details-row request does not inherit the list filters. Attach the
+    // period so the expanded expenses match the month on screen.
+    $.ajaxPrefilter(function (options) {
+        if (!options.url || options.url.indexOf('/details') === -1 || options.url.indexOf('expense_date=') !== -1) {
+            return;
+        }
+
+        var expenseDate = new URLSearchParams(window.location.search).get('expense_date');
+        if (!expenseDate) {
+            return;
+        }
+
+        options.url += (options.url.indexOf('?') === -1 ? '?' : '&') + 'expense_date=' + encodeURIComponent(expenseDate);
+    });
+
     jQuery(document).ready(function ($) {
         var $tbody = $('#crudTable tbody');
 

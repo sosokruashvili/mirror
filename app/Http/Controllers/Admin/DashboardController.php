@@ -239,8 +239,9 @@ class DashboardController
         [$from, $to] = $this->resolveDailyStatsRange($request);
 
         // Fixed set/order of product types so every bucket always appears on the
-        // chart, even with zero orders in the selected range.
-        $types = ['mirror', 'glass', 'service'];
+        // chart, even with zero orders in the selected range. Order matches the
+        // pie-chart slice colors (mirror / glass / lamix / glass_pkg / service).
+        $types = ['mirror', 'glass', 'lamix', 'glass_pkg', 'service'];
 
         $byType = [];
         foreach ($types as $type) {

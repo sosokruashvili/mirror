@@ -11,6 +11,10 @@
 
 <div class="supplier-balance-details p-3" bp-section="crud-details-row">
 
+    @if (!empty($periodLabel))
+        <div class="text-secondary small mb-2">{{ __('supplier_balance.filters.period') }}: {{ $periodLabel }}</div>
+    @endif
+
     {{-- Balance recap for this supplier, mirroring the columns of the row above --}}
     <div class="row g-2 mb-3">
         <div class="col-6 col-md-3">
@@ -58,7 +62,7 @@
                 {{ __('supplier_balance.details.expenses') }}
                 <span class="badge bg-secondary-lt ms-1">{{ $expenses->count() }}</span>
             </h4>
-            <a href="{{ url(config('backpack.base.route_prefix') . '/cashier-expense') }}?supplier_id={{ $entry->id }}"
+            <a href="{{ $expensesUrl ?? url(config('backpack.base.route_prefix') . '/cashier-expense') . '?supplier_id=' . $entry->id }}"
                class="btn btn-sm btn-outline-secondary">
                 {{ __('supplier_balance.details.view_all') }}
             </a>
@@ -66,7 +70,7 @@
 
         @if ($expenses->isEmpty())
             <div class="card-body text-secondary text-center py-4">
-                {{ __('supplier_balance.details.no_expenses') }}
+                {{ !empty($periodLabel) ? __('supplier_balance.details.no_expenses_in_period') : __('supplier_balance.details.no_expenses') }}
             </div>
         @else
             <div class="table-responsive supplier-balance-subtable">

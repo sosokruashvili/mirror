@@ -7,7 +7,17 @@
     <div class="col-12 mb-2">
         <small class="text-muted">{{ __('supplier_balance.stats.confirmed_only') }}</small>
     </div>
-    <div class="col-md-6 mb-3 mb-md-0">
+    <div class="col-md-4 mb-3 mb-md-0">
+        <div class="card {{ ($widget['creditTotal'] ?? 0) > 0 ? 'bg-danger' : 'bg-secondary' }} text-white mb-0" id="supplier-stats-credit-card">
+            <div class="card-header">
+                <h4 class="mb-0">{{ __('supplier_balance.credit_total') }}</h4>
+            </div>
+            <div class="card-body">
+                <h2 class="mb-0" id="supplier-stats-credit-total">{{ number_format($widget['creditTotal'] ?? 0, 2) }} ₾</h2>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4 mb-3 mb-md-0">
         <div class="card bg-success text-white mb-0">
             <div class="card-header">
                 <h4 class="mb-0">{{ __('supplier_balance.stats.paid_total') }}</h4>
@@ -17,7 +27,7 @@
             </div>
         </div>
     </div>
-    <div class="col-md-6">
+    <div class="col-md-4">
         <div class="card {{ $widget['balanceTotal'] < 0 ? 'bg-danger' : 'bg-primary' }} text-white mb-0" id="supplier-stats-balance-card">
             <div class="card-header">
                 <h4 class="mb-0">{{ __('supplier_balance.stats.balance_total') }}</h4>
@@ -53,6 +63,7 @@
         var params = {};
         if (urlParams.get('name')) params.name = urlParams.get('name');
         if (urlParams.get('only_debt')) params.only_debt = urlParams.get('only_debt');
+        if (urlParams.get('expense_date')) params.expense_date = urlParams.get('expense_date');
 
         // The search box lives in DataTables' own state, not in the ajax URL.
         if (typeof crud !== 'undefined' && typeof crud.table !== 'undefined' && crud.table.search()) {
@@ -64,8 +75,12 @@
             method: 'GET',
             data: params,
             success: function (response) {
+                $('#supplier-stats-credit-total').text(formatSupplierBalanceAmount(response.creditTotal));
                 $('#supplier-stats-paid-total').text(formatSupplierBalanceAmount(response.paidTotal));
                 $('#supplier-stats-balance-total').text(formatSupplierBalanceAmount(response.balanceTotal));
+                $('#supplier-stats-credit-card')
+                    .removeClass('bg-danger bg-secondary')
+                    .addClass(parseFloat(response.creditTotal) > 0 ? 'bg-danger' : 'bg-secondary');
                 $('#supplier-stats-balance-card')
                     .removeClass('bg-danger bg-primary')
                     .addClass(parseFloat(response.balanceTotal) < 0 ? 'bg-danger' : 'bg-primary');

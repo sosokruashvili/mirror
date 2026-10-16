@@ -25,7 +25,7 @@ return [
 
     // Summary widgets above the list
     'stats' => [
-        'confirmed_only' => 'Totals cover every supplier matching the current filters, confirmed expenses only.',
+        'confirmed_only' => 'Totals cover every supplier matching the current filters, confirmed expenses only. A period counts only expenses dated in that range.',
         'paid_total' => 'Total Paid (₾)',
         'balance_total' => 'Total Balance (₾)',
     ],
@@ -33,6 +33,7 @@ return [
     // Filters
     'filters' => [
         'name' => 'Name',
+        'period' => 'Period',
         'only_debt' => 'With outstanding balance',
     ],
 
@@ -46,6 +47,7 @@ return [
         'expenses' => 'Expenses-Purchases',
         'view_all' => 'View all',
         'no_expenses' => 'No expenses for this supplier yet.',
+        'no_expenses_in_period' => 'No expenses in this period.',
 
         'date' => 'Date',
         'type' => 'Type',

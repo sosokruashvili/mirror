@@ -22,6 +22,10 @@ use Backpack\CRUD\app\Library\Widget;
  * amount_gel is the paid portion; credit is independent (a fully-on-credit
  * purchase is amount 0, credit 1000). Repayments lower the credit field.
  *
+ * The period filter limits every total to confirmed expenses whose
+ * expense_date falls in that range, so a month shows the debt recorded
+ * on that month's purchases.
+ *
  * @package App\Http\Controllers\Admin
  * @property-read \Backpack\CRUD\app\Library\CrudPanel\CrudPanel $crud
  */
@@ -29,6 +33,12 @@ class SupplierBalanceCrudController extends CrudController
 {
     use \App\Http\Controllers\Admin\Traits\ChecksAccess;
     use \Backpack\CRUD\app\Http\Controllers\Operations\ListOperation;
+
+    protected bool $expensePeriodResolved = false;
+
+    protected ?\Carbon\Carbon $expensePeriodFrom = null;
+
+    protected ?\Carbon\Carbon $expensePeriodTo = null;
 
     public function setup(): void
     {
@@ -49,8 +59,17 @@ class SupplierBalanceCrudController extends CrudController
 
         // Aggregate the expense sums in the main query so the list stays a
         // single query (no N+1) and the columns can be sorted server-side.
-        $this->crud->addClause('withSum', 'confirmedCashierExpenses as paid_sum', 'amount_gel');
-        $this->crud->addClause('withSum', 'confirmedCashierExpenses as credit_total', 'credit');
+        // The closure applies the period filter when one is selected.
+        $this->crud->addClause('withSum', [
+            'confirmedCashierExpenses as paid_sum' => function ($query) {
+                $this->constrainExpensesToPeriod($query);
+            },
+        ], 'amount_gel');
+        $this->crud->addClause('withSum', [
+            'confirmedCashierExpenses as credit_total' => function ($query) {
+                $this->constrainExpensesToPeriod($query);
+            },
+        ], 'credit');
 
         // Expandable rows: clicking a supplier row loads their expenses inline.
         // The custom list view makes the whole row (not just the +/- icon) the trigger.
@@ -174,12 +193,30 @@ class SupplierBalanceCrudController extends CrudController
             $this->crud->addClause('where', 'name', 'LIKE', "%{$value}%");
         });
 
+        // Month (or any range). Presets include this month and last month.
+        // Sums above already read the same request value; this clause only
+        // hides suppliers with no confirmed expenses in the range.
+        CRUD::addFilter([
+            'type' => 'date_range',
+            'name' => 'expense_date',
+            'label' => __('supplier_balance.filters.period'),
+        ], false, function () {
+            if (! $this->hasExpensePeriod()) {
+                return;
+            }
+
+            $this->crud->addClause('whereHas', 'confirmedCashierExpenses', function ($query) {
+                $this->constrainExpensesToPeriod($query);
+            });
+        });
+
         CRUD::addFilter([
             'name' => 'only_debt',
             'type' => 'simple',
             'label' => __('supplier_balance.filters.only_debt'),
         ], false, function () {
             $this->crud->addClause('whereHas', 'confirmedCashierExpenses', function ($query) {
+                $this->constrainExpensesToPeriod($query);
                 $query->where('credit', '>', 0);
             });
         });
@@ -207,9 +244,13 @@ class SupplierBalanceCrudController extends CrudController
             $query->where('name', 'LIKE', '%' . request()->get('search') . '%');
         }
 
-        if (request()->filled('only_debt')) {
+        if (request()->filled('only_debt') || $this->hasExpensePeriod()) {
             $query->whereHas('confirmedCashierExpenses', function ($subQuery) {
-                $subQuery->where('credit', '>', 0);
+                $this->constrainExpensesToPeriod($subQuery);
+
+                if (request()->filled('only_debt')) {
+                    $subQuery->where('credit', '>', 0);
+                }
             });
         }
 
@@ -221,7 +262,7 @@ class SupplierBalanceCrudController extends CrudController
      * them, and the summed balance (paid - remaining credit). Aggregated in SQL
      * so this stays one query however many suppliers match.
      *
-     * @return array{paidTotal:float, balanceTotal:float}
+     * @return array{paidTotal:float, creditTotal:float, balanceTotal:float}
      */
     protected function calculateBalanceStats(): array
     {
@@ -237,6 +278,7 @@ class SupplierBalanceCrudController extends CrudController
 
         return [
             'paidTotal' => $paidTotal,
+            'creditTotal' => $creditTotal,
             'balanceTotal' => $paidTotal - $creditTotal,
         ];
     }
@@ -292,6 +334,7 @@ class SupplierBalanceCrudController extends CrudController
         $supplier = Supplier::query()
             ->with([
                 'confirmedCashierExpenses' => function ($query) {
+                    $this->constrainExpensesToPeriod($query);
                     $query->orderByDesc('expense_date')->orderByDesc('id');
                 },
                 'confirmedCashierExpenses.category',
@@ -302,6 +345,12 @@ class SupplierBalanceCrudController extends CrudController
         $paidTotal = (float) $supplier->confirmedCashierExpenses->sum('amount_gel');
         $creditTotal = (float) $supplier->confirmedCashierExpenses->sum('credit');
 
+        $expensesUrl = url(config('backpack.base.route_prefix') . '/cashier-expense')
+            . '?supplier_id=' . $supplier->id;
+        if ($period = $this->expenseDateFilterValue()) {
+            $expensesUrl .= '&expense_date=' . urlencode($period);
+        }
+
         return view('vendor.backpack.crud.details_rows.supplier_balance', [
             'crud' => $this->crud,
             'entry' => $supplier,
@@ -310,6 +359,8 @@ class SupplierBalanceCrudController extends CrudController
             'paidTotal' => $paidTotal,
             'creditTotal' => $creditTotal,
             'balance' => $paidTotal - $creditTotal,
+            'periodLabel' => $this->expensePeriodLabel(),
+            'expensesUrl' => $expensesUrl,
         ]);
     }
 
@@ -354,7 +405,136 @@ class SupplierBalanceCrudController extends CrudController
     {
         return '(SELECT COALESCE(SUM(' . $expression . '), 0) FROM cashier_expenses'
             . ' WHERE cashier_expenses.supplier_id = suppliers.id'
-            . ' AND cashier_expenses.status = ' . $this->confirmedStatusSql() . ')';
+            . ' AND cashier_expenses.status = ' . $this->confirmedStatusSql()
+            . $this->expensePeriodSql() . ')';
+    }
+
+    /**
+     * True when the period filter parsed to at least one bound.
+     */
+    protected function hasExpensePeriod(): bool
+    {
+        [$from, $to] = $this->selectedExpensePeriod();
+
+        return $from !== null || $to !== null;
+    }
+
+    /**
+     * Limit an expense query to the selected period. No-op when the filter is off,
+     * so the list stays all-time until a range is chosen.
+     *
+     * @param  \Illuminate\Database\Eloquent\Builder|\Illuminate\Database\Query\Builder  $query
+     */
+    protected function constrainExpensesToPeriod($query): void
+    {
+        [$from, $to] = $this->selectedExpensePeriod();
+
+        if ($from) {
+            $query->where('expense_date', '>=', $from);
+        }
+
+        if ($to) {
+            $query->where('expense_date', '<=', $to);
+        }
+    }
+
+    /**
+     * Date fragment for raw SUM subqueries. Dates are reformatted from a
+     * validated timestamp, not interpolated from the request, because these
+     * clauses cannot use bindings (Backpack's count query drops ORDER BY
+     * and would leave a dangling parameter).
+     */
+    protected function expensePeriodSql(): string
+    {
+        [$from, $to] = $this->selectedExpensePeriod();
+        $sql = '';
+
+        if ($from) {
+            $sql .= " AND cashier_expenses.expense_date >= '" . $from->format('Y-m-d H:i:s') . "'";
+        }
+
+        if ($to) {
+            $sql .= " AND cashier_expenses.expense_date <= '" . $to->format('Y-m-d H:i:s') . "'";
+        }
+
+        return $sql;
+    }
+
+    /**
+     * @return array{0:?\Carbon\Carbon, 1:?\Carbon\Carbon}
+     */
+    protected function selectedExpensePeriod(): array
+    {
+        if ($this->expensePeriodResolved) {
+            return [$this->expensePeriodFrom, $this->expensePeriodTo];
+        }
+
+        $this->expensePeriodResolved = true;
+        $raw = request()->get('expense_date');
+
+        if (! is_string($raw) || $raw === '') {
+            return [null, null];
+        }
+
+        $dates = json_decode($raw, true);
+        if (! is_array($dates)) {
+            return [null, null];
+        }
+
+        $this->expensePeriodFrom = $this->periodBound($dates['from'] ?? null, true);
+        $this->expensePeriodTo = $this->periodBound($dates['to'] ?? null, false);
+
+        return [$this->expensePeriodFrom, $this->expensePeriodTo];
+    }
+
+    /**
+     * JSON value the cashier-expense date filter understands, or null when
+     * this list is not filtered by period.
+     */
+    protected function expenseDateFilterValue(): ?string
+    {
+        [$from, $to] = $this->selectedExpensePeriod();
+
+        if (! $from && ! $to) {
+            return null;
+        }
+
+        return json_encode([
+            'from' => $from?->format('Y-m-d H:i:s'),
+            'to' => $to?->format('Y-m-d H:i:s'),
+        ]);
+    }
+
+    protected function expensePeriodLabel(): ?string
+    {
+        [$from, $to] = $this->selectedExpensePeriod();
+
+        if (! $from && ! $to) {
+            return null;
+        }
+
+        $fromLabel = $from ? $from->format('d M Y') : '…';
+        $toLabel = $to ? $to->format('d M Y') : '…';
+
+        return $fromLabel . ' – ' . $toLabel;
+    }
+
+    /**
+     * Accept only a calendar date (optional time) and snap it to the day's edge.
+     */
+    protected function periodBound(mixed $value, bool $start): ?\Carbon\Carbon
+    {
+        if (! is_string($value) || ! preg_match('/^\d{4}-\d{2}-\d{2}(?:[ T]\d{2}:\d{2}:\d{2})?$/', $value)) {
+            return null;
+        }
+
+        try {
+            $date = \Carbon\Carbon::parse($value);
+        } catch (\Throwable) {
+            return null;
+        }
+
+        return $start ? $date->startOfDay() : $date->setTime(23, 59, 59);
     }
 
     /**

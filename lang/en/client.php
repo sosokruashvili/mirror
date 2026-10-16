@@ -80,4 +80,32 @@ return [
         'sms_failed' => 'The notification could not be created.',
     ],
 
+    'sms' => [
+        'button' => 'Send SMS',
+        'title' => 'Send SMS',
+        'scope_selected' => 'Selected clients (:count)',
+        'scope_filtered' => 'Everyone matching the current filters',
+        'all_warning' => 'No filter is on, so this is every client.',
+        'template' => 'Template',
+        'template_empty' => 'Write the text yourself',
+        'body' => 'Text',
+        'hint' => '{client_name} and {client_phone} are filled in for each client. The SMS is queued and sent within a few minutes.',
+        'characters' => ':count / 1000',
+        'submit' => 'Queue SMS',
+        'working' => 'Checking…',
+        'confirm' => 'Queue an SMS for :count clients.',
+        'confirm_all' => 'No filter is on. An SMS will be queued for every client: :count.',
+        'skipped' => ':count clients will be skipped (no usable phone, or a placeholder that could not be filled).',
+        'duplicates' => ':count duplicate numbers will be skipped. One SMS is sent per number.',
+        'sample' => "First message:\n:sample",
+        'queued' => ':count SMS notifications were queued. They will be sent within a few minutes.',
+        'errors' => [
+            'empty' => 'Write the message first.',
+            'none_selected' => 'Select at least one client, or send to everyone matching the filters.',
+            'nobody' => 'Nobody in this list has a phone number that can receive an SMS.',
+            'too_many' => 'Too many clients are selected. Filter the list and send to everyone who matches.',
+            'scope' => 'Choose who should receive the SMS.',
+        ],
+    ],
+
 ];

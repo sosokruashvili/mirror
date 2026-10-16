@@ -39,6 +39,8 @@ Route::group([
     Route::post('order/{id}/finish', 'OrderCrudController@finish')->name('order.finish');
     Route::post('order/piece/{id}/stage', 'OrderCrudController@updatePieceStage')->name('order.piece.updateStage');
     Route::crud('user', 'UserCrudController');
+    Route::post('client/sms-preview', 'ClientCrudController@previewSms')->name('client.smsPreview');
+    Route::post('client/sms-send', 'ClientCrudController@sendSms')->name('client.smsSend');
     Route::crud('client', 'ClientCrudController');
     Route::post('client/{id}/allow-cabinet', 'ClientCrudController@allowCabinet')->whereNumber('id')->name('client.allowCabinet');
     Route::crud('notification', 'NotificationCrudController');
@@ -85,7 +87,7 @@ Route::group([
     Route::crud('audit-log', 'AuditLogCrudController');
     Route::crud('piece-stage-log', 'PieceStageLogCrudController');
     Route::crud('broken-glass', 'BrokenGlassCrudController');
-    
+
     // Global settings page (access-controlled: settings.view / settings.update)
     Route::get('settings', 'SettingController@edit')->name('settings.edit')->middleware('backpack.can:settings.view');
     Route::put('settings', 'SettingController@update')->name('settings.update')->middleware('backpack.can:settings.update');

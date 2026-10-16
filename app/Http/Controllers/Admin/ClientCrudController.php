@@ -2,48 +2,62 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Http\Requests\ClientSmsRequest;
+use App\Models\Client;
 use App\Models\ClientAccount;
+use App\Models\SmsTemplate;
+use App\Services\Notifications\ClientSmsBroadcast;
 use Backpack\CRUD\app\Http\Controllers\CrudController;
 use Backpack\CRUD\app\Library\CrudPanel\CrudPanelFacade as CRUD;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Validation\Rule;
 
 /**
  * Class ClientCrudController
- * @package App\Http\Controllers\Admin
+ *
  * @property-read \Backpack\CRUD\app\Library\CrudPanel\CrudPanel $crud
  */
 class ClientCrudController extends CrudController
 {
     use \App\Http\Controllers\Admin\Traits\ChecksAccess;
-    use \Backpack\CRUD\app\Http\Controllers\Operations\ListOperation;
     use \Backpack\CRUD\app\Http\Controllers\Operations\CreateOperation;
-    use \Backpack\CRUD\app\Http\Controllers\Operations\UpdateOperation;
     use \Backpack\CRUD\app\Http\Controllers\Operations\DeleteOperation;
+    use \Backpack\CRUD\app\Http\Controllers\Operations\ListOperation;
     use \Backpack\CRUD\app\Http\Controllers\Operations\ShowOperation;
+    use \Backpack\CRUD\app\Http\Controllers\Operations\UpdateOperation;
 
     /**
      * Configure the CrudPanel object. Apply settings to all operations.
-     * 
+     *
      * @return void
      */
     public function setup()
     {
         CRUD::setModel(\App\Models\Client::class);
-        CRUD::setRoute(config('backpack.base.route_prefix') . '/client');
+        CRUD::setRoute(config('backpack.base.route_prefix').'/client');
         CRUD::setEntityNameStrings(__('client.entity'), __('client.entity_plural'));
-        
+
         // Enable export buttons
         $this->crud->enableExportButtons();
     }
 
     /**
      * Define what happens when the List operation is loaded.
-     * 
+     *
      * @see  https://backpackforlaravel.com/docs/crud-operation-list-entries
+     *
      * @return void
      */
     protected function setupListOperation()
     {
+        // The CrudPanel lives for the whole PHP request. A later call (the SMS
+        // action, or a second hit in the same process) must not register the
+        // filters again.
+        if ($this->crud->filtersEnabled() && $this->crud->filters()->isNotEmpty()) {
+            return;
+        }
+
         CRUD::addColumn([
             'name' => 'id',
             'label' => __('client.id'),
@@ -76,7 +90,6 @@ class ClientCrudController extends CrudController
             'type' => 'phone',
         ]);
 
-        
         // Add client type column
         CRUD::addColumn([
             'name' => 'client_type',
@@ -87,10 +100,10 @@ class ClientCrudController extends CrudController
                 'element' => 'span',
                 'class' => function ($crud, $column, $entry, $related_key) {
                     return $entry->client_type ? 'badge badge-success' : 'badge badge-info';
-                }
-            ]
+                },
+            ],
         ]);
-        
+
         CRUD::setFromDb();
 
         // setFromDb() derives labels from the column names ("Personal", "Starting
@@ -104,10 +117,10 @@ class ClientCrudController extends CrudController
         CRUD::addFilter([
             'name' => 'client_type',
             'type' => 'select2',
-            'label' => __('client.client_type')
-        ], function() {
+            'label' => __('client.client_type'),
+        ], function () {
             return __('client.types');
-        }, function($value) {
+        }, function ($value) {
             $this->crud->addClause('where', 'client_type', $value);
         });
 
@@ -125,46 +138,51 @@ class ClientCrudController extends CrudController
         CRUD::addFilter([
             'type' => 'text',
             'name' => 'name',
-            'label' => __('client.name')
+            'label' => __('client.name'),
         ],
-        false,
-        function($value) {
-            $this->crud->addClause('where', 'name', 'LIKE', "%{$value}%");
-        });
+            false,
+            function ($value) {
+                $this->crud->addClause('where', 'name', 'LIKE', "%{$value}%");
+            });
 
         CRUD::addFilter([
             'type' => 'text',
             'name' => 'email',
-            'label' => __('client.email')
+            'label' => __('client.email'),
         ],
-        false,
-        function($value) {
-            $this->crud->addClause('where', 'email', 'LIKE', "%{$value}%");
-        });
+            false,
+            function ($value) {
+                $this->crud->addClause('where', 'email', 'LIKE', "%{$value}%");
+            });
 
         CRUD::addFilter([
             'type' => 'text',
             'name' => 'phone_number',
-            'label' => __('client.phone')
+            'label' => __('client.phone'),
         ],
-        false,
-        function($value) {
-            $this->crud->addClause('where', 'phone_number', 'LIKE', "%{$value}%");
-        });
+            false,
+            function ($value) {
+                $this->crud->addClause('where', 'phone_number', 'LIKE', "%{$value}%");
+            });
 
         CRUD::addFilter([
             'type' => 'text',
             'name' => 'address',
-            'label' => __('client.address')
+            'label' => __('client.address'),
         ],
-        false,
-        function($value) {
-            $this->crud->addClause('where', 'address', 'LIKE', "%{$value}%");
-        });
+            false,
+            function ($value) {
+                $this->crud->addClause('where', 'address', 'LIKE', "%{$value}%");
+            });
 
         $this->crud->query->with(['cabinetAccount', 'authorUser']);
 
         $this->crud->addButton('line', 'allow_cabinet', 'view', 'crud::buttons.allow_cabinet', 'beginning');
+
+        if (backpack_user()?->can('notification.create')) {
+            $this->crud->enableBulkActions();
+            $this->crud->addButton('top', 'send_sms', 'view', 'crud::buttons.send_sms', 'end');
+        }
 
         CRUD::addColumn([
             'name' => 'cabinet_access',
@@ -202,8 +220,9 @@ class ClientCrudController extends CrudController
 
     /**
      * Define what happens when the Create operation is loaded.
-     * 
+     *
      * @see https://backpackforlaravel.com/docs/crud-operation-create
+     *
      * @return void
      */
     protected function setupCreateOperation()
@@ -217,8 +236,8 @@ class ClientCrudController extends CrudController
             'default' => 0,
             'hint' => __('client.hints.client_type'),
             'wrapper' => [
-                'class' => 'form-group col-md-12'
-            ]
+                'class' => 'form-group col-md-12',
+            ],
         ]);
 
         CRUD::addField([
@@ -227,8 +246,8 @@ class ClientCrudController extends CrudController
             'type' => 'text',
             'validationRules' => 'required',
             'wrapper' => [
-                'class' => 'form-group col-md-6'
-            ]
+                'class' => 'form-group col-md-6',
+            ],
         ]);
 
         CRUD::addField([
@@ -238,11 +257,11 @@ class ClientCrudController extends CrudController
             'validationRules' => 'required_if:client_type,0|nullable|string|max:255|unique:clients,personal_id',
             'wrapper' => [
                 'class' => 'form-group col-md-6 personal-id-field',
-                'style' => 'display: none;'
+                'style' => 'display: none;',
             ],
             'attributes' => [
                 'placeholder' => __('client.placeholders.personal_id'),
-            ]
+            ],
         ]);
 
         CRUD::addField([
@@ -251,14 +270,13 @@ class ClientCrudController extends CrudController
             'type' => 'textarea',
             'validationRules' => 'required',
             'wrapper' => [
-                'class' => 'form-group col-md-12'
+                'class' => 'form-group col-md-12',
             ],
             'attributes' => [
                 'required' => true,
             ],
         ]);
 
-        
         CRUD::addField([
             'name' => 'legal_id',
             'label' => __('client.legal_id'),
@@ -266,13 +284,12 @@ class ClientCrudController extends CrudController
             'validationRules' => 'required_if:client_type,1',
             'wrapper' => [
                 'class' => 'form-group col-md-6 legal-id-field',
-                'style' => 'display: none;'
+                'style' => 'display: none;',
             ],
             'attributes' => [
-                'placeholder' => __('client.placeholders.legal_id')
-            ]
+                'placeholder' => __('client.placeholders.legal_id'),
+            ],
         ]);
-
 
         CRUD::addField([
             'name' => 'email',
@@ -280,23 +297,22 @@ class ClientCrudController extends CrudController
             'type' => 'email',
             'validationRules' => 'nullable|email|unique:clients,email',
             'wrapper' => [
-                'class' => 'form-group col-md-6 email-field'
-            ]
+                'class' => 'form-group col-md-6 email-field',
+            ],
         ]);
 
-
         CRUD::addField([   // phone
-            'name'  => 'phone_number', // db column for phone
+            'name' => 'phone_number', // db column for phone
             'label' => __('client.phone'),
-            'type'  => 'phone',
+            'type' => 'phone',
             'validationRules' => 'required|unique:clients,phone_number',
             'wrapper' => [
-                'class' => 'form-group col-md-6 phone-number-field'
+                'class' => 'form-group col-md-6 phone-number-field',
             ],
             'attributes' => [
                 'required' => true,
             ],
-        
+
             // OPTIONALS
             // most options provided by intlTelInput.js are supported, you can try them out using the `config` attribute;
             //  take note that options defined in `config` will override any default values from the field;
@@ -307,7 +323,7 @@ class ClientCrudController extends CrudController
                 'nationalMode' => true,
                 'autoHideDialCode' => false,
                 'placeholderNumberType' => 'MOBILE',
-            ]
+            ],
         ]);
 
         CRUD::addField([
@@ -320,10 +336,9 @@ class ClientCrudController extends CrudController
             ],
             'hint' => __('client.hints.starting_balance'),
             'wrapper' => [
-                'class' => 'form-group col-md-6'
-            ]
+                'class' => 'form-group col-md-6',
+            ],
         ]);
-
 
         $this->addCabinetFields();
 
@@ -332,8 +347,8 @@ class ClientCrudController extends CrudController
         $required = ' <span class="text-danger">*</span>';
         $personalIdLabel = json_encode(e(__('client.personal_id')));
         $legalIdLabel = json_encode(e(__('client.legal_id')));
-        $personalIdLabelRequired = json_encode(e(__('client.personal_id')) . $required);
-        $legalIdLabelRequired = json_encode(e(__('client.legal_id')) . $required);
+        $personalIdLabelRequired = json_encode(e(__('client.personal_id')).$required);
+        $legalIdLabelRequired = json_encode(e(__('client.legal_id')).$required);
 
         // Add JavaScript to handle the select functionality
         CRUD::addField([
@@ -360,8 +375,8 @@ class ClientCrudController extends CrudController
                             // Update labels with asterisk
                             const personalLabel = personalIdField.querySelector("label");
                             const legalLabel = legalIdField.querySelector("label");
-                            if (personalLabel) personalLabel.innerHTML = ' . $personalIdLabel . ';
-                            if (legalLabel) legalLabel.innerHTML = ' . $legalIdLabelRequired . ';
+                            if (personalLabel) personalLabel.innerHTML = '.$personalIdLabel.';
+                            if (legalLabel) legalLabel.innerHTML = '.$legalIdLabelRequired.';
                         } else {
                             // Individual client - show personal ID, hide legal ID
                             personalIdField.style.display = "block";
@@ -373,8 +388,8 @@ class ClientCrudController extends CrudController
                             // Update labels with asterisk
                             const personalLabel = personalIdField.querySelector("label");
                             const legalLabel = legalIdField.querySelector("label");
-                            if (personalLabel) personalLabel.innerHTML = ' . $personalIdLabelRequired . ';
-                            if (legalLabel) legalLabel.innerHTML = ' . $legalIdLabel . ';
+                            if (personalLabel) personalLabel.innerHTML = '.$personalIdLabelRequired.';
+                            if (legalLabel) legalLabel.innerHTML = '.$legalIdLabel.';
                         }
                     }
                     
@@ -385,7 +400,7 @@ class ClientCrudController extends CrudController
                     clientTypeSelect.addEventListener("change", toggleIdFields);
                 });
                 </script>
-            '
+            ',
         ]);
 
         $this->crud->setValidation();
@@ -486,8 +501,9 @@ class ClientCrudController extends CrudController
 
     /**
      * Define what happens when the Update operation is loaded.
-     * 
+     *
      * @see https://backpackforlaravel.com/docs/crud-operation-update
+     *
      * @return void
      */
     protected function setupUpdateOperation()
@@ -497,13 +513,13 @@ class ClientCrudController extends CrudController
         $entryId = $this->crud->getCurrentEntryId();
         if ($entryId) {
             $this->crud->modifyField('personal_id', [
-                'validationRules' => 'required_if:client_type,0|nullable|string|max:255|unique:clients,personal_id,' . $entryId,
+                'validationRules' => 'required_if:client_type,0|nullable|string|max:255|unique:clients,personal_id,'.$entryId,
             ]);
             $this->crud->modifyField('email', [
-                'validationRules' => 'nullable|email|unique:clients,email,' . $entryId,
+                'validationRules' => 'nullable|email|unique:clients,email,'.$entryId,
             ]);
             $this->crud->modifyField('phone_number', [
-                'validationRules' => 'required|unique:clients,phone_number,' . $entryId,
+                'validationRules' => 'required|unique:clients,phone_number,'.$entryId,
             ]);
 
             // Field rules are cached when first added in setupCreateOperation; rebuild after modifying.
@@ -514,13 +530,13 @@ class ClientCrudController extends CrudController
 
     /**
      * Create a client via AJAX request.
-     * 
+     *
      * @return \Illuminate\Http\JsonResponse
      */
     public function createAjax()
     {
         $request = request();
-        
+
         // Validate the request
         $validated = $request->validate([
             'name' => 'required|string|max:255',
@@ -534,18 +550,18 @@ class ClientCrudController extends CrudController
 
         try {
             $client = \App\Models\Client::create($validated);
-            
+
             return response()->json([
                 'success' => true,
                 'client' => [
                     'id' => $client->id,
-                    'name_with_id' => $client->name_with_id
-                ]
+                    'name_with_id' => $client->name_with_id,
+                ],
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => __('client.messages.create_failed', ['error' => $e->getMessage()])
+                'message' => __('client.messages.create_failed', ['error' => $e->getMessage()]),
             ], 422);
         }
     }
@@ -577,5 +593,123 @@ class ClientCrudController extends CrudController
             'success' => true,
             'message' => __('client.cabinet.sms_queued'),
         ]);
+    }
+
+    /**
+     * Count who would receive an SMS. Does not queue anything.
+     */
+    public function previewSms(ClientSmsRequest $request, ClientSmsBroadcast $broadcast): JsonResponse
+    {
+        $result = $broadcast->preview($this->clientsForSms($request), (string) $request->input('body'));
+
+        if (! $result['ok']) {
+            return response()->json($result, 422);
+        }
+
+        $result['confirm'] = $this->smsConfirmMessage($result, $request->audienceIsEveryone());
+
+        return response()->json($result);
+    }
+
+    /**
+     * Queue one SMS per selected client, or per client matching the current filters.
+     */
+    public function sendSms(ClientSmsRequest $request, ClientSmsBroadcast $broadcast): JsonResponse
+    {
+        $result = $broadcast->send(
+            $this->clientsForSms($request),
+            (string) $request->input('body'),
+            $this->smsTemplateMatching($request)
+        );
+
+        if (! $result['ok']) {
+            return response()->json($result, 422);
+        }
+
+        $result['message'] = __('client.sms.queued', ['count' => $result['queued']]);
+
+        return response()->json($result);
+    }
+
+    protected function clientsForSms(ClientSmsRequest $request): Builder
+    {
+        if ($request->input('scope') === 'selected') {
+            return Client::query()->whereIn('clients.id', $request->input('entries', []));
+        }
+
+        // The list filters read the current request, including the query string
+        // the clients table already uses.
+        $this->crud->setOperation('list');
+        $this->prepareClientListQuery();
+
+        $search = trim((string) $request->input('search', ''));
+
+        if ($search !== '') {
+            $this->crud->applySearchTerm($search);
+        }
+
+        return $this->crud->query;
+    }
+
+    /**
+     * Register the clients-list filters, or run them again when this panel
+     * already has them. A second setupListOperation() would abort on the
+     * duplicate filter names.
+     */
+    protected function prepareClientListQuery(): void
+    {
+        if ($this->crud->filtersEnabled() && $this->crud->filters()->isNotEmpty()) {
+            $this->crud->filters()->each(function ($filter) {
+                $filter->applied(false);
+                $this->crud->applyFilter($filter);
+            });
+
+            return;
+        }
+
+        $this->setupListOperation();
+    }
+
+    protected function smsTemplateMatching(ClientSmsRequest $request): ?SmsTemplate
+    {
+        $templateId = $request->input('sms_template_id');
+
+        if (! $templateId) {
+            return null;
+        }
+
+        $template = SmsTemplate::query()->find($templateId);
+
+        if (! $template || trim($template->text) !== trim((string) $request->input('body'))) {
+            return null;
+        }
+
+        return $template;
+    }
+
+    /**
+     * @param  array{queued: int, skipped: int, duplicates: int, sample: ?string}  $result
+     */
+    protected function smsConfirmMessage(array $result, bool $everyone): string
+    {
+        $parts = [
+            $everyone
+                ? __('client.sms.confirm_all', ['count' => $result['queued']])
+                : __('client.sms.confirm', ['count' => $result['queued']]),
+        ];
+
+        if ($result['skipped'] > 0) {
+            $parts[] = __('client.sms.skipped', ['count' => $result['skipped']]);
+        }
+
+        if ($result['duplicates'] > 0) {
+            $parts[] = __('client.sms.duplicates', ['count' => $result['duplicates']]);
+        }
+
+        if (filled($result['sample'])) {
+            $parts[] = __('client.sms.sample', ['sample' => $result['sample']]);
+        }
+
+        return implode("\n\n", $parts);
     }
 }

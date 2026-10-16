@@ -120,7 +120,7 @@ class Notification extends Model
             throw new InvalidArgumentException(__('notification.errors.too_long'));
         }
 
-        $notification = new static();
+        $notification = new static;
         $notification->forceFill([
             'type' => $type,
             'sms_template_id' => $template?->getKey(),
@@ -139,6 +139,52 @@ class Notification extends Model
     public static function queueSms(string $recipient, SmsTemplate $template, ?Model $notifiable = null, array $variables = []): self
     {
         return self::queue(self::TYPE_SMS, $recipient, '', $notifiable, $template, $variables);
+    }
+
+    /**
+     * Queue an SMS written by staff. A template is optional; when one is
+     * passed its id is stored. Placeholders such as {client_name} are filled
+     * from $notifiable unless $interpolate is false and $body is already filled.
+     *
+     * @throws InvalidArgumentException
+     */
+    public static function queueCustomSms(string $recipient, string $body, ?Model $notifiable = null, ?SmsTemplate $template = null, bool $interpolate = true): self
+    {
+        $recipient = PhoneNumber::normalize($recipient) ?? '';
+        $body = $interpolate
+            ? trim(SmsTemplate::interpolate($body, SmsTemplate::variablesFrom($notifiable)))
+            : trim($body);
+        $left = SmsTemplate::placeholders($body);
+
+        if ($left !== []) {
+            throw new InvalidArgumentException(__('notification.errors.unresolved', [
+                'variables' => implode(', ', array_map(fn (string $name) => '{'.$name.'}', $left)),
+            ]));
+        }
+
+        if ($recipient === '') {
+            throw new InvalidArgumentException(__('notification.errors.phone'));
+        }
+
+        if ($body === '') {
+            throw new InvalidArgumentException(__('notification.errors.body'));
+        }
+
+        if (mb_strlen($body) > 1000) {
+            throw new InvalidArgumentException(__('notification.errors.too_long'));
+        }
+
+        $notification = new static;
+        $notification->forceFill([
+            'type' => self::TYPE_SMS,
+            'sms_template_id' => $template?->getKey(),
+            'recipient' => $recipient,
+            'body' => $body,
+            'notifiable_type' => $notifiable?->getMorphClass(),
+            'notifiable_id' => $notifiable?->getKey(),
+        ])->save();
+
+        return $notification;
     }
 
     /**

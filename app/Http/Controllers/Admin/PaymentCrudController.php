@@ -734,7 +734,7 @@ class PaymentCrudController extends CrudController
             'type' => 'required|in:' . implode(',', array_keys(Payment::types())),
             'status' => 'required|in:Paid,Pending',
             'payment_date' => 'required|date',
-            'file' => 'nullable|file|max:10240',
+            'file' => 'nullable|file|max:65536',
             'idempotency_key' => 'nullable|string|max:64',
         ]);
 

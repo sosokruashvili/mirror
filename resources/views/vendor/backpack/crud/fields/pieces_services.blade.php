@@ -29,6 +29,7 @@
         return [
             'id' => $service->id,
             'title' => $service->title,
+            'unit' => $service->unit,
             'extra_field_names' => is_array($extra) ? array_values($extra) : [],
         ];
     })->values();

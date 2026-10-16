@@ -21,8 +21,11 @@
 
     // serviceId -> [extra field names]
     var serviceExtraMap = {};
+    // serviceId -> unit. "ცალი" is billed from the quantity typed on the line.
+    var serviceUnitMap = {};
     (DATA.services || []).forEach(function (s) {
         serviceExtraMap[String(s.id)] = s.extra_field_names || [];
+        serviceUnitMap[String(s.id)] = String(s.unit || '').trim();
     });
 
     // Every possible extra sub-field (the templates carry one wrapper per field).
@@ -187,6 +190,12 @@
         return parseInt($card.find('[data-piece-field="quantity"]').val(), 10) || 1;
     }
 
+    // Metre and square-metre services scale with how many pieces share the size.
+    // A "ცალი" service does not: the quantity typed on the line is already the total.
+    function serviceScalesWithPieceQuantity(serviceId) {
+        return serviceUnitMap[String(serviceId)] !== 'ცალი';
+    }
+
     function calculateRowPrice($row) {
         var serviceId = getSvc($row, 'service_id');
         if (!serviceId) { alert('Please select a service first'); return; }
@@ -198,11 +207,12 @@
             if (name && name !== 'service_id') { formData[name] = $(this).val(); }
         });
 
-        // perimeter/area are shown as piece totals, but the price is computed from a per-unit
-        // metric that then gets scaled by the piece quantity below. Feed the endpoint the
-        // per-unit value so the final price stays identical to how it has always been computed.
+        // Perimeter and area are shown as piece totals. Services that scale with the
+        // piece count are priced from the per-piece metric, then multiplied back below.
+        // A "ცალი" line is priced from the numbers on the form as typed.
+        var scales = serviceScalesWithPieceQuantity(serviceId);
         var qty = pieceQuantityFor($row);
-        if (qty > 1) {
+        if (scales && qty > 1) {
             if (formData.perimeter) { formData.perimeter = parseFloat(formData.perimeter) / qty; }
             if (formData.area) { formData.area = parseFloat(formData.area) / qty; }
         }
@@ -214,7 +224,7 @@
             headers: { 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content') || $('input[name="_token"]').val() },
             success: function (response) {
                 if (response.price_gel !== undefined) {
-                    var pieceQty = pieceQuantityFor($row);
+                    var pieceQty = scales ? pieceQuantityFor($row) : 1;
                     var products = getEligibleProductsCount() || 1;
                     setSvc($row, 'price_gel', response.price_gel * pieceQty * products);
                 }

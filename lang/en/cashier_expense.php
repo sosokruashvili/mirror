@@ -56,7 +56,7 @@ return [
         'price_usd_locked' => 'Filled from the supplier price. Cannot be edited.',
         'amount_gel' => 'Amount paid now. Enter 0 if the whole purchase is on credit.',
         'credit' => 'Unpaid portion. For a 1000 ₾ purchase paid nothing, enter amount 0 and credit 1000.',
-        'file' => 'Allowed types: PDF, PNG, JPEG, JPG',
+        'file' => 'Allowed types: PDF, PNG, JPEG, JPG. Maximum 64 MB.',
     ],
 
     // Appended to a category that stopped being a leaf after children were added

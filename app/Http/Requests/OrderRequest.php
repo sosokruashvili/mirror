@@ -39,7 +39,7 @@ class OrderRequest extends FormRequest
             'product_type' => 'required|string|max:255',
             'currency_rate' => 'required|numeric|min:0',
             'author' => 'required|numeric|min:1',
-            'atachment' => 'nullable|file|mimes:pdf,png,jpeg,jpg',
+            'atachment' => 'nullable|file|mimes:pdf,png,jpeg,jpg|max:65536',
             'comment' => 'nullable|string|max:5000',
             'expenses' => 'nullable|numeric|min:0',
             'due_date' => 'nullable|date',

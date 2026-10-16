@@ -24,7 +24,7 @@ class PaymentRequest extends FormRequest
             'currency_rate' => 'required|numeric|min:0',
             'amount_gel' => 'required|numeric|min:0',
             'payment_date' => 'required|date',
-            'file' => 'nullable|file|max:10240',
+            'file' => 'nullable|file|max:65536',
         ];
     }
 

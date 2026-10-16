@@ -31,7 +31,7 @@ class CashierExpenseRequest extends FormRequest
             'amount_gel' => 'required|numeric|min:0|max:999999999.99',
             'credit' => 'nullable|numeric|min:0|max:999999999.99',
             'description' => 'nullable|string|max:5000',
-            'file' => 'nullable|file|mimes:pdf,png,jpeg,jpg|max:10240',
+            'file' => 'nullable|file|mimes:pdf,png,jpeg,jpg|max:65536',
             'expense_date' => 'required|date',
         ];
     }

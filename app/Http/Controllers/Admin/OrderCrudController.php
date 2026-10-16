@@ -609,6 +609,8 @@ class OrderCrudController extends CrudController
             'type' => 'upload',
             'upload' => true,
             'disk' => 'public',
+            // Clipboard paste (screenshots) is filled into this same file input.
+            'paste' => true,
             'attributes' => [
                 'accept' => '.pdf,.png,.jpeg,.jpg',
             ],
@@ -1521,7 +1523,9 @@ class OrderCrudController extends CrudController
      * to the unscaled formula, matching the previous behaviour). Employees
      * cannot override it: an unchanged line keeps its stored price, and a new
      * or changed line is priced with the same formula the order form uses
-     * (base price × piece quantity × glass/mirror product count).
+     * (base price × piece quantity × glass/mirror product count). Services
+     * whose unit is „ცალი“ skip the piece-quantity factor: the quantity typed
+     * on the line is already the total for every piece of that size.
      *
      * @param  array<int, array{service_id: int, piece_id: ?int, price_gel: float, signature: string}>  $preservedPool
      */
@@ -1695,7 +1699,7 @@ class OrderCrudController extends CrudController
             'cutout' => ['length_cm'],
             'hole', 'hingcut', 'hanger', 'silicone', 'stick', 'kutxis_momrgvaleba' => ['quantity'],
             'light' => ['tape_length', 'foam_length', 'sensor_quantity1'],
-            'antifog' => [],
+            'antifog' => ['quantity'],
             default => ['perimeter', 'area', 'distance', 'length_cm', 'quantity', 'tape_length', 'foam_length', 'sensor_quantity1'],
         };
     }
@@ -1717,8 +1721,22 @@ class OrderCrudController extends CrudController
     }
 
     /**
-     * Service line price the way the order form computes it: the per-unit
-     * formula, then × piece quantity × glass/mirror product count.
+     * Whether the piece count scales this service's price.
+     *
+     * Metre and square-metre services do: two pieces have twice the edge and
+     * twice the area. A service billed per piece (unit „ცალი“) does not — the
+     * quantity entered on the line is the total for the whole size.
+     */
+    private function serviceScalesWithPieceQuantity(Service $service): bool
+    {
+        return trim((string) $service->unit) !== 'ცალი';
+    }
+
+    /**
+     * Service line price the way the order form computes it.
+     *
+     * Scaling services: per-unit formula × piece quantity × glass/mirror product count.
+     * Piece-unit services: the typed measure as-is × glass/mirror product count.
      *
      * @param  array<string, mixed>  $serviceData
      */
@@ -1726,7 +1744,9 @@ class OrderCrudController extends CrudController
     {
         $data = $serviceData;
         $qty = max(1, $pieceQty);
-        if ($qty > 1) {
+        $scale = $this->serviceScalesWithPieceQuantity($service);
+
+        if ($scale && $qty > 1) {
             if (isset($data['perimeter']) && $data['perimeter'] !== '' && $data['perimeter'] !== null) {
                 $data['perimeter'] = ((float) $data['perimeter']) / $qty;
             }
@@ -1736,8 +1756,9 @@ class OrderCrudController extends CrudController
         }
 
         $base = $this->calculateServicePriceGel($service, $data);
+        $pieceMultiplier = $scale ? $qty : 1;
 
-        return round($base * $qty * max(1, $productCount), 2);
+        return round($base * $pieceMultiplier * max(1, $productCount), 2);
     }
 
     /**
@@ -1779,7 +1800,13 @@ class OrderCrudController extends CrudController
                 $price_gel = ($serviceData['quantity'] ?? 0) * $service->getPriceGel();
                 break;
             case 'antifog':
-                $price_gel = $service->getPriceGel();
+                // Blank quantity is one unit. The number typed here is the total
+                // for the whole piece size; piece count does not multiply it again.
+                $count = $serviceData['quantity'] ?? null;
+                if ($count === null || $count === '') {
+                    $count = 1;
+                }
+                $price_gel = (float) $count * $service->getPriceGel();
                 break;
             case 'light':
                 $price_gel = ($serviceData['tape_length'] ?? 0) * 20 + ($serviceData['foam_length'] ?? 0) * 5 + ($serviceData['sensor_quantity1'] ?? 0) * 50 + 50;

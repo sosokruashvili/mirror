@@ -15,12 +15,6 @@ use Throwable;
 class SmsOfficeSender implements SmsSender
 {
     /**
-     * TEMPORARY. Every live SMS is delivered here so a trial does not reach a client.
-     * Delete this and the override in send(), then pass $destinations through again.
-     */
-    private const TEST_DESTINATION = '995557541332';
-
-    /**
      * @param array{key?: ?string, sender?: ?string, urgent?: bool, base_url?: string, timeout?: int} $config
      */
     public function __construct(
@@ -56,9 +50,6 @@ class SmsOfficeSender implements SmsSender
 
         $urgent = $message->urgent ?? (bool) ($this->config['urgent'] ?? true);
 
-        $intended = $destinations;
-        $destinations = [self::TEST_DESTINATION];
-
         $params = [
             'key' => $this->key(),
             'destination' => implode(',', $destinations),
@@ -80,7 +71,6 @@ class SmsOfficeSender implements SmsSender
 
         Log::info('SMS sent via smsoffice.ge', [
             'destinations' => $destinations,
-            'intended_destinations' => $intended,
             'sender' => $sender,
             'reference' => $params['reference'] ?? null,
             'gateway_message' => $data['Message'] ?? null,

@@ -57,7 +57,7 @@ class SmsOfficeSenderTest extends TestCase
 
         $result = $this->sender()->send('577 123 456', SmsMessage::create('გამარჯობა')->reference('order-42'));
 
-        $this->assertSame(['995557541332'], $result->destinations);
+        $this->assertSame(['995577123456'], $result->destinations);
         $this->assertSame('order-42', $result->reference);
         $this->assertSame('Accepted', $result->gatewayMessage);
 
@@ -66,7 +66,7 @@ class SmsOfficeSenderTest extends TestCase
                 && $request->url() === 'https://smsoffice.ge/api/v2/send/'
                 && $request->isForm()
                 && $request['key'] === 'secret-key'
-                && $request['destination'] === '995557541332'
+                && $request['destination'] === '995577123456'
                 && $request['sender'] === 'MirrorGal'
                 && $request['content'] === 'გამარჯობა'
                 && $request['urgent'] === 'true'
@@ -81,7 +81,7 @@ class SmsOfficeSenderTest extends TestCase
         $this->sender()->send(['577123456', '599000000'], SmsMessage::create('Hi')->sender('Other')->urgent(false));
 
         Http::assertSent(function (Request $request) {
-            return $request['destination'] === '995557541332'
+            return $request['destination'] === '995577123456,995599000000'
                 && $request['sender'] === 'Other'
                 && $request['urgent'] === 'false'
                 && ! isset($request['reference']);

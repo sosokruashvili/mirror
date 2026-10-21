@@ -44,6 +44,7 @@ Route::group([
     Route::crud('client', 'ClientCrudController');
     Route::post('client/{id}/allow-cabinet', 'ClientCrudController@allowCabinet')->whereNumber('id')->name('client.allowCabinet');
     Route::crud('notification', 'NotificationCrudController');
+    Route::post('sms-template/{id}/test', 'SmsTemplateCrudController@sendTest')->whereNumber('id')->name('sms-template.test');
     Route::crud('sms-template', 'SmsTemplateCrudController');
     Route::post('client/create-ajax', 'ClientCrudController@createAjax')->name('client.createAjax');
     Route::crud('role', 'RoleCrudController');

@@ -5,9 +5,11 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Requests\NotificationRequest;
 use App\Models\Client;
 use App\Models\Notification;
+use App\Models\Order;
 use App\Models\SmsTemplate;
 use Backpack\CRUD\app\Http\Controllers\CrudController;
 use Backpack\CRUD\app\Library\CrudPanel\CrudPanelFacade as CRUD;
+use Illuminate\Support\Str;
 
 /**
  * Outbound notifications. Saving an SMS only queues it; `notifications:send`
@@ -48,7 +50,12 @@ class NotificationCrudController extends CrudController
     protected function setupListOperation()
     {
         $this->crud->orderBy('id', 'desc');
-        $this->crud->with(['notifiable', 'authorUser', 'smsTemplate']);
+        $this->crud->with([
+            // Order rows show their client's name next to the order link.
+            'notifiable' => fn ($morphTo) => $morphTo->morphWith([Order::class => ['client']]),
+            'authorUser',
+            'smsTemplate',
+        ]);
 
         $this->setupColumns();
         $this->setupFilters();
@@ -422,6 +429,13 @@ class NotificationCrudController extends CrudController
 
         if ($subject instanceof Client) {
             return '<a href="'.e(backpack_url('client/'.$subject->getKey().'/show')).'">'.$label.'</a>';
+        }
+
+        if ($subject instanceof Order) {
+            $link = '<a href="'.e(backpack_url('order/'.$subject->getKey().'/show')).'">'
+                .e(Str::ucfirst(__('order.entity')).' #'.$subject->getKey()).'</a>';
+
+            return $subject->client ? $link.' · '.e($subject->client->name) : $link;
         }
 
         return e(class_basename($subject)).': '.$label;

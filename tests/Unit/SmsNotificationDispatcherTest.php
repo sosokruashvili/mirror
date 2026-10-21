@@ -6,6 +6,7 @@ use App\Facades\Sms;
 use App\Models\Client;
 use App\Models\ClientAccount;
 use App\Models\Notification;
+use App\Models\Order;
 use App\Models\SmsTemplate;
 use App\Models\User;
 use App\Services\Notifications\SmsNotificationDispatcher;
@@ -501,20 +502,23 @@ class SmsNotificationDispatcherTest extends TestCase
         $this->withoutMiddleware($this->csrfMiddleware());
 
         $title = 'ready-'.uniqid();
+        $key = 'ready_'.substr(uniqid(), -8);
         $create = $this->actingAs($this->admin(), 'backpack')->get('/admin/sms-template/create');
         $create->assertOk();
         $this->assertStringContainsString('{client_name}', $create->getContent());
         $this->assertStringContainsString('კლიენტის სახელი', $create->getContent());
+        $this->assertStringContainsString('name="key"', $create->getContent());
 
         $save = $this->actingAs($this->admin(), 'backpack')->post('/admin/sms-template', [
             'title' => $title,
+            'key' => $key,
             'text' => 'გამარჯობა {client_name}',
             '_save_action' => 'save_and_back',
         ]);
 
         $save->assertSessionHasNoErrors();
         $save->assertRedirect();
-        $this->assertNotNull(SmsTemplate::query()->where('title', $title)->first());
+        $this->assertSame($key, SmsTemplate::query()->where('title', $title)->value('key'));
 
         $list = $this->actingAs($this->admin(), 'backpack')->get('/admin/sms-template');
         $list->assertOk();
@@ -595,6 +599,81 @@ class SmsNotificationDispatcherTest extends TestCase
         $this->assertSame('Hello Nino', $notification->body);
         $this->assertSame($template->id, (int) $notification->sms_template_id);
         $this->assertSame(Notification::STATUS_PENDING, $notification->status);
+    }
+
+    public function test_template_form_counts_sms_with_placeholders_filled(): void
+    {
+        $samples = SmsTemplate::counterSamples();
+
+        $this->assertSame((string) Order::query()->max('id'), $samples['order_id']);
+        $this->assertSame(mb_strlen(Cabinet::accessUrl('abc12345')), mb_strlen($samples['cabinet_url']));
+        $this->assertSame([], SmsTemplate::placeholders(implode(' ', $samples)));
+
+        $create = $this->actingAs($this->admin(), 'backpack')->get('/admin/sms-template/create');
+
+        $create->assertOk();
+        $this->assertStringContainsString('data-sms-counter="', $create->getContent());
+        $this->assertStringContainsString('data-sms-counter-output', $create->getContent());
+        $this->assertStringContainsString('assets/js/sms-counter.js?v=', $create->getContent());
+    }
+
+    public function test_a_template_test_sms_is_sent_only_to_the_typed_number(): void
+    {
+        $fake = Sms::fake();
+        $this->withoutMiddleware($this->csrfMiddleware());
+
+        $template = SmsTemplate::query()->create([
+            'title' => 'test-send-'.uniqid(),
+            'text' => 'გამარჯობა {client_name}, ბმული: {cabinet_url}',
+        ]);
+        $before = Notification::query()->count();
+
+        $send = $this->actingAs($this->admin(), 'backpack')->postJson(
+            '/admin/sms-template/'.$template->id.'/test',
+            ['phone' => '577 12 34 56']
+        );
+
+        $send->assertOk();
+        $send->assertJson(['success' => true]);
+        $this->assertTrue($fake->sentTo('577123456'));
+        $this->assertSame(
+            'გამარჯობა სატესტო კლიენტი, ბმული: '.SmsTemplate::testCabinetUrl(),
+            $fake->sent[0]['message']->content
+        );
+        $this->assertSame($before, Notification::query()->count());
+
+        $bad = $this->actingAs($this->admin(), 'backpack')->postJson(
+            '/admin/sms-template/'.$template->id.'/test',
+            ['phone' => '123']
+        );
+
+        $bad->assertStatus(422);
+        $this->assertCount(1, $fake->sent);
+    }
+
+    public function test_template_list_offers_a_test_sms_action(): void
+    {
+        $this->withoutMiddleware($this->csrfMiddleware());
+
+        $title = 'test-action-'.uniqid();
+        $template = SmsTemplate::query()->create([
+            'title' => $title,
+            'text' => 'hello {client_name}',
+        ]);
+
+        $rows = $this->actingAs($this->admin(), 'backpack')->postJson('/admin/sms-template/search', [
+            'draw' => 1,
+            'start' => 0,
+            'length' => 10,
+            'search' => ['value' => $title],
+        ]);
+
+        $rows->assertOk();
+        $flat = json_encode($rows->json('data'), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+        $this->assertIsString($flat);
+        $this->assertStringContainsString('სატესტო SMS', $flat);
+        $this->assertStringContainsString('/admin/sms-template/'.$template->id.'/test', $flat);
+        $this->assertStringContainsString('openSmsTemplateTest', $flat);
     }
 
     protected function smsTemplate(string $text): SmsTemplate

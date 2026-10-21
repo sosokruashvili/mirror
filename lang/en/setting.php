@@ -37,14 +37,17 @@ return [
     // Rows of the settings table
     'groups' => [
         'Production' => 'Production',
+        'SMS' => 'SMS',
     ],
 
     'labels' => [
         'cutting_size' => 'Cutting Size',
+        'order_ready_sms' => 'Order ready SMS',
     ],
 
     'descriptions' => [
         'cutting_size' => 'Cutting size in millimetres (mm).',
+        'order_ready_sms' => 'When on, the client gets an SMS (template order_ready) once an order becomes ready. When off, no new SMS is queued.',
     ],
 
 ];

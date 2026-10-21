@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Services\Notifications\OrderReadySms;
 use App\Services\OrderPieceStatusSync;
 use App\Support\Auditing\PieceStageLogger;
 use Backpack\CRUD\app\Models\Traits\CrudTrait;
@@ -74,6 +75,16 @@ class Order extends Model
             if ($order->getOriginal('status') === 'draft' && $order->status !== 'draft') {
                 $order->expenses = $order->calculateExpenses();
                 $order->saveQuietly();
+            }
+
+            // Production is done: tell the client the order can be collected.
+            if ($order->status === 'ready') {
+                OrderReadySms::queue($order);
+            }
+
+            // Handed out before the scheduler sent that SMS: no need for it now.
+            if ($order->status === 'finished') {
+                OrderReadySms::cancelPending($order);
             }
         });
     }

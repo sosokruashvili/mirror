@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Support\Cabinet\Cabinet;
 use Backpack\CRUD\app\Models\Traits\CrudTrait;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -17,19 +18,38 @@ class SmsTemplate extends Model
     /** SMS with the client's private cabinet link. */
     public const KEY_CABINET_ACCESS = 'cabinet_access';
 
+    /** SMS sent when an order's production is done (status ready). */
+    public const KEY_ORDER_READY = 'order_ready';
+
+    /** Keys the application looks up. These templates stay locked in the admin. */
+    public const SYSTEM_KEYS = [
+        self::KEY_CABINET_ACCESS,
+        self::KEY_ORDER_READY,
+    ];
+
     /** @var list<string> */
     public const VARIABLES = [
         'client_name',
         'client_phone',
         'cabinet_url',
+        'order_id',
     ];
+
+    /** Sample order number used only by a template test SMS. */
+    public const TEST_ORDER_ID = '1234';
 
     protected $table = 'sms_templates';
 
     protected $fillable = [
         'title',
+        'key',
         'text',
     ];
+
+    public function isSystem(): bool
+    {
+        return in_array($this->key, self::SYSTEM_KEYS, true);
+    }
 
     public function notifications(): HasMany
     {
@@ -48,6 +68,53 @@ class SmsTemplate extends Model
         }
 
         return $template;
+    }
+
+    /**
+     * Sample cabinet link used only by a template test SMS.
+     */
+    public static function testCabinetUrl(): string
+    {
+        return 'https://'.trim((string) config('cabinet.host')).'/test';
+    }
+
+    /**
+     * Values the template form's SMS counter puts in place of each placeholder,
+     * so it counts the text as it is sent. Only their length matters. The name
+     * is Georgian (most client names are) and as long as 90% of client names.
+     *
+     * @return array<string, string>
+     */
+    public static function counterSamples(): array
+    {
+        $names = Client::query()
+            ->whereNotNull('name')
+            ->pluck('name')
+            ->map(fn ($name) => mb_strlen(trim((string) $name)))
+            ->sort()
+            ->values();
+        $nameLength = $names->isEmpty() ? 15 : $names[(int) floor(0.9 * ($names->count() - 1))];
+
+        return [
+            'client_name' => str_repeat('ა', max(1, $nameLength)),
+            'client_phone' => '+995555000000',
+            'cabinet_url' => Cabinet::accessUrl(str_repeat('0', 8)),
+            'order_id' => (string) max(1, (int) Order::query()->max('id')),
+        ];
+    }
+
+    /**
+     * Template text as a test SMS would send it. Name, cabinet link and order
+     * number are samples; the phone is the number the test is addressed to.
+     */
+    public function renderForTest(string $phone): string
+    {
+        return $this->render([
+            'client_name' => __('sms_template.test.sample_name'),
+            'client_phone' => trim($phone),
+            'cabinet_url' => self::testCabinetUrl(),
+            'order_id' => self::TEST_ORDER_ID,
+        ]);
     }
 
     /**
@@ -72,7 +139,9 @@ class SmsTemplate extends Model
         }
 
         if ($notifiable instanceof Order) {
-            return self::variablesFromClient($notifiable->client);
+            return array_merge(self::variablesFromClient($notifiable->client), [
+                'order_id' => (string) $notifiable->getKey(),
+            ]);
         }
 
         return [];

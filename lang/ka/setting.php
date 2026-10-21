@@ -28,14 +28,17 @@ return [
     // Rows of the settings table
     'groups' => [
         'Production' => 'წარმოება',
+        'SMS' => 'SMS',
     ],
 
     'labels' => [
         'cutting_size' => 'ჭრის ზომა',
+        'order_ready_sms' => 'შეკვეთის მზაობის SMS',
     ],
 
     'descriptions' => [
         'cutting_size' => 'ჭრის ზომა მილიმეტრებში (მმ).',
+        'order_ready_sms' => 'ჩართვისას კლიენტი იღებს SMS-ს (შაბლონი order_ready), როცა შეკვეთა „მზადაა“ ხდება. გამორთვისას ახალი SMS რიგში არ ჩადგება.',
     ],
 
 ];

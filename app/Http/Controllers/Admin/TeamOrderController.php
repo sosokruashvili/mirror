@@ -784,9 +784,9 @@ class TeamOrderController extends Controller
      * JSON the team board uses to retint a size tag and refresh the parent
      * card (status badge / hand-out lock) without reloading the page.
      *
-     * Also tells the board whether the piece / order still match the filters
-     * the page was rendered with, so a just-completed stage can leave the
-     * list instead of staying visible until the next reload.
+     * Also tells the board whether the order still matches the filters the
+     * page was rendered with. A piece that just completed the selected stage
+     * stays on the card; the card leaves only once no piece still needs it.
      *
      * @return array<string, mixed>
      */

@@ -1084,9 +1084,10 @@
 
                                     $uniqueSizes = [];
                                     foreach($piecesWithSizes as $piece) {
-                                        // "ჩემი ეტაპი" is incomplete-work: hide pieces that no longer
-                                        // need a selected stage so the card matches a reload.
-                                        if (!$piece->matchesTeamStageFilter($stageFilter)) {
+                                        // Keep every piece that has the selected "ჩემი ეტაპი" stage,
+                                        // including ones already marked. The card itself leaves only
+                                        // once none of them still need that stage.
+                                        if (!$piece->visibleOnTeamStageCard($stageFilter)) {
                                             continue;
                                         }
 
@@ -1809,8 +1810,8 @@ jQuery(function($) {
 
     // Apply the stage-update JSON to the size tag that was clicked, and to
     // its parent order card (status badge + whether გატანილია is allowed).
-    // If the new stage falls outside the current "ჩემი ეტაპი" filter, the
-    // tag (or the whole card) leaves the board the same way a reload would.
+    // A marked piece stays on the card. The whole card leaves only once no
+    // piece still needs the current "ჩემი ეტაპი" selection.
     function applyPieceStageResult(tag, data) {
         var stage = data.stage || '';
         var completed = Array.isArray(data.completed_stages) ? data.completed_stages : [];
@@ -1838,10 +1839,6 @@ jQuery(function($) {
             removeOrderCard(card);
             return;
         }
-        if (data.piece_matches_filter === false) {
-            removeSizeTag(tag, card);
-            return;
-        }
 
         tag.classList.remove('stage-just-updated');
         void tag.offsetWidth;
@@ -1849,21 +1846,6 @@ jQuery(function($) {
         tag.addEventListener('animationend', function() {
             tag.classList.remove('stage-just-updated');
         }, { once: true });
-    }
-
-    function removeSizeTag(tag, card) {
-        if (!tag) return;
-        tag.classList.add('is-removing');
-        tag.style.pointerEvents = 'none';
-        tag.style.transition = 'opacity 0.3s, transform 0.3s';
-        tag.style.opacity = '0';
-        tag.style.transform = 'scale(0.8)';
-        setTimeout(function() {
-            if (tag.parentNode) tag.parentNode.removeChild(tag);
-            if (card && !card.querySelector('.size-tag:not(.is-removing)')) {
-                removeOrderCard(card);
-            }
-        }, 300);
     }
 
     // Toggle a single stage's completion for every piece in the size group.

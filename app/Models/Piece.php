@@ -151,24 +151,44 @@ class Piece extends Model
     }
 
     /**
-     * Whether this piece still belongs on the team board under the "ჩემი ეტაპი"
-     * filter: it HAS one of the selected stages (a service stage or a universal
-     * stage) and has NOT completed it yet. The `__none__` sentinel matches
-     * pieces with no services. An empty filter matches every piece.
+     * Normalize a "ჩემი ეტაპი" selection.
      *
-     * Mirrors TeamOrderController::applyOrderFilters() piece conditions so the
-     * AJAX stage toggle can drop tags the next reload would hide.
+     * An empty selection matches every piece, signalled by a null stage list.
+     * `__none__` is split out of the real stage slugs.
+     *
+     * @return array{0: ?array<int, string>, 1: bool}
      */
-    public function matchesTeamStageFilter(array $stageFilter): bool
+    private function normalizedTeamStageFilter(array $stageFilter): array
     {
         $stageFilter = array_values(array_filter($stageFilter, fn ($v) => $v !== '' && $v !== null));
 
         if ($stageFilter === []) {
-            return true;
+            return [null, false];
         }
 
-        $wantsNoStage = in_array('__none__', $stageFilter, true);
-        $realStages = array_values(array_filter($stageFilter, fn ($s) => $s !== '__none__'));
+        return [
+            array_values(array_filter($stageFilter, fn ($s) => $s !== '__none__')),
+            in_array('__none__', $stageFilter, true),
+        ];
+    }
+
+    /**
+     * Whether this piece is drawn on a team-board card for the "ჩემი ეტაპი"
+     * filter. Completion does not hide it: the tag stays after the stage is
+     * marked, and the whole card leaves only once every piece that has the
+     * stage has been marked.
+     *
+     * An empty filter shows every piece. The `__none__` sentinel matches
+     * pieces with no services. A real stage matches when the piece has it
+     * (one of its services, or a universal stage), completed or not.
+     */
+    public function visibleOnTeamStageCard(array $stageFilter): bool
+    {
+        [$realStages, $wantsNoStage] = $this->normalizedTeamStageFilter($stageFilter);
+
+        if ($realStages === null) {
+            return true;
+        }
 
         $services = $this->relationLoaded('services') ? $this->services : $this->services()->get();
 
@@ -178,6 +198,46 @@ class Piece extends Model
 
         if ($realStages === []) {
             return false;
+        }
+
+        $relevantNames = $this->relevantStages()->pluck('name')->all();
+
+        foreach ($realStages as $slug) {
+            if (in_array($slug, $relevantNames, true)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Whether this piece still needs work under the "ჩემი ეტაპი" filter: it
+     * has one of the selected stages and has NOT completed it yet. The
+     * `__none__` sentinel matches pieces with no services. An empty filter
+     * matches every piece.
+     *
+     * Mirrors TeamOrderController::applyOrderFilters() so the order stays on
+     * the board while any piece still needs a selected stage. A piece that
+     * already finished the stage stays on the card (see visibleOnTeamStageCard)
+     * until that is true of every piece.
+     */
+    public function matchesTeamStageFilter(array $stageFilter): bool
+    {
+        if (!$this->visibleOnTeamStageCard($stageFilter)) {
+            return false;
+        }
+
+        [$realStages, $wantsNoStage] = $this->normalizedTeamStageFilter($stageFilter);
+
+        if ($realStages === null) {
+            return true;
+        }
+
+        $services = $this->relationLoaded('services') ? $this->services : $this->services()->get();
+
+        if ($wantsNoStage && $services->isEmpty()) {
+            return true;
         }
 
         $completed = $this->completedStageNames();

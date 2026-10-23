@@ -20,7 +20,7 @@
                 <div class="card-body py-2">
                     <div class="text-secondary small">{{ __('cashier.details.cash_in') }}</div>
                     <div class="h3 mb-0 text-success">+ {{ number_format($cashIn, 2) }} ₾</div>
-                    <div class="text-secondary small">{{ __('cashier.details.cash_in_hint', ['count' => $payments->count()]) }}</div>
+                    <div class="text-secondary small">{{ __('cashier.details.cash_in_hint', ['count' => $cashInCount]) }}</div>
                 </div>
             </div>
         </div>
@@ -29,7 +29,7 @@
                 <div class="card-body py-2">
                     <div class="text-secondary small">{{ __('cashier.details.cash_out') }}</div>
                     <div class="h3 mb-0 text-danger">− {{ number_format($cashOut, 2) }} ₾</div>
-                    <div class="text-secondary small">{{ __('cashier.details.cash_out_hint', ['count' => $expenses->count()]) }}</div>
+                    <div class="text-secondary small">{{ __('cashier.details.cash_out_hint', ['count' => $cashOutCount]) }}</div>
                 </div>
             </div>
         </div>
@@ -123,7 +123,7 @@
                                 <tr>
                                     <th colspan="4">{{ __('cashier.details.total_cash_in') }}</th>
                                     <th class="text-end text-nowrap text-success">
-                                        {{ number_format($cashIn, 2) }} ₾
+                                        {{ number_format($paymentTotal, 2) }} ₾
                                     </th>
                                 </tr>
                             </tfoot>
@@ -192,7 +192,7 @@
                                 <tr>
                                     <th colspan="5">{{ __('cashier.details.total_cash_out') }}</th>
                                     <th class="text-end text-nowrap text-danger">
-                                        {{ number_format($cashOut, 2) }} ₾
+                                        {{ number_format($expenseTotal, 2) }} ₾
                                     </th>
                                 </tr>
                             </tfoot>
@@ -203,4 +203,52 @@
         </div>
 
     </div>
+
+    @if ($deposits->isNotEmpty() || $returns->isNotEmpty())
+        <div class="card mt-3">
+            <div class="card-header d-flex align-items-center justify-content-between py-2">
+                <h4 class="card-title mb-0">
+                    {{ __('cashier.details.safe_movements') }}
+                    <span class="badge bg-secondary-lt ms-1">{{ $deposits->count() + $returns->count() }}</span>
+                </h4>
+                <a href="{{ url(config('backpack.base.route_prefix') . '/safe') }}"
+                   class="btn btn-sm btn-outline-secondary">
+                    {{ __('cashier.details.view_all') }}
+                </a>
+            </div>
+            <div class="table-responsive cashier-subtable">
+                <table class="table table-sm table-vcenter card-table mb-0">
+                    <thead>
+                        <tr>
+                            <th>{{ __('cashier.details.time') }}</th>
+                            <th>{{ __('cashier.details.direction') }}</th>
+                            <th>{{ __('cashier.details.note') }}</th>
+                            <th>{{ __('cashier.details.author') }}</th>
+                            <th class="text-end">{{ __('cashier.details.amount') }}</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach ($deposits as $transfer)
+                            <tr>
+                                <td class="text-nowrap">{{ optional($transfer->transferred_at)->format('H:i') ?? '—' }}</td>
+                                <td>{{ $transfer->directionLabel() }}</td>
+                                <td>{{ $transfer->description ?: '—' }}</td>
+                                <td>{{ $transfer->authorUser?->name ?? '—' }}</td>
+                                <td class="text-end text-nowrap text-danger">− {{ number_format((float) $transfer->amount_gel, 2) }} ₾</td>
+                            </tr>
+                        @endforeach
+                        @foreach ($returns as $transfer)
+                            <tr>
+                                <td class="text-nowrap">{{ optional($transfer->transferred_at)->format('H:i') ?? '—' }}</td>
+                                <td>{{ $transfer->directionLabel() }}</td>
+                                <td>{{ $transfer->description ?: '—' }}</td>
+                                <td>{{ $transfer->authorUser?->name ?? '—' }}</td>
+                                <td class="text-end text-nowrap text-success">+ {{ number_format((float) $transfer->amount_gel, 2) }} ₾</td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    @endif
 </div>

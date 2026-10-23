@@ -113,10 +113,13 @@
     <x-backpack::menu-item title="{{ __('menu.payments') }}" icon="la la-money-bill-wave" :link="backpack_url('payment')" />
 @endif
 
-@if($u && ($u->can('cashier.list') || $u->can('cashier-expense.list') || $u->can('expense-category.list')))
+@if($u && ($u->can('cashier.list') || $u->can('safe.list') || $u->can('cashier-expense.list') || $u->can('expense-category.list')))
     <x-backpack::menu-dropdown title="{{ __('menu.cashier') }}" icon="la la-cash-register">
         @if($u->can('cashier.list'))
             <x-backpack::menu-dropdown-item title="{{ __('menu.cashier_balance') }}" icon="la la-wallet" :link="backpack_url('cashier')" />
+        @endif
+        @if($u->can('safe.list'))
+            <x-backpack::menu-dropdown-item title="{{ __('menu.safe') }}" icon="la la-lock" :link="backpack_url('safe')" />
         @endif
         @if($u->can('cashier-expense.list'))
             <x-backpack::menu-dropdown-item title="{{ __('menu.cashier_expenses') }}" icon="la la-receipt" :link="backpack_url('cashier-expense')" />

@@ -79,6 +79,15 @@ class CashierExpenseCrudController extends CrudController
         ]);
 
         CRUD::addColumn([
+            'name' => 'source',
+            'label' => __('cashier_expense.source'),
+            'type' => 'custom_html',
+            'value' => function ($entry) {
+                return e($entry->sourceLabel());
+            },
+        ]);
+
+        CRUD::addColumn([
             'name' => 'category_id',
             'label' => __('cashier_expense.category'),
             'type' => 'select',
@@ -239,6 +248,7 @@ class CashierExpenseCrudController extends CrudController
         ]);
         // Filename is versioned so browsers pick up fixes (Basset cache-busts via composer.lock only).
         Widget::add()->type('script')->content('assets/js/cashier-expense-supplier-v4.js');
+        Widget::add()->type('script')->content('assets/js/cashier-expense-source.js');
 
         CRUD::addField([
             'name' => 'status',
@@ -257,6 +267,16 @@ class CashierExpenseCrudController extends CrudController
             'options' => CashierExpense::types(),
             'allows_null' => false,
             'default' => CashierExpense::TYPE_CASH,
+        ]);
+
+        CRUD::addField([
+            'name' => 'source',
+            'label' => __('cashier_expense.source'),
+            'type' => 'select_from_array',
+            'options' => CashierExpense::sources(),
+            'allows_null' => false,
+            'default' => CashierExpense::SOURCE_CASHIER,
+            'hint' => __('cashier_expense.hints.source'),
         ]);
 
         CRUD::addField([
@@ -396,6 +416,14 @@ class CashierExpenseCrudController extends CrudController
 
         $entry = $this->crud->getCurrentEntry();
 
+        if ($entry) {
+            CRUD::modifyField('source', [
+                'value' => $entry->isSafeCash()
+                    ? CashierExpense::SOURCE_SAFE
+                    : CashierExpense::SOURCE_CASHIER,
+            ]);
+        }
+
         // Keep the saved supplier selectable even if it was unlinked from the
         // category since; otherwise editing the row would silently drop it.
         if ($entry && $entry->category_id && $entry->supplier_id && $entry->supplier) {
@@ -443,6 +471,14 @@ class CashierExpenseCrudController extends CrudController
             'label' => __('cashier_expense.status'),
             'type' => 'select_from_array',
             'options' => CashierExpense::statuses(),
+        ]);
+
+        CRUD::modifyColumn('source', [
+            'label' => __('cashier_expense.source'),
+            'type' => 'custom_html',
+            'value' => function ($entry) {
+                return e($entry->sourceLabel());
+            },
         ]);
 
         // setFromDb() only picks up $fillable columns, and author is intentionally

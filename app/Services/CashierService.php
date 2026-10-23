@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\CashierBalance;
 use App\Models\CashierExpense;
 use App\Models\Payment;
+use App\Models\SafeTransfer;
 use Carbon\Carbon;
 
 class CashierService
@@ -34,7 +35,35 @@ class CashierService
             ->confirmed()
             ->with('category')
             ->where('type', CashierExpense::TYPE_CASH)
+            ->where(function ($query) {
+                $query->whereNull('source')
+                    ->orWhere('source', '!=', CashierExpense::SOURCE_SAFE);
+            })
             ->whereDate('expense_date', $date);
+    }
+
+    /**
+     * Confirmed cash moved from the cashier into the safe on this day.
+     */
+    public function safeDepositsQueryForDate(Carbon $date)
+    {
+        return SafeTransfer::query()
+            ->confirmed()
+            ->with('authorUser')
+            ->where('direction', SafeTransfer::DIRECTION_TO_SAFE)
+            ->whereDate('transferred_at', $date);
+    }
+
+    /**
+     * Confirmed cash moved from the safe back into the cashier on this day.
+     */
+    public function safeReturnsQueryForDate(Carbon $date)
+    {
+        return SafeTransfer::query()
+            ->confirmed()
+            ->with('authorUser')
+            ->where('direction', SafeTransfer::DIRECTION_TO_CASHIER)
+            ->whereDate('transferred_at', $date);
     }
 
     public function getCashPaymentsForDate(Carbon $date): float
@@ -47,9 +76,191 @@ class CashierService
         return (float) $this->cashExpensesQueryForDate($date)->sum('amount_gel');
     }
 
+    public function getSafeDepositsForDate(Carbon $date): float
+    {
+        return (float) $this->safeDepositsQueryForDate($date)->sum('amount_gel');
+    }
+
+    public function getSafeReturnsForDate(Carbon $date): float
+    {
+        return (float) $this->safeReturnsQueryForDate($date)->sum('amount_gel');
+    }
+
+    /**
+     * Money that entered the cashier: cash payments plus cash returned from the safe.
+     */
+    public function getCashInForDate(Carbon $date): float
+    {
+        return $this->getCashPaymentsForDate($date) + $this->getSafeReturnsForDate($date);
+    }
+
+    /**
+     * Money that left the cashier: cash expenses paid from the cashier, plus
+     * deposits into the safe. Expenses paid from the safe are not included.
+     */
+    public function getCashOutForDate(Carbon $date): float
+    {
+        return $this->getCashExpensesForDate($date) + $this->getSafeDepositsForDate($date);
+    }
+
     public function getNetChangeForDate(Carbon $date): float
     {
-        return $this->getCashPaymentsForDate($date) - $this->getCashExpensesForDate($date);
+        return $this->getCashInForDate($date) - $this->getCashOutForDate($date);
+    }
+
+    /**
+     * Confirmed safe balance: deposits in, returns and safe-paid expenses out.
+     */
+    public function getSafeBalance(): float
+    {
+        $deposited = (float) SafeTransfer::query()
+            ->confirmed()
+            ->where('direction', SafeTransfer::DIRECTION_TO_SAFE)
+            ->sum('amount_gel');
+
+        $returned = (float) SafeTransfer::query()
+            ->confirmed()
+            ->where('direction', SafeTransfer::DIRECTION_TO_CASHIER)
+            ->sum('amount_gel');
+
+        $spent = (float) CashierExpense::query()
+            ->confirmed()
+            ->where('type', CashierExpense::TYPE_CASH)
+            ->where('source', CashierExpense::SOURCE_SAFE)
+            ->sum('amount_gel');
+
+        return round($deposited - $returned - $spent, 2);
+    }
+
+    public function getSafeStats(): array
+    {
+        $deposited = (float) SafeTransfer::query()
+            ->confirmed()
+            ->where('direction', SafeTransfer::DIRECTION_TO_SAFE)
+            ->sum('amount_gel');
+
+        $returned = (float) SafeTransfer::query()
+            ->confirmed()
+            ->where('direction', SafeTransfer::DIRECTION_TO_CASHIER)
+            ->sum('amount_gel');
+
+        $expenses = (float) CashierExpense::query()
+            ->confirmed()
+            ->where('type', CashierExpense::TYPE_CASH)
+            ->where('source', CashierExpense::SOURCE_SAFE)
+            ->sum('amount_gel');
+
+        return [
+            'balance' => round($deposited - $returned - $expenses, 2),
+            'deposited' => round($deposited, 2),
+            'returned' => round($returned, 2),
+            'expenses' => round($expenses, 2),
+        ];
+    }
+
+    /**
+     * Rewrite stored daily snapshots from $date through the latest stored day.
+     * Today's live balance does not depend on a snapshot for today.
+     */
+    public function resnapshotFrom(?Carbon $date): int
+    {
+        if ($date === null) {
+            return 0;
+        }
+
+        $first = CashierBalance::min('balance_date');
+        $last = CashierBalance::max('balance_date');
+
+        // No stored chain yet: today's balance is computed live, and inventing
+        // a first snapshot here would freeze an opening of zero.
+        if (! $first || ! $last) {
+            return 0;
+        }
+
+        $start = $date->copy()->startOfDay();
+        $chainStart = Carbon::parse($first)->startOfDay();
+        if ($start->lt($chainStart)) {
+            $start = $chainStart;
+        }
+
+        $end = now()->startOfDay();
+        $chainEnd = Carbon::parse($last)->startOfDay();
+        if ($chainEnd->gt($end)) {
+            $end = $chainEnd;
+        }
+
+        if ($start->gt($end)) {
+            return 0;
+        }
+
+        $count = 0;
+        for ($day = $start->copy(); $day->lte($end); $day->addDay()) {
+            $this->snapshotDailyBalance($day);
+            $count++;
+        }
+
+        return $count;
+    }
+
+    /**
+     * A confirmed cashier-cash expense, or one that used to be, changes the
+     * stored daily chain from the earlier of its old and new dates.
+     */
+    public static function refreshFromExpenseChange(CashierExpense $expense): void
+    {
+        $affectedBefore = $expense->getOriginal('status') === CashierExpense::STATUS_CONFIRMED
+            && $expense->getOriginal('type') === CashierExpense::TYPE_CASH
+            && $expense->getOriginal('source') !== CashierExpense::SOURCE_SAFE;
+
+        $affectedNow = $expense->exists && $expense->isConfirmed() && $expense->isCashierCash();
+
+        if (! $affectedBefore && ! $affectedNow) {
+            return;
+        }
+
+        app(self::class)->resnapshotFrom(self::earliestDate([
+            $expense->expense_date,
+            $expense->getOriginal('expense_date'),
+        ]));
+    }
+
+    /**
+     * Any confirmed safe transfer moves cashier cash, in either direction.
+     */
+    public static function refreshFromTransferChange(SafeTransfer $transfer): void
+    {
+        $affectedBefore = $transfer->getOriginal('status') === SafeTransfer::STATUS_CONFIRMED;
+        $affectedNow = $transfer->exists && $transfer->isConfirmed();
+
+        if (! $affectedBefore && ! $affectedNow) {
+            return;
+        }
+
+        app(self::class)->resnapshotFrom(self::earliestDate([
+            $transfer->transferred_at,
+            $transfer->getOriginal('transferred_at'),
+        ]));
+    }
+
+    /**
+     * @param  array<int, mixed>  $dates
+     */
+    private static function earliestDate(array $dates): ?Carbon
+    {
+        $earliest = null;
+
+        foreach ($dates as $value) {
+            if ($value === null || $value === '') {
+                continue;
+            }
+
+            $parsed = Carbon::parse($value);
+            if ($earliest === null || $parsed->lt($earliest)) {
+                $earliest = $parsed;
+            }
+        }
+
+        return $earliest;
     }
 
     public function getPreviousClosingBalance(Carbon $date): float
@@ -118,8 +329,8 @@ class CashierService
         return [
             'current_balance' => $this->getCurrentBalance(),
             'opening_balance' => $this->getPreviousClosingBalance($today),
-            'cash_in' => $this->getCashPaymentsForDate($today),
-            'cash_out' => $this->getCashExpensesForDate($today),
+            'cash_in' => $this->getCashInForDate($today),
+            'cash_out' => $this->getCashOutForDate($today),
             'net_change' => $this->getNetChangeForDate($today),
         ];
     }

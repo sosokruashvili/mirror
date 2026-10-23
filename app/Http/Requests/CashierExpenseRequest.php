@@ -19,6 +19,11 @@ class CashierExpenseRequest extends FormRequest
     {
         return [
             'type' => ['required', Rule::in(array_keys(CashierExpense::types()))],
+            'source' => [
+                'nullable',
+                Rule::requiredIf(fn () => $this->input('type') === CashierExpense::TYPE_CASH),
+                Rule::in(array_keys(CashierExpense::sources())),
+            ],
             'status' => ['required', Rule::in(array_keys(CashierExpense::statuses()))],
             'category_id' => [
                 'required',
@@ -69,6 +74,12 @@ class CashierExpenseRequest extends FormRequest
 
         if ($this->input('amount_gel') === null || $this->input('amount_gel') === '') {
             $this->merge(['amount_gel' => 0]);
+        }
+
+        if ($this->input('type') !== CashierExpense::TYPE_CASH) {
+            $this->merge(['source' => null]);
+        } elseif ($this->input('source') === null || $this->input('source') === '') {
+            $this->merge(['source' => CashierExpense::SOURCE_CASHIER]);
         }
 
         // The supplier field is hidden for categories with no suppliers, so drop
@@ -172,6 +183,7 @@ class CashierExpenseRequest extends FormRequest
     {
         return [
             'type' => __('cashier_expense.attributes.type'),
+            'source' => __('cashier_expense.attributes.source'),
             'status' => __('cashier_expense.attributes.status'),
             'category_id' => __('cashier_expense.attributes.category'),
             'supplier_id' => __('cashier_expense.attributes.supplier'),

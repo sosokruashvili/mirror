@@ -36,6 +36,7 @@ return [
 
     'cashier' => 'Cashier',
     'cashier_balance' => 'Balance',
+    'safe' => 'Safe',
     'cashier_expenses' => 'Expenses-Purchases',
     'expense_categories' => 'Expense Categories',
 

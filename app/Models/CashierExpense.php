@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Services\CashierService;
 use Backpack\CRUD\app\Models\Traits\CrudTrait;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
@@ -16,6 +17,13 @@ class CashierExpense extends Model
     public const TYPE_PM_TRANSFER = 'PM Transfer';
 
     /**
+     * Which cash pot a cash expense is paid from. Null is the historical
+     * default and means the cashier. Transfer types do not use this.
+     */
+    public const SOURCE_CASHIER = 'cashier';
+    public const SOURCE_SAFE = 'safe';
+
+    /**
      * A draft expense is still being entered: it is editable and it counts
      * nowhere - not in the cashier balance, not in the supplier balances, not
      * in the list summary widget. Confirming it freezes the row and lets it
@@ -26,6 +34,7 @@ class CashierExpense extends Model
 
     protected $fillable = [
         'type',
+        'source',
         'status',
         'category_id',
         'supplier_id',
@@ -57,6 +66,14 @@ class CashierExpense extends Model
                 $expense->author = backpack_user()->id;
             }
         });
+
+        static::saved(function (CashierExpense $expense) {
+            CashierService::refreshFromExpenseChange($expense);
+        });
+
+        static::deleted(function (CashierExpense $expense) {
+            CashierService::refreshFromExpenseChange($expense);
+        });
     }
 
     /**
@@ -81,6 +98,31 @@ class CashierExpense extends Model
     public function isConfirmed(): bool
     {
         return $this->status === self::STATUS_CONFIRMED;
+    }
+
+    /**
+     * Cash paid from the register. A missing source is the old behaviour.
+     */
+    public function isCashierCash(): bool
+    {
+        return $this->type === self::TYPE_CASH && $this->source !== self::SOURCE_SAFE;
+    }
+
+    /**
+     * Cash paid out of the safe. It does not change the cashier balance.
+     */
+    public function isSafeCash(): bool
+    {
+        return $this->type === self::TYPE_CASH && $this->source === self::SOURCE_SAFE;
+    }
+
+    public function sourceLabel(): string
+    {
+        if ($this->type !== self::TYPE_CASH) {
+            return '—';
+        }
+
+        return self::sources()[$this->isSafeCash() ? self::SOURCE_SAFE : self::SOURCE_CASHIER];
     }
 
     /**
@@ -178,6 +220,14 @@ class CashierExpense extends Model
             self::TYPE_CASH => __('payment.methods.' . self::TYPE_CASH),
             self::TYPE_TRANSFER => __('payment.methods.' . self::TYPE_TRANSFER),
             self::TYPE_PM_TRANSFER => __('payment.methods.' . self::TYPE_PM_TRANSFER),
+        ];
+    }
+
+    public static function sources(): array
+    {
+        return [
+            self::SOURCE_CASHIER => __('cashier_expense.sources.cashier'),
+            self::SOURCE_SAFE => __('cashier_expense.sources.safe'),
         ];
     }
 

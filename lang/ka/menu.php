@@ -31,6 +31,7 @@ return [
 
     'cashier' => 'სალარო',
     'cashier_balance' => 'ბალანსი',
+    'safe' => 'სეიფი',
     'cashier_expenses' => 'ხარჯები და შესყიდვები',
     'expense_categories' => 'ხარჯის კატეგორიები',
 

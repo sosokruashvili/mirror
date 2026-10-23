@@ -100,9 +100,23 @@ class CashierCrudController extends CrudController
             ->orderByDesc('id')
             ->get();
 
+        $deposits = $service->safeDepositsQueryForDate($date)
+            ->orderByDesc('transferred_at')
+            ->orderByDesc('id')
+            ->get();
+
+        $returns = $service->safeReturnsQueryForDate($date)
+            ->orderByDesc('transferred_at')
+            ->orderByDesc('id')
+            ->get();
+
         $openingBalance = $service->getPreviousClosingBalance($date);
-        $cashIn = (float) $payments->sum('amount_gel');
-        $cashOut = (float) $expenses->sum(fn ($expense) => $expense->paid_amount);
+        $paymentTotal = (float) $payments->sum('amount_gel');
+        $expenseTotal = (float) $expenses->sum(fn ($expense) => $expense->paid_amount);
+        $depositTotal = (float) $deposits->sum('amount_gel');
+        $returnTotal = (float) $returns->sum('amount_gel');
+        $cashIn = $paymentTotal + $returnTotal;
+        $cashOut = $expenseTotal + $depositTotal;
 
         return view('vendor.backpack.crud.details_rows.cashier_balance', [
             'crud' => $this->crud,
@@ -110,6 +124,10 @@ class CashierCrudController extends CrudController
             'openingBalance' => $openingBalance,
             'cashIn' => $cashIn,
             'cashOut' => $cashOut,
+            'cashInCount' => $payments->count() + $returns->count(),
+            'cashOutCount' => $expenses->count() + $deposits->count(),
+            'paymentTotal' => $paymentTotal,
+            'expenseTotal' => $expenseTotal,
             'netChange' => $cashIn - $cashOut,
             // Recomputed from today's data; can drift from the stored snapshot
             // if payments/expenses were edited after the snapshot was taken.
@@ -117,6 +135,8 @@ class CashierCrudController extends CrudController
             'storedClosing' => (float) $entry->amount,
             'payments' => $payments,
             'expenses' => $expenses,
+            'deposits' => $deposits,
+            'returns' => $returns,
         ]);
     }
 

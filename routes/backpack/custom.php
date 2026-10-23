@@ -84,6 +84,7 @@ Route::group([
     Route::post('cashier/recalculate', 'CashierCrudController@recalculate')->name('cashier.recalculate');
     Route::get('cashier-expense/get-expense-stats', 'CashierExpenseCrudController@getExpenseStats')->name('cashier-expense.getExpenseStats');
     Route::crud('cashier-expense', 'CashierExpenseCrudController');
+    Route::crud('safe', 'SafeCrudController');
     Route::crud('expense-category', 'ExpenseCategoryCrudController');
     Route::crud('audit-log', 'AuditLogCrudController');
     Route::crud('piece-stage-log', 'PieceStageLogCrudController');

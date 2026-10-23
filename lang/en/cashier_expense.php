@@ -26,6 +26,7 @@ return [
     'author' => 'Author',
     'status' => 'Status',
     'type' => 'Type',
+    'source' => 'Paid from',
     'category' => 'Category',
     'supplier' => 'Supplier',
     'product' => 'Product',
@@ -50,6 +51,7 @@ return [
 
     'hints' => [
         'status' => 'Draft expenses are editable and are not counted anywhere. Confirming an expense locks it and lets it into the cashier and supplier balances.',
+        'source' => 'Cash expenses only. Money paid from the safe is not taken out of the cashier.',
         'supplier' => 'Only suppliers linked to the selected category.',
         'product' => 'Only for საწარმოო purchases.',
         'price_usd' => 'Auto-filled from Supplier Prices when the supplier and product match.',
@@ -74,8 +76,14 @@ return [
 
     // Validation attribute names (interpolated into :attribute messages, so
     // lowercase in English the way Laravel's own messages read).
+    'sources' => [
+        'cashier' => 'Cashier',
+        'safe' => 'Safe',
+    ],
+
     'attributes' => [
         'type' => 'type',
+        'source' => 'paid from',
         'status' => 'status',
         'category' => 'category',
         'supplier' => 'supplier',

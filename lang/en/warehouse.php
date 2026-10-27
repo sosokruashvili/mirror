@@ -35,6 +35,27 @@ return [
         'col_remaining' => 'Remaining (m²)',
     ],
 
+    // Daily cutting page (CuttingStatsController)
+    'cutting' => [
+        'title' => 'Daily Cutting',
+        'subtitle' => 'Glass and mirror cut per product, by the day cutting was ticked.',
+        'from' => 'From',
+        'to' => 'To',
+        'filter' => 'Filter',
+        'presets' => [
+            'today' => 'Today',
+            'yesterday' => 'Yesterday',
+            'this_week' => 'This week',
+            'this_month' => 'This month',
+        ],
+        'product' => 'Product',
+        'clean' => 'Clean (m²)',
+        'offcut' => 'Offcut (m²)',
+        'total' => 'Total (m²)',
+        'grand_total' => 'Total',
+        'empty' => 'Nothing was cut in this period.',
+    ],
+
     // Order expenses
     'expense' => [
         'entity' => 'order expense',

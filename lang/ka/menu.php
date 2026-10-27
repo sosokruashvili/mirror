@@ -19,6 +19,7 @@ return [
     'warehouse_stock' => 'მარაგი',
     'warehouse_out' => 'გაცემა',
     'warehouse_corrections' => 'კორექციები',
+    'warehouse_cutting' => 'დღიური მოჭრა',
 
     'suppliers' => 'მომწოდებლები',
     'supplier_prices' => 'მომწოდებლების ფასები',

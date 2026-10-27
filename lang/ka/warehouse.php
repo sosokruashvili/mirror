@@ -28,6 +28,27 @@ return [
         'col_remaining' => 'ნაშთი (მ²)',
     ],
 
+    // Daily cutting page (CuttingStatsController)
+    'cutting' => [
+        'title' => 'დღიური მოჭრა',
+        'subtitle' => 'მოჭრილი მინა და სარკე პროდუქტების მიხედვით, „მოჭრის“ მონიშვნის დღით.',
+        'from' => 'დან',
+        'to' => 'მდე',
+        'filter' => 'გაფილტვრა',
+        'presets' => [
+            'today' => 'დღეს',
+            'yesterday' => 'გუშინ',
+            'this_week' => 'ეს კვირა',
+            'this_month' => 'ეს თვე',
+        ],
+        'product' => 'პროდუქტი',
+        'clean' => 'სუფთა (მ²)',
+        'offcut' => 'ნარჩენი (მ²)',
+        'total' => 'ჯამი (მ²)',
+        'grand_total' => 'სულ',
+        'empty' => 'ამ პერიოდში არაფერი მოჭრილა.',
+    ],
+
     // Order expenses
     'expense' => [
         'entity' => 'შეკვეთის დანახარჯი',

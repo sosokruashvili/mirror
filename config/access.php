@@ -68,6 +68,7 @@ return [
         'piece-stage-log'  => ['label' => 'Stage Changes',    'actions' => ['list']],
         'user-stats'       => ['label' => 'User Stats',       'actions' => ['view']],
         'service-stats'    => ['label' => 'Service Stats',    'actions' => ['view']],
+        'cutting-stats'    => ['label' => 'Cutting Stats',    'actions' => ['view']],
 
         // ----- Administration pages -----
         'user'             => ['label' => 'Users',            'actions' => ['list', 'create', 'update', 'delete', 'show']],

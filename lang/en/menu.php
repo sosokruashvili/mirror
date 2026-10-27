@@ -24,6 +24,7 @@ return [
     'warehouse_stock' => 'Stock',
     'warehouse_out' => 'Out',
     'warehouse_corrections' => 'Corrections',
+    'warehouse_cutting' => 'Daily Cutting',
 
     'suppliers' => 'Suppliers',
     'supplier_prices' => 'Supplier Prices',

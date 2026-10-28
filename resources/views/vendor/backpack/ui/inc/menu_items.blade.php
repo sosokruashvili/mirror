@@ -66,7 +66,7 @@
     @endif
 @endif
 
-@if($u && ($u->can('warehouse.list') || $u->can('warehouse-expense.list') || $u->can('warehouse-correction.list')))
+@if($u && ($u->can('warehouse.list') || $u->can('warehouse-expense.list') || $u->can('warehouse-correction.list') || $u->can('cutting-stats.view')))
     <x-backpack::menu-dropdown title="{{ __('menu.warehouse') }}" icon="la la-warehouse">
         @if($u->can('warehouse.list'))
             <x-backpack::menu-dropdown-item title="{{ __('menu.warehouse_stock') }}" icon="la la-boxes" :link="backpack_url('warehouse')" />
@@ -76,6 +76,9 @@
         @endif
         @if($u->can('warehouse-correction.list'))
             <x-backpack::menu-dropdown-item title="{{ __('menu.warehouse_corrections') }}" icon="la la-balance-scale" :link="backpack_url('warehouse-correction')" />
+        @endif
+        @if($u->can('cutting-stats.view'))
+            <x-backpack::menu-dropdown-item title="{{ __('menu.warehouse_cutting') }}" icon="la la-cut" :link="backpack_url('cutting-stats')" />
         @endif
     </x-backpack::menu-dropdown>
 @endif

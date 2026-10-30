@@ -63,7 +63,8 @@ return [
         'custom-price'      => ['label' => 'Custom Prices',       'actions' => ['list', 'create', 'update', 'delete', 'show']],
 
         // ----- Custom (non-CRUD) pages -----
-        'settings'         => ['label' => 'Global Settings',  'actions' => ['view', 'update']],
+        'dashboard'        => ['label' => 'Dashboard',        'actions' => ['view']],
+        'settings'        => ['label' => 'Global Settings',  'actions' => ['view', 'update']],
         'team-order'       => ['label' => 'Team Orders',      'actions' => ['view', 'operate']],
         'piece-stage-log'  => ['label' => 'Stage Changes',    'actions' => ['list']],
         'user-stats'       => ['label' => 'User Stats',       'actions' => ['view']],

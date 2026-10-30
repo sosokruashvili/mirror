@@ -22,6 +22,12 @@ class AppServiceProvider extends ServiceProvider
             \Backpack\CRUD\app\Http\Controllers\Auth\LoginController::class,
             \App\Http\Controllers\Auth\LoginController::class
         );
+
+        // Bind custom AdminController (dashboard limited to dashboard.view)
+        $this->app->bind(
+            \Backpack\CRUD\app\Http\Controllers\AdminController::class,
+            \App\Http\Controllers\Admin\AdminController::class
+        );
     }
 
     /**

@@ -7,10 +7,24 @@ use App\Models\Payment;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Routing\Controllers\HasMiddleware;
+use Illuminate\Routing\Controllers\Middleware;
 use Illuminate\Support\Facades\DB;
 
-class DashboardController
+class DashboardController implements HasMiddleware
 {
+    /**
+     * The dashboard charts follow the dashboard page (dashboard.view, admins
+     * only). The two user-stats charts are guarded by user-stats.view on
+     * their routes instead.
+     */
+    public static function middleware(): array
+    {
+        return [
+            new Middleware('backpack.can:dashboard.view', except: ['getTopUsersChart', 'getStageCompletionsChart']),
+        ];
+    }
+
     /**
      * Per-day order statistics for the daily stats bar chart.
      *

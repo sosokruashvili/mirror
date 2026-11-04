@@ -27,6 +27,7 @@ return [
     'price_gel_field' => 'Price (GEL)',
     'cutting_loss' => 'Cutting Loss (mm)',
     'extra_field_names' => 'Extra Field Names',
+    'companion_services' => 'Auto-added services',
 
     'filters' => [
         'order' => 'Order',
@@ -43,6 +44,7 @@ return [
         'stage' => 'Which production stage this service belongs to.',
         'unit' => 'Unit of measurement for this service',
         'cutting_loss' => "Extra size (whole mm) added to a piece's width and height on the team orders page when this service is applied.",
+        'companion_services' => 'Picking this service on an order also adds these services to the same piece as separate lines (per-piece services get the piece quantity). Removing this service removes them too.',
     ],
 
     // Service Stats page

@@ -3,6 +3,7 @@
 namespace App\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class ServiceRequest extends FormRequest
 {
@@ -30,6 +31,12 @@ class ServiceRequest extends FormRequest
             'price' => 'nullable|numeric|min:0',
             'price_gel' => 'nullable|numeric|min:0',
             'cutloss' => 'nullable|integer|min:0',
+            'companion_service_ids' => 'nullable|array',
+            'companion_service_ids.*' => [
+                'integer',
+                'exists:services,id',
+                Rule::notIn(array_filter([$this->route('id')])),
+            ],
         ];
     }
 }

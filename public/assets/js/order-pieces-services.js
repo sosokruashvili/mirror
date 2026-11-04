@@ -23,9 +23,12 @@
     var serviceExtraMap = {};
     // serviceId -> unit. "ცალი" is billed from the quantity typed on the line.
     var serviceUnitMap = {};
+    // serviceId -> [service ids added with it], e.g. განათება → ქაფი, ასაწყობი მასალა, საკიდი.
+    var serviceCompanionMap = {};
     (DATA.services || []).forEach(function (s) {
         serviceExtraMap[String(s.id)] = s.extra_field_names || [];
         serviceUnitMap[String(s.id)] = String(s.unit || '').trim();
+        serviceCompanionMap[String(s.id)] = (s.companion_service_ids || []).map(String);
     });
 
     // Every possible extra sub-field (the templates carry one wrapper per field).
@@ -94,6 +97,8 @@
                 applyServiceFields($row, String(data.service_id), false);
             }
         }
+        // Remembered so a later pick knows which companions the old service brought.
+        $row.data('psService', data && data.service_id ? String(data.service_id) : '');
         return $row;
     }
 
@@ -165,6 +170,7 @@
             });
         }
 
+        $card.data('psLastQty', cardQuantity($card));
         renumberPieces();
         return $card;
     }
@@ -184,10 +190,14 @@
         return count;
     }
 
+    function cardQuantity($card) {
+        return parseInt($card.find('[data-piece-field="quantity"]').val(), 10) || 1;
+    }
+
     function pieceQuantityFor($row) {
         var $card = $row.closest('[data-piece-card]');
         if (!$card.length) { return 1; }
-        return parseInt($card.find('[data-piece-field="quantity"]').val(), 10) || 1;
+        return cardQuantity($card);
     }
 
     // Metre and square-metre services scale with how many pieces share the size.
@@ -229,6 +239,107 @@
                     setSvc($row, 'price_gel', response.price_gel * pieceQty * products);
                 }
             }
+        });
+    }
+
+    /* ------------------------------------------------------- companion services */
+
+    // Picking a service can bring others with it (განათება → ქაფი, ასაწყობი მასალა,
+    // საკიდი; set per service under "ავტომატურად დაემატოს"). They become ordinary
+    // rows in the same list, so each is saved and counted as its own order line and
+    // staff can still delete any of them. Only a pick by hand adds them: loading an
+    // existing order never does.
+
+    function companionsOf(serviceId) {
+        return serviceId ? (serviceCompanionMap[String(serviceId)] || []) : [];
+    }
+
+    function serviceRowsIn($container) {
+        return $container.children('[data-service-row]');
+    }
+
+    function rowsWithService($container, serviceId) {
+        return serviceRowsIn($container).filter(function () {
+            return getSvc($(this), 'service_id') === String(serviceId);
+        });
+    }
+
+    // Companion ids still brought by some row in the list (other than $except).
+    function companionsNeeded($container, $except) {
+        var needed = {};
+        serviceRowsIn($container).not($except || $()).each(function () {
+            companionsOf(getSvc($(this), 'service_id')).forEach(function (id) { needed[id] = true; });
+        });
+        return needed;
+    }
+
+    // Service-only orders have no piece to measure, so a companion billed by the
+    // metre (ქაფი) takes the metres typed on the row that brought it.
+    function copyMeasuresFrom($source, $target) {
+        if ($target.closest('[data-piece-card]').length) { return; } // pieces fill their own
+        ['perimeter', 'area'].forEach(function (f) {
+            var v = getSvc($source, f);
+            if (subVisible($source, f) && subVisible($target, f) && v !== undefined && v !== null && String(v).trim() !== '') {
+                setSvc($target, f, v);
+            }
+        });
+    }
+
+    // Add the companions of $row's service that its list does not have yet, right
+    // below it, measured from the piece and priced.
+    function addCompanions($row) {
+        var ids = companionsOf(getSvc($row, 'service_id'));
+        if (!ids.length) { return; }
+
+        var $container = $row.closest('.ps-services-container');
+        var $anchor = $row;
+        ids.forEach(function (id) {
+            if (!serviceExtraMap[id]) { return; }                    // service no longer exists
+            if (rowsWithService($container, id).length) { return; }  // already on this piece
+
+            var $new = addServiceRow($container, { service_id: id });
+            $anchor.after($new);
+            $anchor = $new;
+
+            fillPieceMetrics($new, true);
+            copyMeasuresFrom($row, $new);
+            // One hanger / assembly kit per mirror of this size.
+            if (subVisible($new, 'quantity')) { setSvc($new, 'quantity', pieceQuantityFor($new)); }
+            calculateRowPrice($new);
+        });
+
+        // Locked rows were already priced by applyServiceFields().
+        if (!DATA.lockServicePrice) { calculateRowPrice($row); }
+    }
+
+    // Drop the companions serviceId brought, unless another row in the list still
+    // brings them. A row someone picked by hand in this session stays.
+    function removeOrphanCompanions($container, serviceId) {
+        var ids = companionsOf(serviceId);
+        if (!ids.length) { return; }
+        var needed = companionsNeeded($container);
+        ids.forEach(function (id) {
+            if (needed[id]) { return; }
+            rowsWithService($container, id).filter(function () {
+                return !$(this).data('psPicked');
+            }).remove();
+        });
+    }
+
+    // Per-piece companions (საკიდი, ასაწყობი მასალა) follow the piece quantity,
+    // unless someone typed a different number on the line.
+    function syncCompanionQuantities($card) {
+        var q = cardQuantity($card);
+        var last = $card.data('psLastQty');
+        $card.data('psLastQty', q);
+        if (last === undefined || last === q) { return; }
+
+        var $container = $card.find('[data-services-container]');
+        var needed = companionsNeeded($container);
+        serviceRowsIn($container).each(function () {
+            var $r = $(this);
+            if (!needed[getSvc($r, 'service_id')] || !subVisible($r, 'quantity')) { return; }
+            if (parseInt(getSvc($r, 'quantity'), 10) === last) { setSvc($r, 'quantity', q); }
         });
     }
 
@@ -375,12 +486,50 @@
             addServiceRow($('#ps-order-services-container'));
         });
         $(document).on('click', '[data-remove-service]', function () {
-            $(this).closest('[data-service-row]').remove();
+            var $row = $(this).closest('[data-service-row]');
+            var $container = $row.closest('.ps-services-container');
+            var serviceId = getSvc($row, 'service_id');
+            $row.remove();
+            removeOrphanCompanions($container, serviceId);
         });
 
-        // Service selection → show relevant fields + autofill from piece
+        // Service selection → show relevant fields + autofill from piece,
+        // then swap the old service's companions for the new one's.
         $(document).on('change', '#pieces-services-field [data-svc-field="service_id"]', function () {
-            applyServiceFields($(this).closest('[data-service-row]'), $(this).val(), true);
+            var $row = $(this).closest('[data-service-row]');
+            var previous = $row.data('psService') || '';
+            var current = $(this).val() || '';
+            applyServiceFields($row, current, true);
+            if (previous === current) { return; }
+
+            $row.data('psService', current);
+            $row.data('psPicked', true);
+            removeOrphanCompanions($row.closest('.ps-services-container'), previous);
+            addCompanions($row);
+        });
+
+        // Service-only orders: companions billed by the metre keep the metres of
+        // the row that brought them; that row and its companions are repriced.
+        $(document).on('change',
+            '#ps-order-services-container [data-svc-field="perimeter"], ' +
+            '#ps-order-services-container [data-svc-field="area"]', function () {
+            var $row = $(this).closest('[data-service-row]');
+            var $container = $row.closest('.ps-services-container');
+            var ids = companionsOf(getSvc($row, 'service_id'));
+            if (!ids.length) { return; }
+
+            var reprice = function ($r) {
+                if (DATA.lockServicePrice || String(getSvc($r, 'price_gel')).trim() !== '') {
+                    calculateRowPrice($r);
+                }
+            };
+            reprice($row);
+            ids.forEach(function (id) {
+                rowsWithService($container, id).each(function () {
+                    copyMeasuresFrom($row, $(this));
+                    reprice($(this));
+                });
+            });
         });
 
         // Piece dimensions change → refresh metrics for its services + expenses (live, on every keystroke)
@@ -389,6 +538,7 @@
             '#ps-pieces-container [data-piece-field="height"], ' +
             '#ps-pieces-container [data-piece-field="quantity"]', function () {
             var $card = $(this).closest('[data-piece-card]');
+            syncCompanionQuantities($card);
             $card.find('[data-service-row]').each(function () {
                 if (getSvc($(this), 'service_id')) { fillPieceMetrics($(this), true); }
             });

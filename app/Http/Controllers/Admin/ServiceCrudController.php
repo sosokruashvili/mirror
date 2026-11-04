@@ -122,6 +122,13 @@ class ServiceCrudController extends CrudController
             },
         ]);
 
+        CRUD::addColumn([
+            'name'  => 'companion_service_ids',
+            'label' => __('service.companion_services'),
+            'type'  => 'custom_html',
+            'value' => fn ($entry) => $this->companionTitles($entry),
+        ]);
+
         $this->addStandardFilters();
 
         // Filter services by production stage.
@@ -304,7 +311,25 @@ class ServiceCrudController extends CrudController
             }
         ]);
 
-
+        // Picking this service on the order form also adds these (e.g. განათება →
+        // ქაფი, ასაწყობი მასალა, საკიდი); see public/assets/js/order-pieces-services.js.
+        $entry = $this->crud->getCurrentEntry(); // false on create
+        $currentId = $entry ? $entry->id : null;
+        CRUD::field([
+            'name'            => 'companion_service_ids',
+            'label'           => __('service.companion_services'),
+            'type'            => 'select2_from_array',
+            'options'         => \App\Models\Service::query()
+                ->when($currentId, fn ($q) => $q->where('id', '!=', $currentId))
+                ->orderBy('id')
+                ->pluck('title', 'id')
+                ->all(),
+            'allows_null'     => true,
+            'allows_multiple' => true,
+            'default'         => [],
+            'hint'            => __('service.hints.companion_services'),
+            'wrapper'         => ['class' => 'form-group col-md-6'],
+        ]);
     }
 
     /**
@@ -418,6 +443,30 @@ class ServiceCrudController extends CrudController
                 return '-';
             },
         ]);
+
+        CRUD::addColumn([
+            'name'  => 'companion_service_ids',
+            'label' => __('service.companion_services'),
+            'type'  => 'custom_html',
+            'value' => fn ($entry) => $this->companionTitles($entry) ?: '-',
+        ]);
+    }
+
+    /**
+     * Escaped, comma-separated titles of the services auto-added with this one.
+     */
+    private function companionTitles($entry): string
+    {
+        $ids = $entry->companionServiceIds();
+        if ($ids === []) {
+            return '';
+        }
+
+        $titles = \App\Models\Service::query()->whereIn('id', $ids)->pluck('title', 'id');
+
+        return collect($ids)
+            ->map(fn (int $id) => e($titles[$id] ?? ('#' . $id)))
+            ->implode(', ');
     }
 
     /**

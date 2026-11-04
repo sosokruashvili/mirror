@@ -76,7 +76,7 @@ class OrderCrudController extends CrudController
         // list fires three extra queries for every row on the page.
         CRUD::addClause('with', ['payments', 'client', 'authorUser']);
 
-        // Add widgets for orders count and total price
+        // Summary cards (count, price, paid, unpaid, expenses). Administrator only.
         $this->addOrderStatsWidgets();
 
         // Inline styles (not Basset) so the urgent bar blink cannot get stuck on a stale CSS cache.
@@ -1999,15 +1999,37 @@ class OrderCrudController extends CrudController
      * from the order/stats endpoint once the page has loaded. A cache miss on
      * the stats takes seconds, and computing them here held back the whole list.
      *
+     * Shown only to the Administrator role (RoleSeeder name "Administrator",
+     * slug "admin"). Other roles keep the orders list, including its money
+     * columns, without these totals.
+     *
      * @return void
      */
     protected function addOrderStatsWidgets()
     {
+        if (! $this->userCanSeeOrderListStats()) {
+            return;
+        }
+
         Widget::add([
             'type' => 'view',
             'view' => 'vendor.backpack.crud.widgets.order_stats',
             'wrapper' => ['class' => 'col-12'],
         ])->to('before_content');
+    }
+
+    /**
+     * Whether the signed-in user holds the Administrator role.
+     *
+     * Matched by slug, the same way the rest of the app identifies that role
+     * (User::hasRole() also accepts the slug). The display name is
+     * "Administrator" and can be edited; the slug cannot.
+     */
+    private function userCanSeeOrderListStats(): bool
+    {
+        $user = backpack_user();
+
+        return $user && $user->hasRole('admin');
     }
 
     /**
@@ -2202,6 +2224,12 @@ class OrderCrudController extends CrudController
     public function stats()
     {
         $this->crud->hasAccessOrFail('list');
+
+        // Same gate as the cards. Reject before computeOrderStats() so a
+        // non-administrator never builds or receives the totals.
+        if (! $this->userCanSeeOrderListStats()) {
+            abort(403);
+        }
 
         return response()->json($this->computeOrderStats());
     }

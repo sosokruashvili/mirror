@@ -131,6 +131,56 @@
 
         var exportTitle = @json(__('warehouse.cutting.title') . ' ' . $period);
 
+        // pdfmake's built-in Roboto has no Georgian glyphs, so product names
+        // would be blank. DejaVu is loaded only when PDF is exported.
+        var pdfFonts = {
+            regular: @json(asset('assets/fonts/DejaVuSans.ttf')),
+            bold: @json(asset('assets/fonts/DejaVuSans-Bold.ttf'))
+        };
+        var dejavuReady = null;
+
+        function bufferToBase64(buffer) {
+            var bytes = new Uint8Array(buffer);
+            var binary = '';
+            var chunk = 0x8000;
+            for (var i = 0; i < bytes.length; i += chunk) {
+                binary += String.fromCharCode.apply(null, bytes.subarray(i, i + chunk));
+            }
+            return btoa(binary);
+        }
+
+        function ensureDejaVu() {
+            if (window.pdfMake && pdfMake.fonts && pdfMake.fonts.DejaVu) {
+                return Promise.resolve();
+            }
+            if (!dejavuReady) {
+                dejavuReady = Promise.all([
+                    fetch(pdfFonts.regular).then(function (r) { if (!r.ok) throw new Error('font'); return r.arrayBuffer(); }),
+                    fetch(pdfFonts.bold).then(function (r) { if (!r.ok) throw new Error('font'); return r.arrayBuffer(); })
+                ]).then(function (bufs) {
+                    pdfMake.vfs['DejaVuSans.ttf'] = bufferToBase64(bufs[0]);
+                    pdfMake.vfs['DejaVuSans-Bold.ttf'] = bufferToBase64(bufs[1]);
+                    // This pdfmake build only reads window.pdfMake.fonts, and
+                    // does not create that object itself (it falls back to Roboto).
+                    pdfMake.fonts = {
+                        Roboto: {
+                            normal: 'Roboto-Regular.ttf',
+                            bold: 'Roboto-Medium.ttf',
+                            italics: 'Roboto-Italic.ttf',
+                            bolditalics: 'Roboto-Italic.ttf'
+                        },
+                        DejaVu: {
+                            normal: 'DejaVuSans.ttf',
+                            bold: 'DejaVuSans-Bold.ttf',
+                            italics: 'DejaVuSans.ttf',
+                            bolditalics: 'DejaVuSans-Bold.ttf'
+                        }
+                    };
+                });
+            }
+            return dejavuReady;
+        }
+
         var table = $('#cuttingStatsTable').DataTable({
             dom: 't',
             paging: false,
@@ -139,7 +189,14 @@
             info: false,
             autoWidth: false,
             language: {
-                emptyTable: @json(__('warehouse.cutting.empty'))
+                emptyTable: @json(__('warehouse.cutting.empty')),
+                buttons: {
+                    copy: @json(trans('backpack::crud.export.copy')),
+                    excel: @json(trans('backpack::crud.export.excel')),
+                    csv: @json(trans('backpack::crud.export.csv')),
+                    pdf: @json(trans('backpack::crud.export.pdf')),
+                    print: @json(trans('backpack::crud.export.print'))
+                }
             }
         });
 
@@ -150,18 +207,36 @@
                     text: '<i class="la la-download"></i> {{ trans('backpack::crud.export.export') }}',
                     className: 'btn-sm btn-outline-secondary',
                     buttons: ['copyHtml5', 'excelHtml5', 'csvHtml5', 'pdfHtml5', 'print'].map(function (type) {
-                        return {
+                        var button = {
                             extend: type,
                             title: exportTitle,
                             footer: true,
                             exportOptions: exportOptions
                         };
+                        if (type === 'pdfHtml5') {
+                            button.orientation = 'landscape';
+                            button.customize = function (doc) {
+                                if (pdfMake.fonts && pdfMake.fonts.DejaVu) {
+                                    doc.defaultStyle.font = 'DejaVu';
+                                }
+                            };
+                            button.action = function (e, dt, node, config) {
+                                var that = this;
+                                ensureDejaVu().catch(function () {}).then(function () {
+                                    $.fn.dataTable.ext.buttons.pdfHtml5.action.call(that, e, dt, node, config);
+                                });
+                            };
+                        }
+                        return button;
                     })
                 }
             ]
         });
 
         table.buttons().container().appendTo('#cuttingStatsButtons');
+        // Backpack's common.css hides every .dt-buttons; CRUD lists reveal
+        // theirs with a display utility after moving them into the list footer.
+        $('#cuttingStatsButtons .dt-buttons').addClass('d-inline-flex');
         $('#cuttingStatsButtons .btn-secondary').removeClass('btn-secondary');
     });
     </script>

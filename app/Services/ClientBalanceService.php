@@ -199,7 +199,7 @@ class ClientBalanceService
             'payments' => function ($query) {
                 $query->orderByDesc('payment_date')->orderByDesc('id');
             },
-            'payments.order',
+            'payments.orders',
             'orders' => function ($query) {
                 $query->orderByDesc('id');
             },

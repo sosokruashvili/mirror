@@ -396,11 +396,12 @@ class Order extends Model
     }
 
     /**
-     * The payments that belong to the order.
+     * The payments that cover this order. One payment can cover several orders;
+     * pivot.amount is this order's share of it (see App\Services\PaymentAllocation).
      */
     public function payments()
     {
-        return $this->hasMany(Payment::class);
+        return $this->belongsToMany(Payment::class, 'order_payment')->withPivot('amount');
     }
 
     /*
@@ -423,8 +424,9 @@ class Order extends Model
     }
 
     /**
-     * Total amount (GEL) of payments directly linked to this order (via payments.order_id).
-     * Sums every linked payment regardless of status (Paid/Pending).
+     * Amount (GEL) paid towards this order: its share of every linked payment,
+     * regardless of status (Paid/Pending). A payment that covers only this order
+     * counts in full; one shared with other orders counts only this order's part.
      */
     public function calculatePaidAmount(): float
     {
@@ -432,7 +434,7 @@ class Order extends Model
             $this->load('payments');
         }
 
-        return (float) $this->payments->sum('amount_gel');
+        return (float) $this->payments->sum(fn ($payment) => (float) $payment->pivot->amount);
     }
 
     public function calculateExpenses(): float

@@ -119,6 +119,25 @@ class AuditLogger
     }
 
     /**
+     * Record a change to a many-to-many link, which fires no model event of its
+     * own (e.g. the orders a payment covers). Logged as an update of $model.
+     *
+     * @param  list<int>  $old
+     * @param  list<int>  $new
+     */
+    public function linksChanged(Model $model, string $key, array $old, array $new): void
+    {
+        sort($old);
+        sort($new);
+
+        if ($old === $new) {
+            return;
+        }
+
+        $this->record('updated', $model, [$key => $old], [$key => $new]);
+    }
+
+    /**
      * Persist one audit row, never letting a failure interrupt the caller.
      */
     protected function record(string $event, Model $model, ?array $old, ?array $new): void

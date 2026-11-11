@@ -36,6 +36,14 @@ return [
     'status' => 'Status',
     'payment_date' => 'Payment Date',
     'order' => 'Order',
+    'orders' => 'Orders',
+    'select_client_first' => '- Select a client first -',
+    'loading_orders' => 'Loading orders...',
+    'orders_load_failed' => 'Error loading orders',
+    // Appended to each option in the Orders select (:amount = what the order still owes).
+    'order_owed' => ':amount ₾ owed',
+    // Under the Orders select once two or more are picked.
+    'orders_summary' => ':count orders selected, :amount ₾ owed in total. The amount must cover all of it.',
     'payment_file' => 'Payment File',
     'client_balance' => 'Client Balance',
 
@@ -55,6 +63,7 @@ return [
     'hints' => [
         'client' => 'Select the client for this payment',
         'order' => "Select which of the client's orders this payment is for",
+        'orders' => 'Pick one or more orders. A payment for several orders must pay off what all of them still owe.',
         'currency_rate' => 'Exchange rate for GEL to USD',
         'payment_file' => 'Upload payment related document (invoice, receipt, etc.)',
     ],
@@ -83,6 +92,7 @@ return [
 
     'messages' => [
         'create_failed' => 'Failed to create payment: :error',
+        'multi_order_short' => 'The amount (:amount ₾) does not cover what the selected orders still owe (:needed ₾). A payment for several orders must pay them all off; to pay part of an order, select only that order.',
     ],
 
 ];

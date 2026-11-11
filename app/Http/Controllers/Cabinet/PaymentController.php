@@ -19,7 +19,7 @@ class PaymentController extends Controller
 
         $payments = Payment::query()
             ->where('client_id', $account->client_id)
-            ->with(['order:id,client_id,status'])
+            ->with(['orders' => fn ($query) => $query->select('orders.id', 'orders.client_id', 'orders.status')])
             ->orderByDesc('payment_date')
             ->orderByDesc('id')
             ->paginate(20);

@@ -21,6 +21,7 @@ use App\Models\CustomPrice;
 use App\Models\Payment;
 use App\Services\ClientBalanceService;
 use App\Services\OrderListStats;
+use App\Services\PaymentAllocation;
 use App\Services\WarehouseSnapshotService;
 /**
  * Class OrderCrudController
@@ -1215,12 +1216,17 @@ class OrderCrudController extends CrudController
             // Link payments that were created from the modal on this create page. The order did
             // not exist when those payments were made, so the JS stored their ids and we now
             // attach them to the freshly created order. Only claim still-unlinked payments.
-            // Mass update skips Eloquent events, so sync paid status explicitly afterwards.
+            // Attaching skips Eloquent events, so sync paid status explicitly afterwards.
             $createdPaymentIds = array_filter((array) ($fields['created_payment_ids'] ?? []));
             if (!empty($createdPaymentIds)) {
-                Payment::whereIn('id', $createdPaymentIds)
-                    ->whereNull('order_id')
-                    ->update(['order_id' => $order->id]);
+                $unlinked = Payment::whereIn('id', $createdPaymentIds)
+                    ->doesntHave('orders')
+                    ->pluck('id');
+
+                if ($unlinked->isNotEmpty()) {
+                    $order->payments()->attach($unlinked->all());
+                    app(OrderListStats::class)->invalidate();
+                }
 
                 Payment::updateOrderPaymentStatus($order->client_id);
             }
@@ -2244,19 +2250,30 @@ class OrderCrudController extends CrudController
     public function getOrdersByClient($clientId)
     {
         $orders = Order::where('client_id', $clientId)
-            ->with(['pieces', 'products', 'services'])
-            ->get()
-            ->map(function ($order) {
-                // Same figure as order_display (not stored price_gel, which can be stale/truncated).
-                // Send as a 2-decimal string so JSON does not drop fractional digits (150.00 → 150).
-                $price = round((float) $order->calculateTotalPrice(false), 2);
+            ->with(['pieces', 'products', 'services', 'payments'])
+            ->orderBy('id')
+            ->get();
 
-                return [
-                    'id' => $order->id,
-                    'text' => $order->order_display,
-                    'price' => number_format($price, 2, '.', ''),
-                ];
-            });
+        // What each order still owes. On the payment edit form the payment being edited
+        // is left out (?exclude_payment=), so its own share does not count against it.
+        $owed = app(PaymentAllocation::class)->outstanding(
+            (int) $clientId,
+            request()->integer('exclude_payment') ?: null,
+            $orders
+        );
+
+        $orders = $orders->map(function ($order) use ($owed) {
+            // Same figure as order_display (not stored price_gel, which can be stale/truncated).
+            // Send as a 2-decimal string so JSON does not drop fractional digits (150.00 → 150).
+            $price = round((float) $order->calculateTotalPrice(false), 2);
+
+            return [
+                'id' => $order->id,
+                'text' => $order->order_display,
+                'price' => number_format($price, 2, '.', ''),
+                'owed' => number_format($owed[$order->id] ?? 0.0, 2, '.', ''),
+            ];
+        });
 
         return response()->json($orders);
     }

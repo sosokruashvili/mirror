@@ -90,7 +90,7 @@ class CashierCrudController extends CrudController
         $service = app(CashierService::class);
 
         $payments = $service->cashPaymentsQueryForDate($date)
-            ->with(['client', 'order'])
+            ->with(['client', 'orders'])
             ->orderByDesc('payment_date')
             ->orderByDesc('id')
             ->get();

@@ -8,6 +8,8 @@ use Backpack\CRUD\app\Library\Widget;
 use App\Models\Currency;
 use App\Models\Client;
 use App\Models\Payment;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
 
 /**
  * Class PaymentCrudController
@@ -66,6 +68,24 @@ class PaymentCrudController extends CrudController
             'attribute' => 'name',
         ]);
 
+        CRUD::addClause('with', 'orders:id');
+
+        // Not named "orders": Backpack would treat that as the relationship and try to
+        // search and sort through it.
+        CRUD::addColumn([
+            'name' => 'linked_orders',
+            'label' => __('payment.orders'),
+            'type' => 'custom_html',
+            'orderable' => false,
+            'searchLogic' => false,
+            'value' => function ($entry) {
+                return $entry->orders
+                    ->sortBy('id')
+                    ->map(fn ($order) => '<a href="' . e(backpack_url('order/' . $order->id . '/edit')) . '">#' . $order->id . '</a>')
+                    ->implode(', ') ?: '—';
+            },
+        ]);
+
         CRUD::addColumn([
             'name' => 'authorUser',
             'label' => __('payment.author'),
@@ -120,7 +140,9 @@ class PaymentCrudController extends CrudController
         // Add Filters
         // Apply order_id from URL so links from the order preview work immediately
         if (request()->has('order_id') && request()->get('order_id') !== '') {
-            $this->crud->addClause('where', 'order_id', request()->get('order_id'));
+            $this->crud->addClause('whereHas', 'orders', function ($query) {
+                $query->where('orders.id', request()->get('order_id'));
+            });
         }
 
         CRUD::addFilter([
@@ -130,7 +152,9 @@ class PaymentCrudController extends CrudController
         ], function() {
             return \App\Models\Order::all()->pluck('id', 'id')->toArray();
         }, function($value) {
-            $this->crud->addClause('where', 'order_id', $value);
+            $this->crud->addClause('whereHas', 'orders', function ($query) use ($value) {
+                $query->where('orders.id', $value);
+            });
         });
 
         CRUD::addFilter([
@@ -243,6 +267,9 @@ class PaymentCrudController extends CrudController
         $data = $this->crud->getStrippedSaveRequest($request);
         $data['author'] = backpack_user()->id;
 
+        $orderIds = $this->requestedOrderIds($request);
+        unset($data['order_ids']);
+
         $idempotencyKey = $data['idempotency_key'] ?? null;
 
         // Idempotency guard against duplicate submissions of the same create form
@@ -254,7 +281,12 @@ class PaymentCrudController extends CrudController
             $item = $existing;
         } else {
             try {
-                $item = $this->crud->create($data);
+                $item = DB::transaction(function () use ($data, $orderIds) {
+                    $item = $this->crud->create($data);
+                    $item->linkOrders($orderIds);
+
+                    return $item;
+                });
             } catch (\Illuminate\Database\QueryException $e) {
                 if ($idempotencyKey && $existing = Payment::where('idempotency_key', $idempotencyKey)->first()) {
                     $item = $existing;
@@ -273,6 +305,56 @@ class PaymentCrudController extends CrudController
     }
 
     /**
+     * Update a payment and the orders it covers.
+     *
+     * Same as Backpack's update(), except that order_ids is not a column: the
+     * links live in order_payment and are written through Payment::linkOrders().
+     *
+     * @return \Illuminate\Http\RedirectResponse
+     */
+    public function update()
+    {
+        $this->crud->hasAccessOrFail('update');
+
+        $request = $this->crud->validateRequest();
+        $this->crud->registerFieldEvents();
+
+        $data = $this->crud->getStrippedSaveRequest($request);
+        $orderIds = $this->requestedOrderIds($request);
+        unset($data['order_ids']);
+
+        $item = DB::transaction(function () use ($request, $data, $orderIds) {
+            $item = $this->crud->update($request->get($this->crud->model->getKeyName()), $data);
+            $item->linkOrders($orderIds);
+
+            return $item;
+        });
+
+        $this->data['entry'] = $this->crud->entry = $item;
+
+        \Alert::success(trans('backpack::crud.update_success'))->flash();
+        $this->crud->setSaveAction();
+
+        return $this->crud->performSaveAction($item->getKey());
+    }
+
+    /**
+     * The order ids picked on the form. The multi-select also posts an empty
+     * hidden input so that clearing it is submitted; that arrives as null.
+     *
+     * @return list<int>
+     */
+    protected function requestedOrderIds($request): array
+    {
+        return collect((array) $request->input('order_ids', []))
+            ->filter(fn ($id) => $id !== null && $id !== '')
+            ->map(fn ($id) => (int) $id)
+            ->unique()
+            ->values()
+            ->all();
+    }
+
+    /**
      * Define what happens when the Create operation is loaded.
      * 
      * @see https://backpackforlaravel.com/docs/crud-operation-create
@@ -284,9 +366,10 @@ class PaymentCrudController extends CrudController
 
         // Add JavaScript to display client balance on create/update forms
         Widget::add()->type('script')->content('assets/js/payment-client-balance.js');
-        // Show/populate Order when type = შეკვეთა, and auto-fill Amount from order price.
-        // Filename is versioned so browsers pick up fixes (Basset cache-busts via composer.lock only).
-        Widget::add()->type('script')->content('assets/js/payment-create-order.js');
+        // Fill the Orders select from the chosen client and auto-fill Amount from what the
+        // picked orders still owe. The file name changes with the behaviour because Basset
+        // only cache-busts on composer.lock, so browsers would keep the old file.
+        Widget::add()->type('script')->content('assets/js/payment-orders.js');
 
         // Idempotency token, unique per form render, that makes the create form
         // safe against duplicate submissions (double-click, browser/proxy retry,
@@ -360,24 +443,35 @@ class PaymentCrudController extends CrudController
             ]
         ]);
 
-        // Order selector — always shown. Options are populated dynamically from the
-        // selected client's orders via assets/js/payment-create-order.js. On edit, the
-        // currently linked order is passed through so JS can pre-select it once options load.
+        // Orders this payment covers — none, one, or several. Options come from the selected
+        // client's orders via assets/js/payment-orders.js; on edit the linked orders are
+        // seeded here so they show before the JS runs. Two or more orders must be paid off
+        // in full (PaymentRequest); a single order may be paid in part.
         CRUD::addField([
-            'name' => 'order_id',
-            'label' => __('payment.order'),
-            'type' => 'select_from_array',
-            'options' => $this->orderFieldOptions(),
+            'name' => 'order_ids',
+            'label' => __('payment.orders'),
+            'type' => 'select2_from_array',
+            'allows_multiple' => true,
             'allows_null' => true,
-            'hint' => __('payment.hints.order'),
+            'options' => $this->orderFieldOptions(),
+            'value' => $this->currentOrderIds(),
+            'hint' => __('payment.hints.orders'),
             'wrapper' => [
                 'class' => 'form-group col-md-6',
-                'id' => 'order_id_wrapper',
+                'id' => 'order_ids_wrapper',
             ],
             'attributes' => [
-                'id' => 'order_id_field',
-                'data-selected-order' => $this->currentOrderId(),
-            ]
+                'id' => 'order_ids_field',
+                'data-orders-url' => backpack_url('order/get-orders-by-client'),
+                'data-payment-id' => $this->crud->getCurrentOperation() === 'update'
+                    ? optional($this->crud->getCurrentEntry())->getKey()
+                    : '',
+                'data-text-select-client' => __('payment.select_client_first'),
+                'data-text-loading' => __('payment.loading_orders'),
+                'data-text-error' => __('payment.orders_load_failed'),
+                'data-text-owed' => __('payment.order_owed'),
+                'data-text-summary' => __('payment.orders_summary'),
+            ],
         ]);
 
         CRUD::addField([
@@ -468,22 +562,24 @@ class PaymentCrudController extends CrudController
     }
 
     /**
-     * The order_id currently linked to the payment being edited (null on create).
-     * Passed to the JS so it can pre-select the saved order once options load.
+     * The orders linked to the payment being edited (empty on create), so the
+     * select shows them as picked.
      *
-     * @return int|null
+     * @return list<int>
      */
-    protected function currentOrderId()
+    protected function currentOrderIds(): array
     {
-        if ($this->crud->getCurrentOperation() === 'update') {
-            return optional($this->crud->getCurrentEntry())->order_id;
+        if ($this->crud->getCurrentOperation() !== 'update') {
+            return [];
         }
 
-        return null;
+        $entry = $this->crud->getCurrentEntry();
+
+        return $entry ? $entry->orders()->pluck('orders.id')->map(fn ($id) => (int) $id)->all() : [];
     }
 
     /**
-     * Initial options for the Order select field.
+     * Initial options for the Orders select field.
      *
      * On create there is no client yet, so options are empty and get populated
      * client-side. On update we seed the current client's orders so the saved
@@ -518,7 +614,9 @@ class PaymentCrudController extends CrudController
     protected function applyPaymentFilters($query)
     {
         if (request()->has('order_id') && request()->get('order_id') !== '') {
-            $query->where('order_id', request()->get('order_id'));
+            $query->whereHas('orders', function ($orders) {
+                $orders->where('orders.id', request()->get('order_id'));
+            });
         }
 
         if (request()->has('client_id') && request()->get('client_id') !== '') {
@@ -727,7 +825,12 @@ class PaymentCrudController extends CrudController
 
         $validated = $request->validate([
             'client_id' => 'required|exists:clients,id',
-            'order_id' => 'nullable|integer|exists:orders,id',
+            // The order form's modal links the payment to the order it was opened from.
+            'order_id' => [
+                'nullable',
+                'integer',
+                Rule::exists('orders', 'id')->where('client_id', (int) $request->input('client_id')),
+            ],
             'amount_gel' => 'required|numeric|min:0',
             'currency_rate' => 'required|numeric|min:0',
             'method' => 'required|in:Cash,Transfer,Terminal,PM Transfer',
@@ -738,8 +841,9 @@ class PaymentCrudController extends CrudController
             'idempotency_key' => 'nullable|string|max:64',
         ]);
 
-        // Empty strings are converted to null by Laravel; guard just in case.
-        $validated['order_id'] = $validated['order_id'] ?? null;
+        // Not a column: the link is written to order_payment after the insert.
+        $orderId = $validated['order_id'] ?? null;
+        unset($validated['order_id']);
 
         $idempotencyKey = $validated['idempotency_key'] ?? null;
 
@@ -766,7 +870,12 @@ class PaymentCrudController extends CrudController
             $validated['author'] = backpack_user()->id;
             $validated['idempotency_key'] = $idempotencyKey;
 
-            $payment = Payment::create($validated);
+            $payment = DB::transaction(function () use ($validated, $orderId) {
+                $payment = Payment::create($validated);
+                $payment->linkOrders($orderId ? [$orderId] : []);
+
+                return $payment;
+            });
 
             return response()->json([
                 'success' => true,

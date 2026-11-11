@@ -16,7 +16,7 @@ class DashboardController extends Controller
     {
         $account = $this->account($request);
         $client = $account->client()->with([
-            'payments.order:id,client_id,status',
+            'payments.orders' => fn ($query) => $query->select('orders.id', 'orders.client_id', 'orders.status'),
             'orders.services',
             'orders.products',
             'orders.pieces',

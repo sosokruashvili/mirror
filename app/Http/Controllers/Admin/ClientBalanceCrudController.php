@@ -290,7 +290,7 @@ class ClientBalanceCrudController extends CrudController
                 'payments' => function ($query) {
                     $query->orderByDesc('payment_date')->orderByDesc('id');
                 },
-                'payments.order',
+                'payments.orders',
                 // calculateTotalPrice() walks services/products/pieces on each order,
                 // so eager load them to keep the expanded row to a handful of queries.
                 'orders' => function ($query) {

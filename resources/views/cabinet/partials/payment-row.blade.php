@@ -1,10 +1,9 @@
 @php
-    $linked = $payment->relationLoaded('order') ? $payment->order : null;
-    $visibleOrder = ($linked
-        && (int) $linked->client_id === (int) $payment->client_id
-        && $linked->status !== 'draft')
-        ? $linked
-        : null;
+    // A payment can cover several orders. Only link the client's own, billed ones.
+    $visibleOrders = ($payment->relationLoaded('orders') ? $payment->orders : collect())
+        ->filter(fn ($order) => (int) $order->client_id === (int) $payment->client_id
+            && $order->status !== 'draft')
+        ->sortBy('id');
 @endphp
 <tr>
     <td class="text-secondary">{{ $payment->payment_date?->timezone(config('app.timezone'))->format('d.m.Y') }}</td>
@@ -17,10 +16,10 @@
     <td class="text-secondary">{{ \App\Support\Cabinet\Cabinet::enumLabel('payment.methods', $payment->method) }}</td>
     <td class="text-secondary">{{ \App\Support\Cabinet\Cabinet::enumLabel('payment.types', $payment->type) }}</td>
     <td>
-        @if ($visibleOrder)
-            <a href="{{ route('cabinet.orders.show', $visibleOrder) }}">{{ __('cabinet.order') }} #{{ $visibleOrder->id }}</a>
-        @else
+        @forelse ($visibleOrders as $visibleOrder)
+            <a href="{{ route('cabinet.orders.show', $visibleOrder) }}">{{ __('cabinet.order') }} #{{ $visibleOrder->id }}</a>@unless ($loop->last), @endunless
+        @empty
             <span class="text-secondary">—</span>
-        @endif
+        @endforelse
     </td>
 </tr>

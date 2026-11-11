@@ -106,11 +106,11 @@
                                             @endif
                                         </td>
                                         <td>
-                                            @if ($payment->order_id)
-                                                <a href="{{ route('order.edit', $payment->order_id) }}">#{{ $payment->order_id }}</a>
-                                            @else
+                                            @forelse ($payment->orders->sortBy('id') as $linkedOrder)
+                                                <a href="{{ route('order.edit', $linkedOrder->id) }}">#{{ $linkedOrder->id }}</a>@unless ($loop->last), @endunless
+                                            @empty
                                                 <span class="text-secondary">—</span>
-                                            @endif
+                                            @endforelse
                                         </td>
                                         <td>{{ \App\Models\Payment::types()[$payment->type] ?? ($payment->type ?? '—') }}</td>
                                         <td class="text-end text-nowrap text-success">

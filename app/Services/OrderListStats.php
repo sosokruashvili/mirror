@@ -41,12 +41,17 @@ class OrderListStats
     }
 
     /**
-     * Payments with no order do not move the order-list totals. A payment that
-     * was just unlinked still does, because the order it left is now paid less.
+     * Payments with no order do not move the order-list totals. Links that are
+     * added or removed invalidate on their own (Payment::linkOrders), and a
+     * deleted payment has its orders loaded before the rows go.
      */
     public static function paymentAffectsTotals(Payment $payment): bool
     {
-        return $payment->order_id !== null || $payment->getOriginal('order_id') !== null;
+        if ($payment->relationLoaded('orders')) {
+            return $payment->orders->isNotEmpty();
+        }
+
+        return $payment->exists && $payment->orders()->exists();
     }
 
     /**

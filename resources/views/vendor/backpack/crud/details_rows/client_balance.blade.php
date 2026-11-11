@@ -106,12 +106,12 @@
                                         <td>{{ $payment->method ?? '—' }}</td>
                                         <td>{{ \App\Models\Payment::types()[$payment->type] ?? ($payment->type ?? '—') }}</td>
                                         <td>
-                                            @if ($payment->order_id)
-                                                <a href="{{ route('order.edit', $payment->order_id) }}"
-                                                   @if ($linkTarget === '_blank') target="_blank" rel="noopener noreferrer" @endif>#{{ $payment->order_id }}</a>
-                                            @else
+                                            @forelse ($payment->orders->sortBy('id') as $linkedOrder)
+                                                <a href="{{ route('order.edit', $linkedOrder->id) }}"
+                                                   @if ($linkTarget === '_blank') target="_blank" rel="noopener noreferrer" @endif>#{{ $linkedOrder->id }}</a>@unless ($loop->last), @endunless
+                                            @empty
                                                 <span class="text-secondary">—</span>
-                                            @endif
+                                            @endforelse
                                         </td>
                                         <td>
                                             <span class="badge {{ $paymentStatusClass($payment->status) }}">

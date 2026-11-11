@@ -13,7 +13,7 @@
     $entry = $crud->getCurrentEntry();
 
     $existingPayments = $entry
-        ? $entry->payments()->orderBy('id')->get()->map(function ($payment) {
+        ? $entry->payments()->orderBy('payments.id')->get()->map(function ($payment) {
             return [
                 'id' => $payment->id,
                 'amount_gel' => (float) $payment->amount_gel,

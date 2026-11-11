@@ -37,7 +37,10 @@ class OrderController extends Controller
             ->firstOrFail();
 
         $total = (float) $order->calculateTotalPrice(false);
-        $paid = (float) $order->payments->where('status', 'Paid')->sum('amount_gel');
+        // This order's share of each payment: one payment can cover several orders.
+        $paid = (float) $order->payments
+            ->where('status', 'Paid')
+            ->sum(fn ($payment) => (float) $payment->pivot->amount);
 
         return view('cabinet.orders.show', [
             'order' => $order,

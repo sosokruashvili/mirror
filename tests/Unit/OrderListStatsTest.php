@@ -101,8 +101,7 @@ class OrderListStatsTest extends TestCase
 
         $this->assertFalse(OrderListStats::paymentAffectsTotals($payment));
 
-        $payment->order_id = 15;
-        $payment->syncChanges();
+        $payment->setRelation('orders', collect([new Order]));
 
         $this->assertTrue(OrderListStats::paymentAffectsTotals($payment));
     }

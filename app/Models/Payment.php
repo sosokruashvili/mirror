@@ -2,6 +2,9 @@
 
 namespace App\Models;
 
+use App\Services\OrderListStats;
+use App\Services\PaymentAllocation;
+use App\Support\Auditing\AuditLogger;
 use Backpack\CRUD\app\Models\Traits\CrudTrait;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -25,7 +28,6 @@ class Payment extends Model
     protected $fillable = [
         'author',
         'client_id',
-        'order_id',
         'amount_gel',
         'currency_rate',
         'method',
@@ -41,21 +43,6 @@ class Payment extends Model
         'currency_rate' => 'decimal:4',
         'payment_date' => 'datetime'
     ];
-
-    /**
-     * Normalise an empty order selection to null.
-     *
-     * The Order select on the payment form submits an empty string when no order
-     * is chosen (or when the payment isn't of type "Order"); coerce it to null so
-     * it stores cleanly in the nullable integer column.
-     *
-     * @param  mixed  $value
-     * @return void
-     */
-    public function setOrderIdAttribute($value)
-    {
-        $this->attributes['order_id'] = ($value === '' || $value === null) ? null : $value;
-    }
 
     /**
      * The "booted" method of the model.
@@ -79,8 +66,18 @@ class Payment extends Model
             }
         });
 
+        // The order_payment rows go with the payment (foreign key cascade), so
+        // read them first: the deleted hooks need to know which orders lost it.
+        static::deleting(function (Payment $payment) {
+            $payment->loadMissing('orders');
+        });
+
         static::deleted(function (Payment $payment) {
-            static::updateOrderPaymentStatus($payment->client_id);
+            $clientIds = $payment->orders->pluck('client_id')->push($payment->client_id);
+
+            foreach ($clientIds->filter()->unique() as $clientId) {
+                static::updateOrderPaymentStatus($clientId);
+            }
         });
     }
 
@@ -138,47 +135,64 @@ class Payment extends Model
     }
 
     /**
-     * Get the order this payment is directly related to (optional).
+     * The orders this payment covers (none, one, or several).
+     *
+     * pivot.amount is each order's share of the payment, worked out by
+     * App\Services\PaymentAllocation; it is never entered by hand.
      */
-    public function order()
+    public function orders()
     {
-        return $this->belongsTo(Order::class);
+        return $this->belongsToMany(Order::class, 'order_payment')->withPivot('amount');
     }
 
     /**
-     * Sync orders.paid for the client's non-draft orders from linked payments.
+     * Point the payment at exactly these orders, then redo the split and the
+     * paid flags. Orders that were unlinked may belong to another client (an
+     * old link, or the payment moved client), so their client is synced too.
      *
-     * An order is paid when it has at least one Paid payment attached and the
-     * shortfall vs the order total is at most 1 GEL (covers rounding). Larger
-     * overpayments still count as paid.
+     * @param  array<int|string|null>  $orderIds
+     */
+    public function linkOrders(array $orderIds): void
+    {
+        $orderIds = collect($orderIds)
+            ->filter(fn ($id) => $id !== null && $id !== '')
+            ->map(fn ($id) => (int) $id)
+            ->unique()
+            ->values()
+            ->all();
+
+        $before = $this->orders()->pluck('orders.id')->map(fn ($id) => (int) $id)->all();
+        $changes = $this->orders()->sync($orderIds);
+        $this->unsetRelation('orders');
+
+        $clientIds = collect([$this->client_id]);
+
+        if (!empty($changes['detached'])) {
+            $clientIds = $clientIds->merge(Order::whereKey($changes['detached'])->pluck('client_id'));
+        }
+
+        if (!empty($changes['attached']) || !empty($changes['detached'])) {
+            // order_payment rows fire no model events, so neither of these would notice.
+            app(AuditLogger::class)->linksChanged($this, 'order_ids', $before, $orderIds);
+            app(OrderListStats::class)->invalidate();
+        }
+
+        foreach ($clientIds->filter()->unique() as $clientId) {
+            static::updateOrderPaymentStatus($clientId);
+        }
+    }
+
+    /**
+     * Sync orders.paid, and each order's share of its payments, for a client.
+     *
+     * Kept under this name because callers outside the payment form use it;
+     * the work is done by PaymentAllocation.
      *
      * @param  int|null  $clientId
      * @return void
      */
     public static function updateOrderPaymentStatus($clientId)
     {
-        if (!$clientId) {
-            return;
-        }
-
-        $orders = Order::where('client_id', $clientId)
-            ->where('status', '!=', 'draft')
-            ->with(['payments', 'services', 'products', 'pieces'])
-            ->get();
-
-        foreach ($orders as $order) {
-            $paidAmount = (float) $order->payments
-                ->where('status', 'Paid')
-                ->sum('amount_gel');
-
-            $orderTotal = (float) $order->calculateTotalPrice(false);
-            $isPaid = $paidAmount > 0 && ($orderTotal - $paidAmount) <= 1.0;
-
-            if ((bool) $order->paid !== $isPaid) {
-                $order->paid = $isPaid;
-                $order->saveQuietly();
-            }
-        }
+        app(PaymentAllocation::class)->sync($clientId ? (int) $clientId : null);
     }
 }
-

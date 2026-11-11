@@ -27,7 +27,14 @@ class Service extends Model
         'cutloss',
         'extra_field_names',
         'companion_service_ids',
+        'product_types',
     ];
+
+    /**
+     * Order product types a service can be limited to, in the order the matrix
+     * page shows them. Labels come from lang/{locale}/product_type.php.
+     */
+    public const PRODUCT_TYPES = ['glass', 'mirror', 'glass_pkg', 'lamix', 'service'];
 
     protected $casts = [
         'price' => 'decimal:2',
@@ -35,6 +42,7 @@ class Service extends Model
         'cutloss' => 'integer',
         'extra_field_names' => 'array',
         'companion_service_ids' => 'array',
+        'product_types' => 'array',
     ];
 
     /*
@@ -87,6 +95,56 @@ class Service extends Model
         $ids = is_array($value) ? self::normalizeIds($value, $this->id) : [];
 
         $this->attributes['companion_service_ids'] = $ids === [] ? null : json_encode($ids);
+    }
+
+    /**
+     * The order product types this service is limited to; [] means every type.
+     *
+     * @return list<string>
+     */
+    public function productTypes(): array
+    {
+        $types = $this->product_types;
+
+        return is_array($types) ? self::normalizeProductTypes($types) : [];
+    }
+
+    /**
+     * Whether the order form offers this service on an order of $productType.
+     * A service with no types ticked is offered everywhere, and so is every
+     * service while the order has no type yet.
+     */
+    public function isOfferedFor(?string $productType): bool
+    {
+        $types = $this->productTypes();
+
+        return $types === [] || $productType === null || $productType === ''
+            || in_array($productType, $types, true);
+    }
+
+    /**
+     * Store known product types only, unique and in PRODUCT_TYPES order; empty → null.
+     */
+    public function setProductTypesAttribute($value): void
+    {
+        if (is_string($value)) {
+            $value = json_decode($value, true);
+        }
+
+        $types = is_array($value) ? self::normalizeProductTypes($value) : [];
+
+        $this->attributes['product_types'] = $types === [] ? null : json_encode($types);
+    }
+
+    /**
+     * @param  array<int, mixed>  $types
+     * @return list<string>
+     */
+    private static function normalizeProductTypes(array $types): array
+    {
+        $given = array_map('strval', array_filter($types, 'is_scalar'));
+
+        return array_values(array_filter(self::PRODUCT_TYPES, fn (string $t) => in_array($t, $given, true)));
     }
 
     /**

@@ -12,6 +12,11 @@
             margin: 0 !important;
         }
         .invoice-table-section { margin-bottom: 8px !important; page-break-inside: avoid; }
+        /* The sizes+services table can run past a page: let it break, but
+           only between sizes so a size never splits from its services. */
+        .invoice-table-section--breakable { page-break-inside: auto; }
+        .invoice-table .piece-group { page-break-inside: avoid; break-inside: avoid; }
+        .invoice-table .service-desc { padding-left: 18px !important; }
         .invoice-table th, .invoice-table td { padding: 4px 6px !important; font-size: 11px !important; }
         .invoice-table-heading { margin: 6px 0 4px 0 !important; font-size: 12px !important; }
     }
@@ -71,6 +76,10 @@
     }
     .invoice-table th { background: #f0f0f0; font-weight: 600; color: #000; }
     .invoice-table tfoot td { background: #f7f7f7; font-weight: 700; color: #000; }
+    .invoice-table .piece-group + .piece-group tr:first-child td { border-top: 2px solid #999; }
+    .invoice-table .piece-row td { font-weight: 600; }
+    .invoice-table .service-row td { font-size: 10.5px; }
+    .invoice-table .service-desc { padding-left: 18px; }
     .invoice-table .text-right { text-align: right; }
     .invoice-total { margin-top: 8px; text-align: right; font-size: 14px; font-weight: bold; color: #000; }
     .print-btn { margin-bottom: 10px; }
@@ -107,19 +116,15 @@
     @php
         $order->load(['client', 'services', 'products', 'pieces' => fn ($q) => $q->orderBy('id'), 'pieces.product']);
         $totalGel = (float) ($order->price_gel ?? 0);
-        $serviceLineItems = [];
         $productLineItems = [];
-        $pieceLineItems = [];
-        $serviceRowNum = 1;
         $productRowNum = 1;
-        $pieceRowNum = 1;
 
         // Services: only pivot data from DB (no calculation). The measure column
         // varies per service (area / perimeter / length_cm / …), so both quantity
         // and unit are resolved from the pivot rather than from services.unit.
         $measureLabels = get_extra_field_labels();
 
-        foreach ($order->services as $service) {
+        $serviceLine = function ($service) use ($measureLabels) {
             $measure = order_service_measure($service);
             $lineTotal = (float) ($service->pivot->price_gel ?? 0);
             $desc = $service->title;
@@ -148,15 +153,13 @@
                 $desc .= ' (' . implode(', ', $extraMeasures) . ')';
             }
 
-            $serviceLineItems[] = [
-                'num' => $serviceRowNum++,
+            return [
                 'description' => $desc,
                 'qty' => $measure['qty'],
                 'unit' => $measure['unit'],
-                'price_gel' => null,
                 'total_gel' => $lineTotal,
             ];
-        }
+        };
 
         // Products table: list each product from the order (price from order_product pivot)
         foreach ($order->products as $product) {
@@ -171,22 +174,34 @@
             ];
         }
 
-        // Pieces: only DB fields (price from pieces table)
+        // Sizes and services in one table: each size (piece) is followed by the
+        // services attached to it (order_service.piece_id), the same nesting the
+        // order form uses. Piece price comes from the pieces table (glass only).
+        $pieceGroups = [];
+        $pieceRowNum = 1;
+        $orderPieceIds = $order->pieces->pluck('id')->map(fn ($id) => (int) $id)->all();
         foreach ($order->pieces as $piece) {
-            $product = $piece->product;
-            $productTitle = $product ? $product->title : '—';
-            $desc = ($piece->width ?? '') . '×' . ($piece->height ?? '') . ' სმ';
-            $piecePrice = isset($piece->price) ? (float) $piece->price : null;
-            $pieceLineItems[] = [
+            $pieceGroups[] = [
                 'num' => $pieceRowNum++,
-                'description' => $desc,
+                'description' => ($piece->width ?? '') . '×' . ($piece->height ?? '') . ' სმ',
                 'qty' => (float) ($piece->quantity ?? 1),
-                'unit' => 'ც.',
-                'price_gel' => $piecePrice,
-                'total_gel' => null,
-                'piece' => $piece,
+                'area' => (float) $piece->getArea(),
+                'price_gel' => (float) ($piece->price ?? 0),
+                'services' => $order->services
+                    ->filter(fn ($s) => $s->pivot->piece_id !== null && (int) $s->pivot->piece_id === (int) $piece->id)
+                    ->map($serviceLine)
+                    ->values()
+                    ->all(),
             ];
         }
+
+        // Services not tied to any size on this order: service-only orders, and
+        // orders saved before services were nested under sizes (2026-07).
+        $looseServiceItems = $order->services
+            ->filter(fn ($s) => $s->pivot->piece_id === null || !in_array((int) $s->pivot->piece_id, $orderPieceIds, true))
+            ->map($serviceLine)
+            ->values()
+            ->all();
 
         // Per-table summaries. Pieces carry the area; services are priced per
         // measure (metres, pieces, …) that cannot be summed, so they only get a
@@ -209,10 +224,10 @@
             $productTotalPrice += (float) ($item['price_gel'] ?? 0);
         }
 
-        $serviceTotalPrice = 0.0;
-        foreach ($serviceLineItems as $item) {
-            $serviceTotalPrice += (float) ($item['total_gel'] ?? 0);
-        }
+        $serviceTotalPrice = (float) $order->services->sum(fn ($s) => (float) ($s->pivot->price_gel ?? 0));
+
+        // 2 → "2", 2.50 → "2.5", null → "—"
+        $fmtQty = fn ($qty) => $qty === null ? '—' : rtrim(rtrim(number_format((float) $qty, 2, '.', ''), '0'), '.');
     @endphp
 
     <div class="invoice-meta">
@@ -291,48 +306,9 @@
         </table>
     </div>
 
-    {{-- Table 2: Pieces --}}
-    <div class="invoice-table-section">
-        <div class="invoice-table-heading">ზომები</div>
-        <table class="invoice-table">
-            <thead>
-                <tr>
-                    <th>აღწერა</th>
-                    <th class="text-right">რაოდ.</th>
-                    <th class="text-right">ფართობი</th>
-                    <th class="text-right">ფასი (₾)</th>
-                </tr>
-            </thead>
-            <tbody>
-                @forelse($pieceLineItems as $item)
-                <tr>
-                    <td>{{ $item['description'] }}</td>
-                    <td class="text-right">{{ $item['qty'] !== null ? (is_numeric($item['qty']) && $item['qty'] == (int)$item['qty'] ? (int)$item['qty'] : $item['qty']) : '—' }}</td>
-                    <td class="text-right">{{ number_format($item['piece']->getArea(), 2) }} m²</td>
-                    <td class="text-right">{{ number_format((float) ($item['piece']->price ?? 0), 2) }}</td>
-                </tr>
-                @empty
-                <tr>
-                    <td colspan="6" class="text-center text-muted">პოზიციები არ არის</td>
-                </tr>
-                @endforelse
-            </tbody>
-            @if(count($pieceLineItems))
-            <tfoot>
-                <tr>
-                    <td>სულ</td>
-                    <td class="text-right">{{ $pieceTotalQty == (int) $pieceTotalQty ? (int) $pieceTotalQty : number_format($pieceTotalQty, 2) }}</td>
-                    <td class="text-right">{{ number_format($pieceTotalArea, 2) }} m²</td>
-                    <td class="text-right">{{ number_format($pieceTotalPrice, 2) }}</td>
-                </tr>
-            </tfoot>
-            @endif
-        </table>
-    </div>
-
-    {{-- Table 3: Services --}}
-    <div class="invoice-table-section">
-        <div class="invoice-table-heading">მომსახურება / Services</div>
+    {{-- Table 2: Sizes, each followed by its own services (as on the order form) --}}
+    <div class="invoice-table-section invoice-table-section--breakable">
+        <div class="invoice-table-heading">{{ count($pieceGroups) ? 'ზომები და მომსახურება' : 'მომსახურება / Services' }}</div>
         <table class="invoice-table">
             <thead>
                 <tr>
@@ -340,30 +316,76 @@
                     <th>აღწერა</th>
                     <th class="text-right">რაოდ.</th>
                     <th>ერთ.</th>
+                    <th class="text-right">ფართობი</th>
                     <th class="text-right">ფასი (₾)</th>
                 </tr>
             </thead>
-            <tbody>
-                @forelse($serviceLineItems as $item)
-                <tr>
-                    <td>{{ $item['num'] }}</td>
-                    <td>{{ $item['description'] }}</td>
-                    <td class="text-right">{{ $item['qty'] !== null ? rtrim(rtrim(number_format($item['qty'], 2, '.', ''), '0'), '.') : '—' }}</td>
-                    <td>{{ $item['unit'] ?? '—' }}</td>
-                    <td class="text-right">{{ $item['total_gel'] !== null ? number_format($item['total_gel'], 2) : '—' }}</td>
+            @foreach($pieceGroups as $group)
+            <tbody class="piece-group">
+                <tr class="piece-row">
+                    <td>{{ $group['num'] }}</td>
+                    <td>{{ $group['description'] }}</td>
+                    <td class="text-right">{{ $fmtQty($group['qty']) }}</td>
+                    <td>ც.</td>
+                    <td class="text-right">{{ number_format($group['area'], 2) }} m²</td>
+                    <td class="text-right">{{ number_format($group['price_gel'], 2) }}</td>
                 </tr>
-                @empty
+                @foreach($group['services'] as $item)
+                <tr class="service-row">
+                    <td></td>
+                    <td class="service-desc">↳ {{ $item['description'] }}</td>
+                    <td class="text-right">{{ $fmtQty($item['qty']) }}</td>
+                    <td>{{ $item['unit'] ?? '—' }}</td>
+                    <td></td>
+                    <td class="text-right">{{ number_format($item['total_gel'], 2) }}</td>
+                </tr>
+                @endforeach
+            </tbody>
+            @endforeach
+            @if(count($looseServiceItems))
+            <tbody class="piece-group">
+                @if(count($pieceGroups))
+                <tr class="piece-row">
+                    <td></td>
+                    <td colspan="5">საერთო მომსახურება</td>
+                </tr>
+                @endif
+                @foreach($looseServiceItems as $item)
+                <tr class="service-row">
+                    <td>{{ count($pieceGroups) ? '' : $loop->iteration }}</td>
+                    <td class="{{ count($pieceGroups) ? 'service-desc' : '' }}">{{ count($pieceGroups) ? '↳ ' : '' }}{{ $item['description'] }}</td>
+                    <td class="text-right">{{ $fmtQty($item['qty']) }}</td>
+                    <td>{{ $item['unit'] ?? '—' }}</td>
+                    <td></td>
+                    <td class="text-right">{{ number_format($item['total_gel'], 2) }}</td>
+                </tr>
+                @endforeach
+            </tbody>
+            @endif
+            @if(!count($pieceGroups) && !count($looseServiceItems))
+            <tbody>
                 <tr>
                     <td colspan="6" class="text-center text-muted">პოზიციები არ არის</td>
                 </tr>
-                @endforelse
             </tbody>
-            @if(count($serviceLineItems))
+            @endif
+            @if(count($pieceGroups) || count($looseServiceItems))
             <tfoot>
+                @if(count($pieceGroups))
                 <tr>
-                    <td colspan="4">სულ</td>
+                    <td colspan="2">ზომები სულ</td>
+                    <td class="text-right">{{ $fmtQty($pieceTotalQty) }}</td>
+                    <td>ც.</td>
+                    <td class="text-right">{{ number_format($pieceTotalArea, 2) }} m²</td>
+                    <td class="text-right">{{ number_format($pieceTotalPrice, 2) }}</td>
+                </tr>
+                @endif
+                @if(count($order->services))
+                <tr>
+                    <td colspan="5">მომსახურება სულ</td>
                     <td class="text-right">{{ number_format($serviceTotalPrice, 2) }}</td>
                 </tr>
+                @endif
             </tfoot>
             @endif
         </table>

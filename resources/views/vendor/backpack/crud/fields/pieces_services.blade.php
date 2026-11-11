@@ -33,6 +33,8 @@
             'extra_field_names' => is_array($extra) ? array_values($extra) : [],
             // Picked together with this service (e.g. განათება → ქაფი, ასაწყობი მასალა, საკიდი).
             'companion_service_ids' => $service->companionServiceIds(),
+            // Order product types the service is offered on; [] = all (Services → product types).
+            'product_types' => $service->productTypes(),
         ];
     })->values();
 

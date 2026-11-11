@@ -25,10 +25,13 @@
     var serviceUnitMap = {};
     // serviceId -> [service ids added with it], e.g. განათება → ქაფი, ასაწყობი მასალა, საკიდი.
     var serviceCompanionMap = {};
+    // serviceId -> order product types it is offered on; [] = every type.
+    var serviceTypesMap = {};
     (DATA.services || []).forEach(function (s) {
         serviceExtraMap[String(s.id)] = s.extra_field_names || [];
         serviceUnitMap[String(s.id)] = String(s.unit || '').trim();
         serviceCompanionMap[String(s.id)] = (s.companion_service_ids || []).map(String);
+        serviceTypesMap[String(s.id)] = (s.product_types || []).map(String);
     });
 
     // Every possible extra sub-field (the templates carry one wrapper per field).
@@ -58,6 +61,36 @@
                 $select.select2({ width: '100%', placeholder: 'Select a service', allowClear: true });
             }
         } catch (e) { /* plain <select> still works */ }
+    }
+
+    /* ------------------------------------------------- services per product type */
+
+    // Each service lists the order product types it can be done for (Services →
+    // product types). The dropdown offers only those, plus whatever the row already
+    // holds, so a saved line or an auto-added companion never disappears from it.
+
+    function isOfferedFor(serviceId, productType) {
+        var types = serviceTypesMap[String(serviceId)] || [];
+        return !productType || !types.length || types.indexOf(productType) !== -1;
+    }
+
+    function filterServiceOptions($select) {
+        var type = currentProductType();
+        var current = String($select.val() || '');
+        $select.find('option').filter(function () { return this.value !== ''; }).remove();
+        (DATA.services || []).forEach(function (s) {
+            var id = String(s.id);
+            if (id === current || isOfferedFor(id, type)) {
+                $select.append(new Option(s.title, id, false, id === current));
+            }
+        });
+        $select.trigger('change.select2');
+    }
+
+    function filterAllServiceOptions() {
+        $('#pieces-services-field [data-service-row] [data-svc-field="service_id"]').each(function () {
+            filterServiceOptions($(this));
+        });
     }
 
     /* --------------------------------------------------------------- templates */
@@ -97,6 +130,7 @@
                 applyServiceFields($row, String(data.service_id), false);
             }
         }
+        filterServiceOptions($select);
         // Remembered so a later pick knows which companions the old service brought.
         $row.data('psService', data && data.service_id ? String(data.service_id) : '');
         return $row;
@@ -564,8 +598,11 @@
             calculateRowPrice($(this).closest('[data-service-row]'));
         });
 
-        // Product type toggles which section is active
-        $(document).on('change', 'select[name="product_type"], input[name="product_type"]', updateSectionVisibility);
+        // Product type toggles which section is active and which services are offered
+        $(document).on('change', 'select[name="product_type"], input[name="product_type"]', function () {
+            updateSectionVisibility();
+            filterAllServiceOptions();
+        });
 
         // Respect a manual expenses override
         $(document).on('input', 'input[name="expenses"]', function () { expensesManuallyEdited = true; });

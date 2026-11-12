@@ -53,6 +53,9 @@ Route::group([
     Route::crud('product', 'ProductCrudController');
     Route::crud('piece', 'PieceCrudController');
     Route::get('service/generate-slug', 'ServiceCrudController@generateSlug')->name('service.generateSlug');
+    // Services × product types matrix (administrators only, checked in the controller)
+    Route::get('service-product-types', 'ServiceProductTypesController@index')->name('service-product-types.index');
+    Route::post('service-product-types', 'ServiceProductTypesController@update')->name('service-product-types.update');
     Route::crud('service', 'ServiceCrudController');
     Route::get('service/get-extra-fields/{id}', 'ServiceCrudController@getExtraFields')->name('service.getExtraFields');
     Route::crud('stage', 'StageCrudController');

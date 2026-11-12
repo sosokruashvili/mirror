@@ -129,6 +129,13 @@ class ServiceCrudController extends CrudController
             'value' => fn ($entry) => $this->companionTitles($entry),
         ]);
 
+        CRUD::addColumn([
+            'name'  => 'product_types',
+            'label' => __('service.product_types'),
+            'type'  => 'custom_html',
+            'value' => fn ($entry) => $this->productTypeLabels($entry),
+        ]);
+
         $this->addStandardFilters();
 
         // Filter services by production stage.
@@ -450,6 +457,27 @@ class ServiceCrudController extends CrudController
             'type'  => 'custom_html',
             'value' => fn ($entry) => $this->companionTitles($entry) ?: '-',
         ]);
+
+        CRUD::addColumn([
+            'name'  => 'product_types',
+            'label' => __('service.product_types'),
+            'type'  => 'custom_html',
+            'value' => fn ($entry) => $this->productTypeLabels($entry),
+        ]);
+    }
+
+    /**
+     * Escaped labels of the order product types this service is offered on, or
+     * „ყველა პროდუქტს“ when it is not limited (Services → product types matrix).
+     */
+    private function productTypeLabels($entry): string
+    {
+        $types = $entry->productTypes();
+        if ($types === []) {
+            return '<span class="text-muted">' . e(__('service.product_types_all')) . '</span>';
+        }
+
+        return collect($types)->map(fn (string $t) => e(product_type_ge($t)))->implode(', ');
     }
 
     /**

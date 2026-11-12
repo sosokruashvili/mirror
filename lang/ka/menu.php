@@ -14,6 +14,7 @@ return [
     'products' => 'პროდუქტები',
     'services' => 'მომსახურება',
     'service_stats' => 'მომსახურების სტატისტიკა',
+    'service_product_types' => 'სერვისები პროდუქტებზე',
 
     'warehouse' => 'საწყობი',
     'warehouse_stock' => 'მარაგი',

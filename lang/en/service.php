@@ -28,6 +28,8 @@ return [
     'cutting_loss' => 'Cutting Loss (mm)',
     'extra_field_names' => 'Extra Field Names',
     'companion_services' => 'Auto-added services',
+    'product_types' => 'Offered for products',
+    'product_types_all' => 'All products',
 
     'filters' => [
         'order' => 'Order',
@@ -48,6 +50,20 @@ return [
     ],
 
     // Service Stats page
+    'matrix' => [
+        'title' => 'Services by product',
+        'subtitle' => 'Tick which services each product gets. The order form offers only those.',
+        'search' => 'Search services…',
+        'empty_row_note' => 'A service with nothing ticked is offered on every product.',
+        'usage_hint' => 'Grey number: order lines that used it on that product so far.',
+        'service' => 'Service',
+        'no_stage' => 'No stage',
+        'whole_column' => 'Whole column',
+        'shown_everywhere' => 'Shown everywhere',
+        'save' => 'Save',
+        'saved' => 'Saved. :count service(s) changed.',
+    ],
+
     'stats' => [
         'title' => 'Service Stats',
         'subtitle' => 'Completed work quantity and total amount per service.',

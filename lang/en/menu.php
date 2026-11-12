@@ -19,6 +19,7 @@ return [
     'products' => 'Products',
     'services' => 'Services',
     'service_stats' => 'Service Stats',
+    'service_product_types' => 'Services by product',
 
     'warehouse' => 'Warehouse',
     'warehouse_stock' => 'Stock',

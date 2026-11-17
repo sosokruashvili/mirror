@@ -466,7 +466,7 @@
 							</div>
 							
 							<div class="piece-actions d-flex flex-wrap gap-1 mt-3 pt-3 border-top">
-								<button type="button" class="btn btn-danger btn-sm btn-piece-broken" data-piece-id="{{ $piece->id }}" data-url="{{ route('team.pieces.broken', $piece->id) }}" data-broken="{{ $piece->broken_glasses_count ?? 0 }}">
+								<button type="button" class="btn btn-danger btn-sm btn-piece-broken" data-piece-id="{{ $piece->id }}" data-url="{{ route('team.pieces.broken', $piece->id) }}" data-broken="{{ $piece->broken_glasses_count ?? 0 }}" data-unit-area="{{ \App\Support\BrokenGlass\BreakDetails::sheetArea($piece->width, $piece->height) }}">
 									<i class="la la-times"></i>&nbsp;გატყდა
 								</button>
 							</div>
@@ -578,18 +578,19 @@
 	</div>
 </div>
 
-{{-- Broken glass description modal --}}
+{{-- Broken glass modal: break details (usable m², machine, stage) + comment --}}
 <div class="modal fade" id="brokenGlassModal" tabindex="-1" aria-labelledby="brokenGlassModalLabel" aria-hidden="true" data-bs-backdrop="true" data-bs-keyboard="true">
-	<div class="modal-dialog modal-dialog-centered modal-sm">
+	<div class="modal-dialog modal-dialog-centered">
 		<div class="modal-content">
 			<div class="modal-header">
-				<h5 class="modal-title" id="brokenGlassModalLabel">გატყდა – აღწერა</h5>
+				<h5 class="modal-title" id="brokenGlassModalLabel">გატყდა</h5>
 				<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
 			</div>
 			<div class="modal-body">
+				@include('admin.partials.broken-glass-fields', ['idPrefix' => 'brokenGlass'])
 				<div class="mb-2">
-					<label for="brokenGlassDescription" class="form-label">აღწერა (არასავალდებულო)</label>
-					<textarea id="brokenGlassDescription" class="form-control" rows="3" placeholder="დამატებითი ინფორმაცია..."></textarea>
+					<label for="brokenGlassDescription" class="form-label">კომენტარი (არასავალდებულო)</label>
+					<textarea id="brokenGlassDescription" class="form-control" rows="3" placeholder="რატომ გატყდა..."></textarea>
 				</div>
 			</div>
 			<div class="modal-footer">
@@ -604,6 +605,8 @@
 @endsection
 
 @push('after_scripts')
+{{-- Plain asset with a mtime query, not basset: basset would pin a stale copy on prod. --}}
+<script src="{{ asset('assets/js/broken-glass-form.js') }}?v={{ filemtime(public_path('assets/js/broken-glass-form.js')) }}"></script>
 <script>
 if (window.self !== window.top) {
 	document.body.classList.add('in-iframe');
@@ -655,18 +658,34 @@ function showOrderComment(btn) {
 	document.body.appendChild(modalEl);
 
 	var modal = new bootstrap.Modal(modalEl);
+	var fieldsEl = modalEl.querySelector('[data-broken-glass-fields]');
+	var failed = 'გატყდა – მოთხოვნა ვერ შესრულდა. სცადე თავიდან.';
 
 	document.querySelectorAll('.btn-piece-broken').forEach(function(btn) {
 		btn.addEventListener('click', function() {
+			if (!window.BrokenGlassForm) {
+				alert('გატყდა – ფანჯარა ვერ გაიხსნა. განაახლე გვერდი და სცადე თავიდან.');
+				return;
+			}
 			currentBtn = btn;
 			currentTile = btn.closest('.piece-tile');
-			descriptionEl.value = '';
+			BrokenGlassForm.reset(fieldsEl, btn.getAttribute('data-unit-area'), descriptionEl);
 			modal.show();
 		});
 	});
 
+	modalEl.addEventListener('shown.bs.modal', function() {
+		var usableEl = modalEl.querySelector('[data-bg-usable]');
+		if (usableEl) usableEl.focus();
+	});
+
 	submitBtn.addEventListener('click', function() {
 		if (!currentBtn || !currentTile) return;
+		var checked = BrokenGlassForm.collect(fieldsEl, descriptionEl);
+		if (checked.error) {
+			BrokenGlassForm.showError(fieldsEl, checked.error);
+			return;
+		}
 		var url = currentBtn.getAttribute('data-url');
 		var token = (document.querySelector('meta[name="csrf-token"]') && document.querySelector('meta[name="csrf-token"]').getAttribute('content'))
 			|| (document.querySelector('input[name="_token"]') && document.querySelector('input[name="_token"]').value);
@@ -675,9 +694,10 @@ function showOrderComment(btn) {
 			return;
 		}
 		submitBtn.disabled = true;
+		BrokenGlassForm.showError(fieldsEl, '');
 		var formData = new FormData();
 		formData.append('_token', token);
-		formData.append('description', descriptionEl.value || '');
+		Object.keys(checked.fields).forEach(function(key) { formData.append(key, checked.fields[key]); });
 		fetch(url, {
 			method: 'POST',
 			headers: {
@@ -689,8 +709,13 @@ function showOrderComment(btn) {
 		})
 		.then(function(res) { return res.json(); })
 		.then(function(data) {
+			if (!data || !data.success) {
+				// Keep the dialog open so the field can be fixed and resent.
+				BrokenGlassForm.showError(fieldsEl, (data && data.message) || failed);
+				return;
+			}
 			modal.hide();
-			if (data.success) {
+			if (currentTile) {
 				var broken = data.broken || 1;
 				currentTile.classList.add('border-danger');
 				var detailArea = currentTile.querySelector('.piece-details');
@@ -704,17 +729,15 @@ function showOrderComment(btn) {
 					detailArea.appendChild(item);
 				}
 				currentBtn.setAttribute('data-broken', broken);
-			} else {
-				alert(data.message || 'Failed.');
+				currentBtn = null;
+				currentTile = null;
 			}
 		})
 		.catch(function(err) {
-			alert('Request failed.');
+			BrokenGlassForm.showError(fieldsEl, failed);
 		})
 		.finally(function() {
 			submitBtn.disabled = false;
-			currentBtn = null;
-			currentTile = null;
 		});
 	});
 })();

@@ -34,6 +34,7 @@ return [
     'orders' => 'Orders',
     'pieces' => 'Pieces',
     'stages' => 'Stages',
+    'machines' => 'Machines',
     'payments' => 'Payments',
 
     'cashier' => 'Cashier',

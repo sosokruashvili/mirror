@@ -32,6 +32,73 @@
             dataTablesExportStrip(data),
     };
 
+    // Opt-in per CRUD with $crud->set('list.exportAllRows', true).
+    // The table pages on the server, so a stock export only contains the rows on
+    // screen. This fetches every filtered row once (length -1, which the
+    // pageLengthMenu allows), exports them while the draw is cancelled, then
+    // reloads the page the user was on.
+    let dataTablesExportAllRows = @json((bool) $crud->get('list.exportAllRows'));
+    let dataTablesExportRun = (dt, run) => {
+        let settings = dt.settings()[0];
+        if (!dataTablesExportAllRows || !settings.oFeatures.bServerSide) {
+            return run();
+        }
+        let start = settings._iDisplayStart;
+        dt.one('preXhr', (e, s, data) => {
+            data.start = 0;
+            data.length = -1;
+            dt.one('preDraw', () => {
+                try {
+                    run();
+                } finally {
+                    dt.one('preXhr', (e2, s2, data2) => {
+                        settings._iDisplayStart = start;
+                        data2.start = start;
+                    });
+                    setTimeout(() => dt.ajax.reload(null, false), 0);
+                }
+                return false;
+            });
+        });
+        dt.ajax.reload(null, false);
+    };
+
+    // Opt-in per CRUD with $crud->set('list.exportPdfGeorgian', true).
+    // pdfmake's bundled Roboto has no Georgian glyphs (the text comes out blank),
+    // so DejaVu Sans is loaded on the first PDF export, as on the cutting-stats page.
+    let dataTablesExportPdfGeorgian = @json((bool) $crud->get('list.exportPdfGeorgian'));
+    let dataTablesExportPdfFontSize = @json($crud->get('list.exportPdfFontSize'));
+    let dataTablesPdfFontReady = null;
+    let dataTablesExportPdfFont = () => {
+        if (!dataTablesExportPdfGeorgian || (window.pdfMake && pdfMake.fonts && pdfMake.fonts.DejaVu)) {
+            return Promise.resolve();
+        }
+        if (!dataTablesPdfFontReady) {
+            let load = url => fetch(url).then(r => { if (!r.ok) throw new Error('font'); return r.arrayBuffer(); });
+            let toBase64 = buffer => {
+                let bytes = new Uint8Array(buffer), binary = '';
+                for (let i = 0; i < bytes.length; i += 0x8000) {
+                    binary += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
+                }
+                return btoa(binary);
+            };
+            dataTablesPdfFontReady = Promise.all([
+                load(@json(asset('assets/fonts/DejaVuSans.ttf'))),
+                load(@json(asset('assets/fonts/DejaVuSans-Bold.ttf')))
+            ]).then(buffers => {
+                pdfMake.vfs['DejaVuSans.ttf'] = toBase64(buffers[0]);
+                pdfMake.vfs['DejaVuSans-Bold.ttf'] = toBase64(buffers[1]);
+                // This pdfmake build reads only window.pdfMake.fonts and does not
+                // create it itself, so Roboto has to be declared alongside.
+                pdfMake.fonts = {
+                    Roboto: { normal: 'Roboto-Regular.ttf', bold: 'Roboto-Medium.ttf', italics: 'Roboto-Italic.ttf', bolditalics: 'Roboto-Italic.ttf' },
+                    DejaVu: { normal: 'DejaVuSans.ttf', bold: 'DejaVuSans-Bold.ttf', italics: 'DejaVuSans.ttf', bolditalics: 'DejaVuSans-Bold.ttf' }
+                };
+            }).catch(() => { dataTablesPdfFontReady = null; });
+        }
+        return dataTablesPdfFontReady;
+    };
+
     window.crud.dataTableConfiguration.buttons = [
         @if($crud->get('list.showExportButton'))
         {
@@ -50,9 +117,12 @@
                         format: dataTablesExportFormat,
                     },
                     action: function(e, dt, button, config) {
-                        crud.responsiveToggle(dt);
-                        $.fn.DataTable.ext.buttons.copyHtml5.action.call(this, e, dt, button, config);
-                        crud.responsiveToggle(dt);
+                        let that = this;
+                        dataTablesExportRun(dt, () => {
+                            crud.responsiveToggle(dt);
+                            $.fn.DataTable.ext.buttons.copyHtml5.action.call(that, e, dt, button, config);
+                            crud.responsiveToggle(dt);
+                        });
                     }
                 },
                 {
@@ -66,9 +136,12 @@
                         format: dataTablesExportFormat,
                     },
                     action: function(e, dt, button, config) {
-                        crud.responsiveToggle(dt);
-                        $.fn.DataTable.ext.buttons.excelHtml5.action.call(this, e, dt, button, config);
-                        crud.responsiveToggle(dt);
+                        let that = this;
+                        dataTablesExportRun(dt, () => {
+                            crud.responsiveToggle(dt);
+                            $.fn.DataTable.ext.buttons.excelHtml5.action.call(that, e, dt, button, config);
+                            crud.responsiveToggle(dt);
+                        });
                     }
                 },
                 {
@@ -82,9 +155,12 @@
                         format: dataTablesExportFormat,
                     },
                     action: function(e, dt, button, config) {
-                        crud.responsiveToggle(dt);
-                        $.fn.DataTable.ext.buttons.csvHtml5.action.call(this, e, dt, button, config);
-                        crud.responsiveToggle(dt);
+                        let that = this;
+                        dataTablesExportRun(dt, () => {
+                            crud.responsiveToggle(dt);
+                            $.fn.DataTable.ext.buttons.csvHtml5.action.call(that, e, dt, button, config);
+                            crud.responsiveToggle(dt);
+                        });
                     }
                 },
                 {
@@ -98,10 +174,28 @@
                         format: dataTablesExportFormat,
                     },
                     orientation: 'landscape',
+                    customize: function(doc) {
+                        if (dataTablesExportPdfGeorgian && window.pdfMake && pdfMake.fonts && pdfMake.fonts.DejaVu) {
+                            doc.defaultStyle.font = 'DejaVu';
+                        }
+                        if (dataTablesExportPdfFontSize) {
+                            doc.defaultStyle.fontSize = dataTablesExportPdfFontSize;
+                            if (doc.styles && doc.styles.tableHeader) doc.styles.tableHeader.fontSize = dataTablesExportPdfFontSize;
+                        }
+                    },
                     action: function(e, dt, button, config) {
-                        crud.responsiveToggle(dt);
-                        $.fn.DataTable.ext.buttons.pdfHtml5.action.call(this, e, dt, button, config);
-                        crud.responsiveToggle(dt);
+                        let that = this;
+                        let exportPdf = () => dataTablesExportRun(dt, () => {
+                            crud.responsiveToggle(dt);
+                            $.fn.DataTable.ext.buttons.pdfHtml5.action.call(that, e, dt, button, config);
+                            crud.responsiveToggle(dt);
+                        });
+                        // Pages without the Georgian font keep the original synchronous export.
+                        if (dataTablesExportPdfGeorgian) {
+                            dataTablesExportPdfFont().then(exportPdf);
+                        } else {
+                            exportPdf();
+                        }
                     }
                 },
                 {
@@ -115,9 +209,12 @@
                         format: dataTablesExportFormat,
                     },
                     action: function(e, dt, button, config) {
-                        crud.responsiveToggle(dt);
-                        $.fn.DataTable.ext.buttons.print.action.call(this, e, dt, button, config);
-                        crud.responsiveToggle(dt);
+                        let that = this;
+                        dataTablesExportRun(dt, () => {
+                            crud.responsiveToggle(dt);
+                            $.fn.DataTable.ext.buttons.print.action.call(that, e, dt, button, config);
+                            crud.responsiveToggle(dt);
+                        });
                     }
                 }
             ]

@@ -29,6 +29,8 @@ class WarehouseCorrection extends Model
         'effective_date',
         'reason',
         'user_id',
+        // Set only by App\Services\BrokenGlassConfirmation; not a form field.
+        'broken_glass_id',
     ];
 
     protected $casts = [

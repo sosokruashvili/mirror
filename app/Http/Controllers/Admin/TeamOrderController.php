@@ -7,7 +7,9 @@ use App\Models\Order;
 use App\Models\Piece;
 use App\Services\OrderPieceStatusSync;
 use App\Support\Auditing\BrokenGlassLogger;
+use App\Support\BrokenGlass\BreakDetails;
 use Illuminate\Support\Carbon;
+use Illuminate\Validation\ValidationException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Http\Request;
 use Prologue\Alerts\Facades\Alert;
@@ -890,7 +892,12 @@ class TeamOrderController extends Controller
                 }
             }
 
-            app(BrokenGlassLogger::class)->record($piece, $request->input('description'));
+            $details = BreakDetails::validate(
+                $request->only(['machine_id', 'detected_stage_id', 'usable_area', 'description']),
+                BreakDetails::sheetArea($piece->width, $piece->height)
+            );
+
+            app(BrokenGlassLogger::class)->record($piece, $details);
 
             $count = $piece->brokenGlasses()->count();
 
@@ -905,9 +912,23 @@ class TeamOrderController extends Controller
             }
 
             return response()->json(['success' => true, 'broken' => $count]);
+        } catch (ValidationException $e) {
+            return $this->brokenValidationResponse($e);
         } catch (\Exception $e) {
             return response()->json(['success' => false, 'message' => $e->getMessage()], 422);
         }
+    }
+
+    /**
+     * The break dialogs show one message; send the first one, in Georgian.
+     */
+    private function brokenValidationResponse(ValidationException $e)
+    {
+        return response()->json([
+            'success' => false,
+            'message' => collect($e->errors())->flatten()->first() ?: $e->getMessage(),
+            'errors' => $e->errors(),
+        ], 422);
     }
 
     /**
@@ -945,9 +966,14 @@ class TeamOrderController extends Controller
             // One click = one broken sheet for the whole group, recorded against the
             // group's first piece. `quantity` carries the group size for reporting;
             // the expense math below still charges exactly one sheet (see BrokenGlass).
+            $details = BreakDetails::validate(
+                $request->only(['machine_id', 'detected_stage_id', 'usable_area', 'description']),
+                BreakDetails::sheetArea($pieces->first()->width, $pieces->first()->height)
+            );
+
             app(BrokenGlassLogger::class)->record(
                 $pieces->first(),
-                $request->input('description'),
+                $details,
                 $pieces->count()
             );
 
@@ -974,6 +1000,8 @@ class TeamOrderController extends Controller
             $brokenTotal = $pieces->sum(fn ($piece) => $piece->getBrokenCount());
 
             return response()->json(['success' => true, 'broken' => $brokenTotal]);
+        } catch (ValidationException $e) {
+            return $this->brokenValidationResponse($e);
         } catch (\Exception $e) {
             return response()->json(['success' => false, 'message' => $e->getMessage()], 422);
         }

@@ -46,7 +46,9 @@ return [
         'product'          => ['label' => 'Products',         'actions' => ['list', 'create', 'update', 'delete', 'show']],
         'service'          => ['label' => 'Services',         'actions' => ['list', 'create', 'update', 'delete', 'show']],
         'piece'            => ['label' => 'Pieces',           'actions' => ['list', 'update', 'delete', 'show']],
-        'broken-glass'     => ['label' => 'Broken Glasses',   'actions' => ['list']],
+        // confirm: edit + confirm pending records (returns usable m² to stock); unconfirm: undo it.
+        'broken-glass'     => ['label' => 'Broken Glasses',   'actions' => ['list', 'confirm', 'unconfirm']],
+        'machine'          => ['label' => 'Machines',         'actions' => ['list', 'create', 'update']],
         'stage'            => ['label' => 'Stages',           'actions' => ['list', 'create', 'update', 'delete', 'show']],
         'warehouse'        => ['label' => 'Warehouse Stock',  'actions' => ['list', 'create', 'update', 'delete', 'show']],
         'warehouse-expense' => ['label' => 'Warehouse Expenses', 'actions' => ['list']],
@@ -91,5 +93,7 @@ return [
         'reorder' => 'Reorder',
         'view'    => 'View',
         'operate' => 'Operate',
+        'confirm' => 'Confirm',
+        'unconfirm' => 'Unconfirm',
     ],
 ];

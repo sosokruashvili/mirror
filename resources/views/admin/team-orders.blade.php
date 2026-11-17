@@ -1131,6 +1131,9 @@
                                             'stage_slugs' => $stageSlugs,
                                             'completed_slugs' => $piece->completedStageNames(),
                                             'broken_count' => $piece->getBrokenCount(),
+                                            // One sheet of the real size (no cutting loss): the
+                                            // ceiling for the "გატყდა" dialog's usable m².
+                                            'unit_area' => \App\Support\BrokenGlass\BreakDetails::sheetArea($piece->width, $piece->height),
                                             'stage' => $pieceStage,
                                             'stage_mixed' => false,
                                         ];
@@ -1151,7 +1154,7 @@
                                                 // Stages completed by every piece in the group, in canonical order.
                                                 $groupCompletedSlugs = array_values(array_filter($stageOrderSlugs, fn ($slug) => in_array($slug, $size['completed_slugs'] ?? [], true)));
                                             @endphp
-                                            <span class="size-tag{{ ($size['broken_count'] ?? 0) > 0 ? ' broken' : '' }}{{ $groupStage ? ' has-stage' : '' }}{{ $showArchived ? ' size-tag-readonly' : '' }}" data-piece-ids="{{ implode(',', $size['piece_ids']) }}" data-piece-stage="{{ $groupStage ?? '' }}" data-piece-stages="{{ implode(',', $groupStageSlugs) }}" data-piece-completed="{{ implode(',', $groupCompletedSlugs) }}" style="{{ $stageStyle }}"@if(!$showArchived) onclick="togglePieceMenu(event, this)"@endif>
+                                            <span class="size-tag{{ ($size['broken_count'] ?? 0) > 0 ? ' broken' : '' }}{{ $groupStage ? ' has-stage' : '' }}{{ $showArchived ? ' size-tag-readonly' : '' }}" data-piece-ids="{{ implode(',', $size['piece_ids']) }}" data-piece-stage="{{ $groupStage ?? '' }}" data-piece-stages="{{ implode(',', $groupStageSlugs) }}" data-piece-completed="{{ implode(',', $groupCompletedSlugs) }}" data-unit-area="{{ $size['unit_area'] ?? '' }}" style="{{ $stageStyle }}"@if(!$showArchived) onclick="togglePieceMenu(event, this)"@endif>
                                                 {{ $size['width'] }} × {{ $size['height'] }} cm (×{{ $size['quantity'] }})
                                                 @if(($size['broken_count'] ?? 0) > 0)
                                                     <span class="piece-broken-label">[გატყდა: {{ $size['broken_count'] }}]</span>
@@ -1293,16 +1296,17 @@
     </div>
 </div>
 
-{{-- Piece "broke" reason modal (optional description) --}}
+{{-- Piece "broke" modal: break details (usable m², machine, stage) + comment --}}
 <div class="modal fade" id="pieceBrokenModal" tabindex="-1" aria-labelledby="pieceBrokenModalLabel" aria-hidden="true" data-bs-backdrop="true" data-bs-keyboard="true">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title" id="pieceBrokenModalLabel">გატყდა – მიზეზი</h5>
+                <h5 class="modal-title" id="pieceBrokenModalLabel">გატყდა</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
-                <label for="pieceBrokenDescription" class="form-label">აღწერა (არასავალდებულო)</label>
+                @include('admin.partials.broken-glass-fields', ['idPrefix' => 'pieceBroken'])
+                <label for="pieceBrokenDescription" class="form-label">კომენტარი (არასავალდებულო)</label>
                 <textarea id="pieceBrokenDescription" class="form-control" rows="3" placeholder="რატომ გატყდა..."></textarea>
             </div>
             <div class="modal-footer">
@@ -1371,6 +1375,8 @@
     @basset('https://cdn.jsdelivr.net/npm/select2@4.0.13/dist/js/select2.full.min.js')
     @basset('https://cdn.jsdelivr.net/npm/moment@2.29.4/min/moment-with-locales.min.js')
     @basset('https://cdn.jsdelivr.net/npm/bootstrap-daterangepicker@3.1.0/daterangepicker.js')
+    {{-- Plain asset with a mtime query, not basset: basset would pin a stale copy on prod. --}}
+    <script src="{{ asset('assets/js/broken-glass-form.js') }}?v={{ filemtime(public_path('assets/js/broken-glass-form.js')) }}"></script>
 <script>
 jQuery(function($) {
     if (!$.fn.daterangepicker) return;
@@ -1986,7 +1992,8 @@ jQuery(function($) {
     // card back through the flow (every piece reset to before მოჭრა). The extra
     // sheet's material is added to the order's warehouse expense server-side, so
     // reload the page to reflect the reset stage + updated [გატყდა: x].
-    // Clicking opens a small modal to capture an optional reason (description).
+    // Clicking opens a modal asking for usable m², machine, stage and a comment
+    // (public/assets/js/broken-glass-form.js); a rejected save keeps it open.
     var _brokenPieceIds = [];
 
     _pieceCtxMenu.querySelectorAll('.item-broken').forEach(function(brokenBtn) {
@@ -2007,13 +2014,17 @@ jQuery(function($) {
         var modalEl = document.getElementById('pieceBrokenModal');
         var descEl = document.getElementById('pieceBrokenDescription');
 
-        // Fall back to a description-less submit if the modal isn't available.
-        if (!modalEl || typeof bootstrap === 'undefined') {
-            submitPieceBroken('');
+        // The details are required, so there is no submit without the dialog.
+        if (!modalEl || typeof bootstrap === 'undefined' || !window.BrokenGlassForm) {
+            alert('გატყდა – ფანჯარა ვერ გაიხსნა. განაახლე გვერდი და სცადე თავიდან.');
             return;
         }
 
-        if (descEl) descEl.value = '';
+        BrokenGlassForm.reset(
+            modalEl.querySelector('[data-broken-glass-fields]'),
+            tag.getAttribute('data-unit-area'),
+            descEl
+        );
 
         if (modalEl.parentElement !== document.body) {
             document.body.appendChild(modalEl);
@@ -2028,7 +2039,8 @@ jQuery(function($) {
             if (backdrops.length) {
                 backdrops[backdrops.length - 1].style.zIndex = '10040';
             }
-            if (descEl) descEl.focus();
+            var usableEl = modalEl.querySelector('[data-bg-usable]');
+            if (usableEl) usableEl.focus();
         }, { once: true });
 
         modal.show();
@@ -2037,26 +2049,34 @@ jQuery(function($) {
     var _pieceBrokenSubmitBtn = document.getElementById('pieceBrokenModalSubmit');
     if (_pieceBrokenSubmitBtn) {
         _pieceBrokenSubmitBtn.addEventListener('click', function() {
+            var modalEl = document.getElementById('pieceBrokenModal');
+            var fieldsEl = modalEl ? modalEl.querySelector('[data-broken-glass-fields]') : null;
             var descEl = document.getElementById('pieceBrokenDescription');
-            submitPieceBroken(descEl ? descEl.value : '');
+            var checked = BrokenGlassForm.collect(fieldsEl, descEl);
+
+            if (checked.error) {
+                BrokenGlassForm.showError(fieldsEl, checked.error);
+                return;
+            }
+
+            submitPieceBroken(checked.fields, fieldsEl);
         });
     }
 
-    function submitPieceBroken(description) {
+    function submitPieceBroken(fields, fieldsEl) {
         if (_brokenPieceIds.length === 0) return;
 
-        var modalEl = document.getElementById('pieceBrokenModal');
-        if (modalEl && typeof bootstrap !== 'undefined') {
-            bootstrap.Modal.getOrCreateInstance(modalEl).hide();
-        }
-
+        var failed = 'გატყდა – მოთხოვნა ვერ შესრულდა. სცადე თავიდან.';
         var token = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') ||
                     document.querySelector('input[name="_token"]')?.value;
 
         var formData = new FormData();
         formData.append('_token', token);
-        formData.append('description', description || '');
+        Object.keys(fields).forEach(function(key) { formData.append(key, fields[key]); });
         _brokenPieceIds.forEach(function(id) { formData.append('piece_ids[]', id); });
+
+        BrokenGlassForm.showError(fieldsEl, '');
+        _pieceBrokenSubmitBtn.disabled = true;
 
         fetch('{{ route("team.pieces.broken-group") }}', {
             method: 'POST',
@@ -2069,10 +2089,20 @@ jQuery(function($) {
         })
         .then(function(res) { return res.json(); })
         .then(function(data) {
-            reloadTeamPageIfStatusUpdated(!!data.success, data.message || 'გატყდა – მოთხოვნა ვერ შესრულდა.');
+            if (data && data.success) {
+                var modalEl = document.getElementById('pieceBrokenModal');
+                if (modalEl) bootstrap.Modal.getOrCreateInstance(modalEl).hide();
+                reloadTeamPageIfStatusUpdated(true);
+                return;
+            }
+            // Keep the dialog open so the worker can fix the field and resend.
+            BrokenGlassForm.showError(fieldsEl, (data && data.message) || failed);
         })
         .catch(function() {
-            reloadTeamPageIfStatusUpdated(false, 'გატყდა – მოთხოვნა ვერ შესრულდა.');
+            BrokenGlassForm.showError(fieldsEl, failed);
+        })
+        .finally(function() {
+            _pieceBrokenSubmitBtn.disabled = false;
         });
     }
 

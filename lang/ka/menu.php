@@ -29,6 +29,7 @@ return [
     'orders' => 'შეკვეთები',
     'pieces' => 'ნაჭრები',
     'stages' => 'ეტაპები',
+    'machines' => 'დანადგარები',
     'payments' => 'გადახდები',
 
     'cashier' => 'სალარო',

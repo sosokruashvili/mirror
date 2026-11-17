@@ -45,6 +45,15 @@ class WarehouseCorrectionCrudController extends CrudController
         CRUD::setEntityNameStrings(__('warehouse.correction.entity'), __('warehouse.correction.entity_plural'));
 
         $this->crud->enableExportButtons();
+
+        // A confirmed broken glass returns its usable m² as a correction. That row
+        // belongs to the break: it is removed by un-confirming the break on the
+        // Broken Glasses page, never edited or deleted here. (ChecksAccess still
+        // denies both outright for users without the permission.)
+        $this->crud->setAccessCondition(
+            ['update', 'delete'],
+            fn ($entry) => $entry === null || $entry->broken_glass_id === null
+        );
     }
 
     /**

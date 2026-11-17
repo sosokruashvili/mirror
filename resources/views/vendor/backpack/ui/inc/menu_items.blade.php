@@ -103,13 +103,16 @@
     <x-backpack::menu-item title="{{ __('menu.orders') }}" icon="la la-cart-plus" :link="backpack_url('order')" />
 @endif
 
-@if($u && ($u->can('piece.list') || $u->can('stage.list')))
+@if($u && ($u->can('piece.list') || $u->can('stage.list') || $u->can('machine.list')))
     <x-backpack::menu-dropdown title="{{ __('menu.pieces') }}" icon="la la-puzzle-piece">
         @if($u->can('piece.list'))
             <x-backpack::menu-dropdown-item title="{{ __('menu.pieces') }}" icon="la la-puzzle-piece" :link="backpack_url('piece')" />
         @endif
         @if($u->can('stage.list'))
             <x-backpack::menu-dropdown-item title="{{ __('menu.stages') }}" icon="la la-layer-group" :link="backpack_url('stage')" />
+        @endif
+        @if($u->can('machine.list'))
+            <x-backpack::menu-dropdown-item title="{{ __('menu.machines') }}" icon="la la-cogs" :link="backpack_url('machine')" />
         @endif
     </x-backpack::menu-dropdown>
 @endif
